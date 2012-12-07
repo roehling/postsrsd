@@ -1,0 +1,85 @@
+#! /bin/sh
+#
+# @PROJECT_NAME@
+#               start/stop the @PROJECT_NAME@ daemon for Postfix
+#
+### BEGIN INIT INFO
+# Provides:          @PROJECT_NAME@
+# Required-Start:    $syslog, $local_fs
+# Required-Stop:     $syslog, $local_fs
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Start/stop the postsrs daemon
+### END INIT INFO
+
+set -e
+
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+DAEMON=@CMAKE_INSTALL_PREFIX@/sbin/@PROJECT_NAME@
+NAME=@PROJECT_NAME@
+DESC="Postfix Sender Rewriting Scheme daemon"
+
+PIDFILE=/var/run/$NAME.pid
+SCRIPTNAME=/etc/init.d/$NAME
+
+# Gracefully exit if the package has been removed.
+test -x $DAEMON || exit 0
+
+. /lib/lsb/init-functions
+
+# Default configuration
+SRS_DOMAIN=`[ ! -r /etc/mailname ] || cat /etc/mailname | cut -d. -f2-`
+SRS_FORWARD_PORT=10001
+SRS_REVERSE_PORT=10002
+SRS_SECRET=/etc/@PROJECT_NAME@.secret
+RUN_AS=nobody
+
+# Read config file if it is present.
+if [ -r /etc/default/$NAME ]
+then
+    . /etc/default/$NAME
+fi
+
+POSTSRS_OPTS="-4 -f$SRS_FORWARD_PORT -r$SRS_REVERSE_PORT -d$SRS_DOMAIN -s$SRS_SECRET -u$RUN_AS -p$PIDFILE -D"
+
+test -r "$SRS_SECRET" || exit 0
+
+ret=0
+case "$1" in
+  start)
+	log_daemon_msg "Starting $DESC" "$NAME"
+	if start-stop-daemon --start --oknodo --quiet \
+		--pidfile $PIDFILE \
+		--name $NAME \
+		--startas $DAEMON -- $POSTSRS_OPTS
+	then
+	    log_end_msg 0
+	else
+	    ret=$?
+	    log_end_msg 1
+	fi
+	;;
+  stop)
+	log_daemon_msg "Stopping $DESC" "$NAME"
+	if start-stop-daemon --stop --oknodo --quiet \
+		--pidfile $PIDFILE --name $NAME
+	then
+	    log_end_msg 0
+	else
+	    ret=$?
+	    log_end_msg 1
+	fi
+        rm -f $PIDFILE
+	;;
+  reload|force-reload|restart)
+	$0 stop
+	$0 start
+	ret=$?
+	;;
+  *)
+	echo "Usage: $SCRIPTNAME {start|stop|restart|reload|force-reload}" >&2
+	exit 1
+	;;
+esac
+
+exit $ret

@@ -1,0 +1,15 @@
+# Default settings for postsrsd
+
+# Local domain name. Addresses are rewritten to originate from this domain
+#SRS_DOMAIN=example.com
+
+# The secret key to sign the addresses is stored in this file
+#SRS_SECRET=/etc/postsrsd.secret
+
+# These ports are used to bind the TCP list for postfix
+#SRS_FORWARD_PORT=10001
+#SRS_REVERSE_PORT=10002
+
+# Drop root privileges and run as this user after initialization.
+RUN_AS=nobody
+
