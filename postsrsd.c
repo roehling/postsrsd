@@ -29,6 +29,7 @@
 #include <string.h>
 #include <poll.h>
 #include <wait.h>
+#include <syslog.h>
 
 #ifndef VERSION
 #define VERSION "1.0"
@@ -148,8 +149,11 @@ static void handle_forward (srs_t *srs, FILE *fp, const char *address, const cha
   if (result == SRS_SUCCESS) {
     output = url_encode(outputbuf, sizeof(outputbuf), value);
     fprintf (fp, "200 %s\n", output);
+    if (strcmp(address, value) != 0) syslog (LOG_MAIL | LOG_INFO, "srs_forward: <%s> rewritten as <%s>", address, value);
   } else {
     fprintf (fp, "500 %s\n", srs_strerror(result));
+    if (result != SRS_ENOTREWRITTEN)
+      syslog (LOG_MAIL | LOG_INFO, "srs_forward: <%s> not rewritten: %s", address, srs_strerror(result));
   }
   fflush (fp);
 }
@@ -163,8 +167,11 @@ static void handle_reverse (srs_t *srs, FILE *fp, const char *address, const cha
   if (result == SRS_SUCCESS) {
     output = url_encode(outputbuf, sizeof(outputbuf), value);
     fprintf (fp, "200 %s\n", output);
+    syslog (LOG_MAIL | LOG_INFO, "srs_reverse: <%s> rewritten as <%s>", address, value); 
   } else {
     fprintf (fp, "500 %s\n", srs_strerror(result));
+    if (result != SRS_ENOTREWRITTEN && result != SRS_ENOTSRSADDRESS)
+      syslog (LOG_MAIL | LOG_INFO, "srs_reverse: <%s> not rewritten: %s", address, srs_strerror(result));
   }
   fflush (fp);
 }
@@ -332,6 +339,7 @@ int main (int argc, char **argv)
     fclose (pf);
   }
 
+  openlog ("postsrsd", LOG_PID, LOG_MAIL);
   srs = srs_new();
   srs_add_secret (srs, secret);
   srs_set_separator (srs, '+');
