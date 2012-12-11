@@ -18,6 +18,11 @@ execute_process(
 	COMMAND ln -sf ../init.d/@PROJECT_NAME@ rc6.d/K20@PROJECT_NAME@
 	WORKING_DIRECTORY "$ENV{DESTDIR}/etc"
 )
+if(NOT EXISTS "$ENV{DESTDIR}/etc/default/@PROJECT_NAME@")
+	file(INSTALL "@CMAKE_CURRENT_SOURCE_DIR@/@PROJECT_NAME@.default" DESTINATION "/etc/default" RENAME "@PROJECT_NAME@")
+else()
+	message(STATUS "Keeping old version: $ENV{DESTDIR}/etc/default/@PROJECT_NAME@")
+endif()
 set(SECRET_FILE "@PROJECT_NAME@.secret")
 set(DD "@DD@")
 set(BASE64 "@BASE64@")

@@ -20,6 +20,5 @@ endif()
 install(TARGETS ${PROJECT_NAME} DESTINATION "sbin")
 install(FILES README.md main.cf.ex DESTINATION "share/doc/${PROJECT_NAME}")
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.init DESTINATION "/etc/init.d" RENAME ${PROJECT_NAME})
-install(FILES ${PROJECT_NAME}.default DESTINATION "/etc/default" RENAME ${PROJECT_NAME})
 install(SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/postinstall.cmake")
 
