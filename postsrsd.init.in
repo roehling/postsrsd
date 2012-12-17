@@ -5,11 +5,11 @@
 #
 ### BEGIN INIT INFO
 # Provides:          @PROJECT_NAME@
-# Required-Start:    $syslog, $local_fs
-# Required-Stop:     $syslog, $local_fs
+# Required-Start:    $syslog $network $local_fs
+# Required-Stop:     $syslog $network $local_fs
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: Start/stop the postsrs daemon
+# Short-Description: Start/stop the @PROJECT_NAME@ daemon
 ### END INIT INFO
 
 set -e
