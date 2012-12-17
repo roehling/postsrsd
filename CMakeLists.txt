@@ -6,6 +6,10 @@ find_program(DD dd DOC "path to dd executable")
 find_program(BASE64 base64 DOC "path to base64 executable")
 
 add_executable(${PROJECT_NAME} postsrsd.c sha1.c srs2.c)
+
+get_target_property(POSTSRSD ${PROJECT_NAME} LOCATION)
+get_filename_component(POSTSRSD ${POSTSRSD} NAME_WE)
+
 configure_file(${PROJECT_NAME}.init.in ${PROJECT_NAME}.init @ONLY)
 configure_file(postinstall.cmake.in postinstall.cmake @ONLY)
 

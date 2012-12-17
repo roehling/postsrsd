@@ -15,7 +15,7 @@
 set -e
 
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
-DAEMON=@CMAKE_INSTALL_PREFIX@/sbin/@PROJECT_NAME@
+DAEMON=@CMAKE_INSTALL_PREFIX@/sbin/@POSTSRSD@
 NAME=@PROJECT_NAME@
 DESC="Postfix Sender Rewriting Scheme daemon"
 
