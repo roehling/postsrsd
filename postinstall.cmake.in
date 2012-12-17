@@ -1,31 +1,24 @@
-message(STATUS "Updating RC: $ENV{DESTDIR}/etc/init.d/@PROJECT_NAME@")
-file(MAKE_DIRECTORY 
-	"$ENV{DESTDIR}/etc/rc0.d" 
-	"$ENV{DESTDIR}/etc/rc1.d" 
-	"$ENV{DESTDIR}/etc/rc2.d" 
-	"$ENV{DESTDIR}/etc/rc3.d" 
-	"$ENV{DESTDIR}/etc/rc4.d" 
-	"$ENV{DESTDIR}/etc/rc5.d" 
-	"$ENV{DESTDIR}/etc/rc6.d" 
-)
-execute_process(
-	COMMAND ln -sf ../init.d/@PROJECT_NAME@ rc0.d/K20@PROJECT_NAME@
-	COMMAND ln -sf ../init.d/@PROJECT_NAME@ rc1.d/K20@PROJECT_NAME@
-	COMMAND ln -sf ../init.d/@PROJECT_NAME@ rc2.d/S20@PROJECT_NAME@
-	COMMAND ln -sf ../init.d/@PROJECT_NAME@ rc3.d/S20@PROJECT_NAME@
-	COMMAND ln -sf ../init.d/@PROJECT_NAME@ rc4.d/S20@PROJECT_NAME@
-	COMMAND ln -sf ../init.d/@PROJECT_NAME@ rc5.d/S20@PROJECT_NAME@
-	COMMAND ln -sf ../init.d/@PROJECT_NAME@ rc6.d/K20@PROJECT_NAME@
-	WORKING_DIRECTORY "$ENV{DESTDIR}/etc"
-)
-if(NOT EXISTS "$ENV{DESTDIR}/etc/default/@PROJECT_NAME@")
-	file(INSTALL "@CMAKE_CURRENT_SOURCE_DIR@/@PROJECT_NAME@.default" DESTINATION "/etc/default" RENAME "@PROJECT_NAME@")
-else()
-	message(STATUS "Keeping old version: $ENV{DESTDIR}/etc/default/@PROJECT_NAME@")
-endif()
+set(INIT_FLAVOR "@INIT_FLAVOR@")
 set(SECRET_FILE "@PROJECT_NAME@.secret")
 set(DD "@DD@")
 set(BASE64 "@BASE64@")
+set(INSSERV "@INSSERV@")
+
+if(INIT_FLAVOR AND NOT EXISTS "$ENV{DESTDIR}/etc/default/@PROJECT_NAME@")
+	file(INSTALL "@CMAKE_CURRENT_SOURCE_DIR@/@PROJECT_NAME@.default" DESTINATION "/etc/default" RENAME "@PROJECT_NAME@")
+endif()
+
+if(INIT_FLAVOR STREQUAL "sysv")
+	file(INSTALL "@CMAKE_CURRENT_BINARY_DIR@/@PROJECT_NAME@.init" TYPE PROGRAM DESTINATION "/etc/init.d" RENAME "@PROJECT_NAME@")
+	if(INSSERV)
+		execute_process(
+			COMMAND ${INSSERV} -p "$ENV{DESTDIR}/etc/init.d" @PROJECT_NAME@
+		)
+	endif()
+elseif(INIT_FLAVOR STREQUAL "upstart")
+	file(INSTALL "@CMAKE_CURRENT_BINARY_DIR@/@PROJECT_NAME@.upstart" DESTINATION "/etc/init" RENAME "@PROJECT_NAME@.conf")
+endif()
+
 if(DD AND BASE64 AND EXISTS "/dev/urandom" AND NOT EXISTS "$ENV{DESTDIR}/etc/${SECRET_FILE}")
 	message(STATUS "Generating secret key")
 	execute_process(
@@ -38,4 +31,3 @@ if(DD AND BASE64 AND EXISTS "/dev/urandom" AND NOT EXISTS "$ENV{DESTDIR}/etc/${S
 file(INSTALL "@CMAKE_CURRENT_BINARY_DIR@/${SECRET_FILE}" DESTINATION "/etc" FILE_PERMISSIONS OWNER_READ OWNER_WRITE)
 file(REMOVE "@CMAKE_CURRENT_BINARY_DIR@/${SECRET_FILE}")
 endif()
-
