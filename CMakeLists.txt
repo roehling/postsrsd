@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8)
 project(postsrsd C)
 
+option(GENERATE_SRS_SECRET "Generate a random SRS secret if none exists during install" ON)
+
 find_program(HELP2MAN help2man DOC "path to help2man executable")
 find_program(DD dd DOC "path to dd executable")
 find_program(BASE64 base64 DOC "path to base64 executable")

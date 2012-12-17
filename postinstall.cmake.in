@@ -1,3 +1,4 @@
+set(GENERATE_SRS_SECRET "@GENERATE_SRS_SECRET@")
 set(INIT_FLAVOR "@INIT_FLAVOR@")
 set(SECRET_FILE "@PROJECT_NAME@.secret")
 set(DD "@DD@")
@@ -19,7 +20,7 @@ elseif(INIT_FLAVOR STREQUAL "upstart")
 	file(INSTALL "@CMAKE_CURRENT_BINARY_DIR@/@PROJECT_NAME@.upstart" DESTINATION "/etc/init" RENAME "@PROJECT_NAME@.conf")
 endif()
 
-if(DD AND BASE64 AND EXISTS "/dev/urandom" AND NOT EXISTS "$ENV{DESTDIR}/etc/${SECRET_FILE}")
+if(GENERATE_SRS_SECRET AND DD AND BASE64 AND EXISTS "/dev/urandom" AND NOT EXISTS "$ENV{DESTDIR}/etc/${SECRET_FILE}")
 	message(STATUS "Generating secret key")
 	execute_process(
 		COMMAND ${DD} if=/dev/urandom bs=18 count=1
