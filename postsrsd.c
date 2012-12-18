@@ -193,6 +193,7 @@ static void show_help ()
     "   -f<port>       set port for the forward SRS lookup (default: 10001)\n"
     "   -r<port>       set port for the reverse SRS lookup (default: 10002)\n"
     "   -p<pidfile>    write process ID to pidfile (default: none)\n"
+    "   -c<dir>        chroot to <dir> (default: none)\n"
     "   -u<user>       switch user id after port bind (default: none)\n"
     "   -t<seconds>    timeout for idle client connections (default: 1800)\n"
     "   -D             fork into background\n"
@@ -212,10 +213,11 @@ int main (int argc, char **argv)
   int opt, timeout = 1800, family = AF_UNSPEC;
   int daemonize = FALSE;
   char *forward_service = NULL, *reverse_service = NULL,
-       *user = NULL, *domain = NULL;
+       *user = NULL, *domain = NULL, *chroot_dir = NULL;
   int forward_sock, reverse_sock;
   char *secret_file = NULL, *pid_file = NULL;
   FILE *pf = NULL;
+  struct passwd *pwd = NULL;
   char secret[1024];
   char *tmp;
   srs_t *srs;
@@ -225,7 +227,7 @@ int main (int argc, char **argv)
   tmp = strrchr(argv[0], '/');
   if (tmp) self = strdup(tmp + 1); else self = strdup(argv[0]);
 
-  while ((opt = getopt(argc, argv, "46d:f:r:s:u:t:p:Dhv")) != -1) {
+  while ((opt = getopt(argc, argv, "46d:f:r:s:u:t:p:c:Dhv")) != -1) {
     switch (opt) {
       case '?':
         return EXIT_FAILURE;
@@ -256,6 +258,9 @@ int main (int argc, char **argv)
       case 'u':
         user = strdup(optarg);
         break;
+      case 'c':
+	chroot_dir = strdup(optarg);
+	break;
       case 'D':
         daemonize = TRUE;
         break;
@@ -267,6 +272,15 @@ int main (int argc, char **argv)
 	return EXIT_SUCCESS;
     }
   }
+  if (domain == NULL) {
+    fprintf (stderr, "%s: You must set a home domain (-d)\n", self);
+    show_help();
+    return EXIT_FAILURE;
+  }
+
+  /* The stuff we do first may not be possible from within chroot or without privileges */
+
+  /* Open pid file for writing (the actual process ID is filled in later) */
   if (pid_file) {
     pf = fopen (pid_file, "w");
     if (pf == NULL) {
@@ -274,11 +288,7 @@ int main (int argc, char **argv)
       return EXIT_FAILURE;
     }
   }
-  if (domain == NULL) {
-    fprintf (stderr, "%s: You must set a home domain (-d)\n", self);
-    show_help();
-    return EXIT_FAILURE;
-  }
+  /* Read secret. The default installation makes this root accessible only. */
   if (secret_file != NULL) {
     size_t len;
     FILE *fp = fopen(secret_file, "rb");
@@ -298,6 +308,7 @@ int main (int argc, char **argv)
     show_help();
     return EXIT_FAILURE;
   }
+  /* Bind ports. May require privileges if the config specifies ports below 1024 */
   if (forward_service != NULL) {
     forward_sock = bind_service(forward_service, family);
     free (forward_service);
@@ -312,8 +323,11 @@ int main (int argc, char **argv)
     reverse_sock = bind_service("10002", family);
   }
   if (reverse_sock < 0) return EXIT_FAILURE;
+
+  /* Open syslog now (NDELAY), because it may no longer reachable from chroot */
+  openlog (self, LOG_PID | LOG_NDELAY, LOG_MAIL);
+  /* We also have to lookup the uid of the unprivileged user for the same reason. */
   if (user) {
-    struct passwd *pwd;
     errno = 0;
     pwd = getpwnam(user);
     if (pwd == NULL) {
@@ -323,23 +337,38 @@ int main (int argc, char **argv)
         fprintf (stderr, "%s: No such user: %s\n", self, user);
       return EXIT_FAILURE;
     }
+  }
+  /* Now we can chroot, which again requires root privileges */
+  if (chroot_dir) {
+    if (chdir(chroot_dir) < 0) {
+      fprintf (stderr, "%s: Cannot change to chroot: %s\n", self, strerror(errno));
+      return EXIT_FAILURE;
+    }
+    if (chroot(chroot_dir) < 0) {
+      fprintf (stderr, "%s: Failed to enable chroot: %s\n", self, strerror(errno));
+      return EXIT_FAILURE;
+    }
+  }
+  /* Finally, we revert to the unprivileged user */
+  if (pwd) {
     if (setuid(pwd->pw_uid) < 0) {
       fprintf (stderr, "%s: Failed to switch user id: %s\n", self, strerror(errno));
       return EXIT_FAILURE;
     }
   }
+  /* Standard double fork technique to disavow all knowledge about the controlling terminal */
   if (daemonize) {
     close(0); close(1); close(2);
     if (fork() != 0) return EXIT_SUCCESS;
     setsid();
     if (fork() != 0) return EXIT_SUCCESS;
   }
+  /* Make note of our actual process ID */
   if (pf) {
     fprintf (pf, "%d", (int)getpid());
     fclose (pf);
   }
 
-  openlog ("postsrsd", LOG_PID, LOG_MAIL);
   srs = srs_new();
   srs_add_secret (srs, secret);
   srs_set_separator (srs, '+');
@@ -356,7 +385,10 @@ int main (int argc, char **argv)
     char keybuf[1024], *key;
 
     if (poll(fds, 2, 1000) < 0) {
-      if (!daemonize) fprintf (stderr, "%s: Poll failure: %s\n", self, strerror(errno));
+      if (daemonize)
+        syslog (LOG_MAIL | LOG_ERR, "Poll failure: %s", strerror(errno));
+      else
+        fprintf (stderr, "%s: Poll failure: %s\n", self, strerror(errno));
       return EXIT_FAILURE;
     }
     for (i = 0; i < 2; ++i) {

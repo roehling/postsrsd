@@ -3,6 +3,8 @@ project(postsrsd C)
 
 option(GENERATE_SRS_SECRET "Generate a random SRS secret if none exists during install" ON)
 
+set(CHROOT_DIR "${CMAKE_INSTALL_PREFIX}/lib/${PROJECT_NAME}" CACHE PATH "Chroot jail for daemon")
+
 find_program(HELP2MAN help2man DOC "path to help2man executable")
 find_program(DD dd DOC "path to dd executable")
 find_program(BASE64 base64 DOC "path to base64 executable")
