@@ -1,0 +1,12 @@
+#include <tunables/global>
+
+/usr/sbin/postsrsd {
+  #include <abstractions/base>
+  #include <abstractions/nameservice>
+
+  capability setuid,
+  capability sys_chroot,
+  /etc/postsrsd.secret r,
+  @CMAKE_INSTALL_PREFIX@/sbin/@POSTSRSD@ mr,
+}
+
