@@ -33,7 +33,7 @@ configure_file(postinstall.cmake.in postinstall.cmake @ONLY)
 
 if(HELP2MAN)
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-	COMMAND ${HELP2MAN} ARGS -s8 -o${PROJECT_NAME}.8 -N -h-h -v-v ${CMAKE_CURRENT_BINARY_DIR}/${POSTSRSD}
+	COMMAND ${HELP2MAN} ARGS -s8 -o${PROJECT_NAME}.8 -n "Postfix Sender Rewriting Scheme daemon" -N -h-h -v-v ${CMAKE_CURRENT_BINARY_DIR}/${POSTSRSD}
 	VERBATIM
 )
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.8 DESTINATION "share/man/man8")
