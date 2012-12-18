@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 2.4)
 project(postsrsd C)
 
 option(GENERATE_SRS_SECRET "Generate a random SRS secret if none exists during install" ON)
