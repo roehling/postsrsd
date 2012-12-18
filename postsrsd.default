@@ -1,15 +1,28 @@
 # Default settings for postsrsd
 
-# Local domain name. Addresses are rewritten to originate from this domain
+# Local domain name. 
+# Addresses are rewritten to originate from this domain. The default value 
+# is taken from `postconf -h mydomain` and probably okay.
+#
 #SRS_DOMAIN=example.com
 
-# The secret key to sign the addresses is stored in this file
+# Secret key to sign rewritten addresses.
+# When postsrsd is installed for the first time, a random secret is generated
+# and stored in /etc/postsrsd.secret. For most installations, that's just fine.
+#
 #SRS_SECRET=/etc/postsrsd.secret
 
-# These ports are used to bind the TCP list for postfix
+# Local ports for TCP list.
+# These ports are used to bind the TCP list for postfix. If you change
+# these, you have to modify the postfix settings accordingly. The ports
+# are bound to the loopback interface, and should never be exposed on
+# the internet.
+#
 #SRS_FORWARD_PORT=10001
 #SRS_REVERSE_PORT=10002
 
-# Drop root privileges and run as this user after initialization.
+# Drop root privileges and run as another user after initialization. 
+# This is highly recommended as postsrsd handles untrusted input.
+#
 RUN_AS=nobody
 
