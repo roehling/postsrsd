@@ -30,7 +30,7 @@ add_executable(${PROJECT_NAME} postsrsd.c sha1.c srs2.c)
 get_target_property(POSTSRSD ${PROJECT_NAME} LOCATION)
 get_filename_component(POSTSRSD ${POSTSRSD} NAME_WE)
 set(APPARMOR_PROFILE "${CMAKE_INSTALL_PREFIX}/sbin/${POSTSRSD}")
-string(SUBSTRING "${APPARMOR_PROFILE}" 1 -1 APPARMOR_PROFILE)
+string(REGEX REPLACE "^/+" "" APPARMOR_PROFILE "${APPARMOR_PROFILE}")
 string(REPLACE "/" "." APPARMOR_PROFILE "${APPARMOR_PROFILE}")
 
 configure_file(${PROJECT_NAME}.init.in ${PROJECT_NAME}.init @ONLY)
