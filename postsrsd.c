@@ -189,7 +189,7 @@ static void show_help ()
     "\n"
     "Usage: %s -s<file> -d<domain> [other options]\n"
     "Options:\n"
-    "   -s<file>       read secret from file (required)\n"
+    "   -s<file>       read secrets from file (required)\n"
     "   -d<domain>     set domain name for rewrite (required)\n"
     "   -f<port>       set port for the forward SRS lookup (default: 10001)\n"
     "   -r<port>       set port for the reverse SRS lookup (default: 10002)\n"
@@ -217,9 +217,9 @@ int main (int argc, char **argv)
        *user = NULL, *domain = NULL, *chroot_dir = NULL;
   int forward_sock, reverse_sock;
   char *secret_file = NULL, *pid_file = NULL;
-  FILE *pf = NULL;
+  FILE *pf = NULL, *sf = NULL;
   struct passwd *pwd = NULL;
-  char secret[1024];
+  char secretbuf[1024], *secret = NULL;
   char *tmp;
   srs_t *srs;
   struct pollfd fds[3];
@@ -292,18 +292,11 @@ int main (int argc, char **argv)
   /* Read secret. The default installation makes this root accessible only. */
   if (secret_file != NULL) {
     size_t len;
-    FILE *fp = fopen(secret_file, "rb");
-    if (fp == NULL) {
+    sf = fopen(secret_file, "rb");
+    if (sf == NULL) {
       fprintf (stderr, "%s: Cannot open file with secret: %s\n", self, secret_file);
       return EXIT_FAILURE;
     }
-    len = fread(secret, 1, sizeof(secret) - 1, fp);
-    if (len == 0 || len > sizeof(secret) - 1) {
-      fprintf (stderr, "%s: Cannot read secret from file: %s\n", self, secret_file);
-      return EXIT_FAILURE;
-    }
-    secret[len] = 0;
-    fclose (fp);
   } else {
     fprintf (stderr, "%s: You must set a secret (-s)\n", self);
     show_help();
@@ -371,7 +364,12 @@ int main (int argc, char **argv)
   }
 
   srs = srs_new();
-  srs_add_secret (srs, secret);
+  while ((secret = fgets(secretbuf, sizeof(secretbuf), sf))) {
+    secret = strtok(secret, "\r\n");
+    if (secret)
+      srs_add_secret (srs, secret);
+  }
+  fclose (sf);
   srs_set_separator (srs, '+');
 
   fds[0].fd = forward_sock;

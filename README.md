@@ -33,10 +33,12 @@ files.
 
 Configuration
 =============
-The configuration is located in `/etc/default/postsrsd`. You must store 
-a secret key in `/etc/postsrsd.secret`. The installer tries to generate 
+The configuration is located in `/etc/default/postsrsd`. You must store
+at least one secret key in `/etc/postsrsd.secret`. The installer tries to generate
 one from `/dev/urandom`. Be careful that no one can guess your secret,
 because anyone who knows it can use your mail server as open relay!
+Each line of `/etc/postsrsd.secret` is used as secret. The first secret is
+used for signing and verification, the others for verification only.
 
 PostSRSd exposes its functionality via two TCP lookup tables. The
 recommended Postfix configuration is to add the following fragment to
