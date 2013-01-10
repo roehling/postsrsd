@@ -260,17 +260,17 @@ int main (int argc, char **argv)
         user = strdup(optarg);
         break;
       case 'c':
-	chroot_dir = strdup(optarg);
-	break;
+        chroot_dir = strdup(optarg);
+        break;
       case 'D':
         daemonize = TRUE;
         break;
       case 'h':
-	show_help();
+        show_help();
         return EXIT_SUCCESS;
       case 'v':
-	fprintf (stdout, "%s\n", VERSION);
-	return EXIT_SUCCESS;
+        fprintf (stdout, "%s\n", VERSION);
+        return EXIT_SUCCESS;
     }
   }
   if (domain == NULL) {
