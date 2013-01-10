@@ -140,12 +140,24 @@ static char* url_encode (char* buf, size_t len, const char *input)
   return buf;
 }
 
-static void handle_forward (srs_t *srs, FILE *fp, const char *address, const char *domain)
+static void handle_forward (srs_t *srs, FILE *fp, const char *address, const char *domain, const char **excludes)
 {
   int result;
+  size_t addrlen;
   char value[1024];
   char outputbuf[1024], *output;
 
+  addrlen = strlen(address);
+  for(; *excludes; excludes++) {
+    size_t len;
+    len = strlen(*excludes);
+    if (len >= addrlen) continue;
+    if (strcasecmp(*excludes, &address[addrlen - len]) == 0 && (**excludes == '.' || address[addrlen - len - 1] == '@')) {
+      fputs ("500 Domain excluded from SRS\n", fp);
+      fflush (fp);
+      return;
+    }
+  }
   result = srs_forward(srs, value, sizeof(value), address, domain);
   if (result == SRS_SUCCESS) {
     output = url_encode(outputbuf, sizeof(outputbuf), value);
@@ -159,7 +171,7 @@ static void handle_forward (srs_t *srs, FILE *fp, const char *address, const cha
   fflush (fp);
 }
 
-static void handle_reverse (srs_t *srs, FILE *fp, const char *address, const char *domain)
+static void handle_reverse (srs_t *srs, FILE *fp, const char *address, const char *domain, const char **excludes)
 {
   int result;
   char value[1024];
@@ -197,6 +209,7 @@ static void show_help ()
     "   -c<dir>        chroot to <dir> (default: none)\n"
     "   -u<user>       switch user id after port bind (default: none)\n"
     "   -t<seconds>    timeout for idle client connections (default: 1800)\n"
+    "   -X<domain>     exclude additional domain from address rewriting\n"
     "   -D             fork into background\n"
     "   -4             force IPv4 socket (default: any)\n"
     "   -6             force IPv6 socket (default: any)\n"
@@ -207,7 +220,7 @@ static void show_help ()
   );
 }
 
-typedef void(*handle_t)(srs_t*, FILE*, const char*, const char*);
+typedef void(*handle_t)(srs_t*, FILE*, const char*, const char*, const char**);
 
 int main (int argc, char **argv)
 {
@@ -223,12 +236,15 @@ int main (int argc, char **argv)
   char *tmp;
   srs_t *srs;
   struct pollfd fds[3];
+  const char **excludes;
+  size_t s1 = 0, s2 = 1;
   handle_t handler[2] = { handle_forward, handle_reverse };
 
+  excludes = (const char**)calloc(1, sizeof(char*));
   tmp = strrchr(argv[0], '/');
   if (tmp) self = strdup(tmp + 1); else self = strdup(argv[0]);
 
-  while ((opt = getopt(argc, argv, "46d:f:r:s:u:t:p:c:Dhv")) != -1) {
+  while ((opt = getopt(argc, argv, "46d:f:r:s:u:t:p:c:X::Dhv")) != -1) {
     switch (opt) {
       case '?':
         return EXIT_FAILURE;
@@ -268,6 +284,24 @@ int main (int argc, char **argv)
       case 'h':
         show_help();
         return EXIT_SUCCESS;
+      case 'X':
+        if (optarg != NULL) {
+          tmp = strtok(optarg, ",; \t\r\n");
+          while (tmp) {
+            if (s1 + 1 >= s2) {
+              s2 *= 2;
+              excludes = (const char **)realloc(excludes, s2 * sizeof(char*));
+              if (excludes == NULL) {
+                fprintf (stderr, "%s: Out of memory\n\n", self);
+                return EXIT_FAILURE;
+              }
+            }
+            excludes[s1++] = strdup(tmp);
+            tmp = strtok(NULL, ",; \t\r\n");
+          }
+          excludes[s1] = NULL;
+        }
+        break;
       case 'v':
         fprintf (stdout, "%s\n", VERSION);
         return EXIT_SUCCESS;
@@ -415,7 +449,7 @@ int main (int argc, char **argv)
             }
             key = url_decode(keybuf, sizeof(keybuf), token);
             if (!key) break;
-            handler[i](srs, fp, key, domain);
+            handler[i](srs, fp, key, domain, excludes);
             if (poll(&fds[2], 1, timeout * 1000) <= 0) break;
             line = fgets(linebuf, sizeof(linebuf), fp);
           }

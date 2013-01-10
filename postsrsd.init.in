@@ -51,7 +51,7 @@ case "$1" in
 		--pidfile $PIDFILE \
 		--name $NAME \
 		--startas $DAEMON \
-		-- -4 -f"$SRS_FORWARD_PORT" -r"$SRS_REVERSE_PORT" -d"$SRS_DOMAIN" -s"$SRS_SECRET" -u"$RUN_AS" -p"$PIDFILE" -c"$CHROOT" -D
+		-- -4 -f"$SRS_FORWARD_PORT" -r"$SRS_REVERSE_PORT" -d"$SRS_DOMAIN" -s"$SRS_SECRET" -u"$RUN_AS" -p"$PIDFILE" -c"$CHROOT" -X"$SRS_EXCLUDE_DOMAINS" -D
 	then
 	    log_end_msg 0
 	else

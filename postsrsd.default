@@ -6,6 +6,13 @@
 #
 #SRS_DOMAIN=example.com
 
+# Exclude additional domains.
+# You may list domains which shall not be subjected to address rewriting.
+# If a domain name starts with a dot, it matches all subdomains, but not
+# the domain itself. Separate multiple domains by space or comma.
+#
+#SRS_EXCLUDE_DOMAINS=.example.com,example.org
+
 # Secret key to sign rewritten addresses.
 # When postsrsd is installed for the first time, a random secret is generated
 # and stored in /etc/postsrsd.secret. For most installations, that's just fine.
