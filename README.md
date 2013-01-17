@@ -47,7 +47,7 @@ your main.cf:
     sender_canonical_maps = tcp:127.0.0.1:10001
     sender_canonical_classes = envelope_sender
     recipient_canonical_maps = tcp:127.0.0.1:10002
-    recipient_canonical_maps = envelope_recipient
+    recipient_canonical_classes= envelope_recipient
 
 This will transparently rewrite incoming and outgoing envelope addresses.
 Run `service postsrsd start` and `postfix reload` as root, or reboot.
