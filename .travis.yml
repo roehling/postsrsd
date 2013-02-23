@@ -1,0 +1,5 @@
+language: c
+compiler:
+  - gcc
+script: cmake -DGENERATE_SRS_SECRET=OFF && make
+
