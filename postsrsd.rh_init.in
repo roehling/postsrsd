@@ -13,11 +13,12 @@ set -e
 
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
 DAEMON=@CMAKE_INSTALL_PREFIX@/sbin/@POSTSRSD@
-prog=@PROJECT_NAME@
+NAME=@PROJECT_NAME@
+prog=@POSTSRSD@
 DESC="Postfix Sender Rewriting Scheme daemon"
 
-PIDFILE=/var/run/$prog.pid
-SCRIPTNAME=/etc/init.d/$prog
+PIDFILE=/var/run/$NAME.pid
+SCRIPTNAME=/etc/init.d/$NAME
 
 # Gracefully exit if the package has been removed.
 test -x $DAEMON || exit 0
@@ -33,9 +34,9 @@ RUN_AS=nobody
 CHROOT=@CHROOT_DIR@
 
 # Read config file if it is present.
-if [ -r /etc/default/$prog ]
+if [ -r /etc/default/$NAME ]
 then
-    . /etc/default/$prog
+    . /etc/default/$NAME
 fi
 
 test -r "$SRS_SECRET" -a -n "$SRS_DOMAIN" || exit 0
@@ -43,11 +44,11 @@ test -r "$SRS_SECRET" -a -n "$SRS_DOMAIN" || exit 0
 do_start()
 {
 	echo -n "Starting $DESC: "
-	daemon $prog -4 -f"$SRS_FORWARD_PORT" -r"$SRS_REVERSE_PORT" -d"$SRS_DOMAIN" -s"$SRS_SECRET" \
-	             -u"$RUN_AS" -p"$PIDFILE" -c"$CHROOT" -X"$SRS_EXCLUDE_DOMAINS" -D
+	daemon $DAEMON -4 -f"$SRS_FORWARD_PORT" -r"$SRS_REVERSE_PORT" -d"$SRS_DOMAIN" -s"$SRS_SECRET" \
+	               -u"$RUN_AS" -p"$PIDFILE" -c"$CHROOT" -X"$SRS_EXCLUDE_DOMAINS" -D
 	RETVAL=$?
 	echo
-    	[ $RETVAL -eq 0 ] && touch /var/lock/subsys/$prog
+    	[ $RETVAL -eq 0 ] && touch /var/lock/subsys/$NAME
     	return $RETVAL
 }
 
@@ -57,7 +58,7 @@ do_stop()
 	killproc $prog
         RETVAL=$?
         echo
-        [ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/$prog
+        [ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/$NAME
         return $RETVAL
 }
 
@@ -69,7 +70,7 @@ case "$1" in
 	do_stop
 	;;
   status)
-	status $prog
+	status $NAME
 	;;
   restart|force-reload)
 	do_stop
@@ -78,13 +79,13 @@ case "$1" in
   reload)
 	;;
   condrestart|try-restart)
-	if [ -f /var/lock/subsys/$prog ]; then
+	if [ -f /var/lock/subsys/$NAME ]; then
 		do_stop
 		do_start
 	fi
 	;;
   *)
-	echo "Usage: $prog {start|stop|restart|condrestart|try-restart|reload|force-reload|status|usage}"
+	echo "Usage: $NAME {start|stop|restart|condrestart|try-restart|reload|force-reload|status|usage}"
 	[ "$1" = "usage" ] && exit 0
 	exit 2
 	;;
