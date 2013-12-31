@@ -9,8 +9,6 @@
 # pidfile: /var/run/@PROJECT_NAME@.pid
 # config: /etc/default/@PROJECT_NAME@
 
-set -e
-
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
 DAEMON=@CMAKE_INSTALL_PREFIX@/sbin/@POSTSRSD@
 NAME=@PROJECT_NAME@
