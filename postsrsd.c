@@ -309,7 +309,6 @@ int main (int argc, char **argv)
   }
   if (domain == NULL) {
     fprintf (stderr, "%s: You must set a home domain (-d)\n", self);
-    show_help();
     return EXIT_FAILURE;
   }
 
@@ -333,7 +332,6 @@ int main (int argc, char **argv)
     }
   } else {
     fprintf (stderr, "%s: You must set a secret (-s)\n", self);
-    show_help();
     return EXIT_FAILURE;
   }
   /* Bind ports. May require privileges if the config specifies ports below 1024 */
