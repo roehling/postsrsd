@@ -307,6 +307,10 @@ int main (int argc, char **argv)
         return EXIT_SUCCESS;
     }
   }
+  if (optind < argc) {
+    fprintf (stderr, "%s: extra argument on command line: %s\n", self, argv[optind]);
+    return EXIT_FAILURE;
+  }
   if (domain == NULL) {
     fprintf (stderr, "%s: You must set a home domain (-d)\n", self);
     return EXIT_FAILURE;
