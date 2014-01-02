@@ -5,7 +5,7 @@ start on (filesystem and net-device-up)
 stop on runlevel [!2345]
 respawn
 
-env DEFAULTFILE=/etc/default/@PROJECT_NAME@
+env DEFAULTFILE=@CONFIG_DIR@/@PROJECT_NAME@
 
 script
 	SRS_DOMAIN=`postconf -h mydomain || true`

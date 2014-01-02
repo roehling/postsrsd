@@ -7,7 +7,7 @@
 # description: Sender Rewriting Scheme (SRS) for Postfix.
 # processname: @POSTSRSD@
 # pidfile: /var/run/@PROJECT_NAME@.pid
-# config: /etc/default/@PROJECT_NAME@
+# config: @CONFIG_DIR@/@PROJECT_NAME@
 
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
 DAEMON=@CMAKE_INSTALL_PREFIX@/sbin/@POSTSRSD@
@@ -32,9 +32,9 @@ RUN_AS=nobody
 CHROOT=@CHROOT_DIR@
 
 # Read config file if it is present.
-if [ -r /etc/default/$NAME ]
+if [ -r @CONFIG_DIR@/$NAME ]
 then
-    . /etc/default/$NAME
+    . @CONFIG_DIR@/$NAME
 fi
 
 test -r "$SRS_SECRET" -a -n "$SRS_DOMAIN" || exit 0

@@ -36,9 +36,9 @@ RUN_AS=nobody
 CHROOT=@CHROOT_DIR@
 
 # Read config file if it is present.
-if [ -r /etc/default/$NAME ]
+if [ -r @CONFIG_DIR@/$NAME ]
 then
-    . /etc/default/$NAME
+    . @CONFIG_DIR@/$NAME
 fi
 
 test -r "$SRS_SECRET" -a -n "$SRS_DOMAIN" || exit 0

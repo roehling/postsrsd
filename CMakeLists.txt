@@ -5,6 +5,7 @@ option(GENERATE_SRS_SECRET "Generate a random SRS secret if none exists during i
 option(USE_APPARMOR "Enable AppArmor profile" OFF)
 
 set(CHROOT_DIR "${CMAKE_INSTALL_PREFIX}/lib/${PROJECT_NAME}" CACHE PATH "Chroot jail for daemon")
+set(CONFIG_DIR "/etc/default" CACHE PATH "Location of configuration file")
 
 find_program(HELP2MAN help2man DOC "path to help2man executable")
 find_program(DD dd DOC "path to dd executable")
