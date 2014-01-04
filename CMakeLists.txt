@@ -6,6 +6,7 @@ option(USE_APPARMOR "Enable AppArmor profile" OFF)
 
 set(CHROOT_DIR "${CMAKE_INSTALL_PREFIX}/lib/${PROJECT_NAME}" CACHE PATH "Chroot jail for daemon")
 set(CONFIG_DIR "/etc/default" CACHE PATH "Location of configuration file")
+set(DOC_DIR "share/doc/${PROJECT_NAME}" CACHE PATH "Path for documentation files")
 
 find_program(HELP2MAN help2man DOC "path to help2man executable")
 find_program(DD dd DOC "path to dd executable")
@@ -57,6 +58,6 @@ if(USE_APPARMOR)
 endif()
 
 install(TARGETS ${PROJECT_NAME} DESTINATION "sbin")
-install(FILES README.md main.cf.ex DESTINATION "share/doc/${PROJECT_NAME}")
+install(FILES README.md main.cf.ex DESTINATION "${DOC_DIR}")
 install(SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/postinstall.cmake")
 
