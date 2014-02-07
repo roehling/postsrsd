@@ -5,7 +5,8 @@ option(GENERATE_SRS_SECRET "Generate a random SRS secret if none exists during i
 option(USE_APPARMOR "Enable AppArmor profile" OFF)
 
 set(CHROOT_DIR "${CMAKE_INSTALL_PREFIX}/lib/${PROJECT_NAME}" CACHE PATH "Chroot jail for daemon")
-set(CONFIG_DIR "/etc/default" CACHE PATH "Location of configuration file")
+set(SYSCONF_DIR "/etc" CACHE PATH "Global system configuration folder")
+set(CONFIG_DIR "${SYSCONF_DIR}/default" CACHE PATH "Location of startup configuration file")
 set(DOC_DIR "share/doc/${PROJECT_NAME}" CACHE PATH "Path for documentation files")
 
 find_program(HELP2MAN help2man DOC "path to help2man executable")
@@ -15,13 +16,13 @@ find_program(INSSERV insserv DOC "path to insserv executable")
 find_program(CHKCONFIG chkconfig DOC "path to chkconfig executable")
 
 if(NOT DEFINED INIT_FLAVOR)
-    if(IS_DIRECTORY "/etc/init" AND EXISTS "/lib/init/upstart-job")
+    if(IS_DIRECTORY "${SYSCONF_DIR}/init" AND EXISTS "/lib/init/upstart-job")
         message(STATUS "Detected init flavor: upstart")
         set(INIT_FLAVOR "upstart" CACHE STRING "Init daemon of this system")
-    elseif(IS_DIRECTORY "/etc/init.d" AND EXISTS "/lib/lsb/init-functions")
+    elseif(IS_DIRECTORY "${SYSCONF_DIR}/init.d" AND EXISTS "/lib/lsb/init-functions")
         message(STATUS "Detected init flavor: sysv-lsb")
         set(INIT_FLAVOR "sysv-lsb" CACHE STRING "Init daemon of this system")
-    elseif(IS_DIRECTORY "/etc/init.d" AND EXISTS "/etc/init.d/functions")
+    elseif(IS_DIRECTORY "${SYSCONF_DIR}/init.d" AND EXISTS "${SYSCONF_DIR}/init.d/functions")
         message(STATUS "Detected init flavor: sysv-redhat")
         set(INIT_FLAVOR "sysv-redhat" CACHE STRING "Init daemon of this system")
     else()
@@ -54,7 +55,7 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.8 DESTINATION "share/m
 endif()
 
 if(USE_APPARMOR)
-	install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.apparmor DESTINATION "/etc/apparmor.d" RENAME "${APPARMOR_PROFILE}")
+	install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.apparmor DESTINATION "${SYSCONF_DIR}/apparmor.d" RENAME "${APPARMOR_PROFILE}")
 endif()
 
 install(TARGETS ${PROJECT_NAME} DESTINATION "sbin")

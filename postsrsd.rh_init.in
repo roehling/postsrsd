@@ -16,18 +16,18 @@ prog=@POSTSRSD@
 DESC="Postfix Sender Rewriting Scheme daemon"
 
 PIDFILE=/var/run/$NAME.pid
-SCRIPTNAME=/etc/init.d/$NAME
+SCRIPTNAME=@SYSCONF_DIR@/init.d/$NAME
 
 # Gracefully exit if the package has been removed.
 test -x $DAEMON || exit 0
 
-. /etc/init.d/functions
+. @SYSCONF_DIR@/init.d/functions
 
 # Default configuration
 SRS_DOMAIN=`postconf -h mydomain || true`
 SRS_FORWARD_PORT=10001
 SRS_REVERSE_PORT=10002
-SRS_SECRET=/etc/@PROJECT_NAME@.secret
+SRS_SECRET=@SYSCONF_DIR@/@PROJECT_NAME@.secret
 RUN_AS=nobody
 CHROOT=@CHROOT_DIR@
 
