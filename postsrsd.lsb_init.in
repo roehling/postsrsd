@@ -76,8 +76,21 @@ case "$1" in
 	$0 start
 	ret=$?
 	;;
+  status)
+        log_daemon_msg "postsrsd is running"
+        if [ -s $PIDFILE ]; then
+            PID=`cat $PIDFILE`
+            if kill -0 "$PID" 2>/dev/null; then
+                log_end_msg 0
+            else
+                log_end_msg 1
+            fi
+        else
+            log_end_msg 1
+        fi
+        ;;
   *)
-	echo "Usage: $SCRIPTNAME {start|stop|restart|reload|force-reload}" >&2
+	echo "Usage: $SCRIPTNAME {start|stop|restart|reload|force-reload|status}" >&2
 	exit 1
 	;;
 esac
