@@ -431,6 +431,10 @@ int main (int argc, char **argv)
         conn = accept(fds[i].fd, NULL, NULL);
         if (conn < 0) continue;
         if (fork() == 0) {
+          // close listen sockets so that we don't stop the main daemon process from restarting
+          close(forward_sock);
+          close(reverse_sock);
+
           fp = fdopen(conn, "r+");
           if (fp == NULL) exit(EXIT_FAILURE);
           fds[2].fd = conn;
