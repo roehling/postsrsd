@@ -420,6 +420,8 @@ int main (int argc, char **argv)
     char keybuf[1024], *key;
 
     if (poll(fds, 2, 1000) < 0) {
+      if (errno == EINTR)
+        continue;
       if (daemonize)
         syslog (LOG_MAIL | LOG_ERR, "Poll failure: %s", strerror(errno));
       else
