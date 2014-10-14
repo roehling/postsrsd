@@ -28,7 +28,11 @@
 #include <pwd.h>
 #include <string.h>
 #include <poll.h>
-#include <wait.h>
+#ifdef __APPLE__
+    #include <sys/wait.h>
+#else
+    #include <wait.h>
+#endif
 #include <syslog.h>
 
 #ifndef VERSION

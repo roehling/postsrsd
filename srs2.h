@@ -20,6 +20,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#ifdef __APPLE__
+    #include <sys/types.h>
+#endif
+
 
 #ifndef __BEGIN_DECLS
 #define __BEGIN_DECLS
