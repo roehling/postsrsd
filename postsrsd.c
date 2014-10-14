@@ -234,6 +234,7 @@ int main (int argc, char **argv)
   struct passwd *pwd = NULL;
   char secretbuf[1024], *secret = NULL;
   char *tmp;
+  time_t now;
   srs_t *srs;
   struct pollfd fds[3];
   const char **excludes;
@@ -356,6 +357,9 @@ int main (int argc, char **argv)
 
   /* Open syslog now (NDELAY), because it may no longer reachable from chroot */
   openlog (self, LOG_PID | LOG_NDELAY, LOG_MAIL);
+  /* Force loading of timezone info (suggested by patrickdk77) */
+  now = time(NULL);
+  localtime (&now);
   /* We also have to lookup the uid of the unprivileged user for the same reason. */
   if (user) {
     errno = 0;
