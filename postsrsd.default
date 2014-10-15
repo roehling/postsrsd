@@ -31,5 +31,5 @@
 # Drop root privileges and run as another user after initialization. 
 # This is highly recommended as postsrsd handles untrusted input.
 #
-RUN_AS=nobody
+#SRS_RUN_AS=nobody
 
