@@ -459,21 +459,25 @@ int main (int argc, char **argv)
           if (poll(&fds[2], 1, timeout * 1000) <= 0) return EXIT_FAILURE;
           line = fgets(linebuf, sizeof(linebuf), fp);
           while (line) {
+            fseek (fp, 0, SEEK_CUR); /* Workaround for Solaris */
             char* token;
             token = strtok(line, " \r\n");
             if (token == NULL || strcmp(token, "get") != 0) {
               fprintf (fp, "500 Invalid request\n");
+              fflush (fp);
               return EXIT_FAILURE;
             }
             token = strtok(NULL, "\r\n");
             if (!token) {
               fprintf (fp, "500 Invalid request\n");
+              fflush (fp);
               return EXIT_FAILURE;
             }
             key = url_decode(keybuf, sizeof(keybuf), token);
             if (!key) break;
             handler[i](srs, fp, key, domain, excludes);
             if (poll(&fds[2], 1, timeout * 1000) <= 0) break;
+            fflush (fp);
             line = fgets(linebuf, sizeof(linebuf), fp);
           }
           fclose (fp);
