@@ -191,7 +191,7 @@ static void handle_reverse (srs_t *srs, FILE *fp, const char *address, const cha
   if (result == SRS_SUCCESS) {
     output = url_encode(outputbuf, sizeof(outputbuf), value);
     fprintf (fp, "200 %s\n", output);
-    syslog (LOG_MAIL | LOG_INFO, "srs_reverse: <%s> rewritten as <%s>", address, value); 
+    syslog (LOG_MAIL | LOG_INFO, "srs_reverse: <%s> rewritten as <%s>", address, value);
   } else {
     fprintf (fp, "500 %s\n", srs_strerror(result));
     if (result != SRS_ENOTREWRITTEN && result != SRS_ENOTSRSADDRESS)
