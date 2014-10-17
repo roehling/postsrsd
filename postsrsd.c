@@ -28,10 +28,17 @@
 #include <pwd.h>
 #include <string.h>
 #include <poll.h>
-#ifdef __APPLE__
-    #include <sys/wait.h>
-#else
-    #include <wait.h>
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#ifdef HAVE_TIME_H
+#include <time.h>
+#endif
+#ifdef HAVE_SYS_WAIT_H
+#include <sys/wait.h>
+#endif
+#ifdef HAVE_WAIT_H
+#include <wait.h>
 #endif
 #include <syslog.h>
 
