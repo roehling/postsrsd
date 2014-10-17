@@ -16,7 +16,7 @@ find_program(INSSERV insserv DOC "path to insserv executable")
 find_program(CHKCONFIG chkconfig DOC "path to chkconfig executable")
 
 if(NOT DEFINED INIT_FLAVOR)
-	if(IS_DIRECTORY "${SYSCONF_DIR}/systemd" AND EXISTS "/usr/lib/systemd/systemd")
+	if(IS_DIRECTORY "${SYSCONF_DIR}/systemd" AND EXISTS "/lib/systemd/systemd")
         message(STATUS "Detected init flavor: systemd")
         set(INIT_FLAVOR "systemd" CACHE STRING "Init daemon of this system")
     elseif(IS_DIRECTORY "${SYSCONF_DIR}/init" AND EXISTS "/lib/init/upstart-job")
