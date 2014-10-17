@@ -55,7 +55,7 @@ static srs_malloc_t		srs_f_malloc	= malloc;
 static srs_realloc_t	srs_f_realloc	= realloc;
 static srs_free_t		srs_f_free		= free;
 
-int		
+int
 srs_set_malloc(srs_malloc_t m, srs_realloc_t r, srs_free_t f)
 {
 	srs_f_malloc = m;
@@ -145,7 +145,7 @@ srs_free(srs_t *srs)
 	for (i = 0; i < srs->numsecrets; i++) {
 		memset(srs->secrets[i], 0, strlen(srs->secrets[i]));
 		srs_f_free(srs->secrets[i]);
-		srs->secrets[i] = '\0';
+		srs->secrets[i] = 0;
 	}
 	srs_f_free(srs);
 }
@@ -619,7 +619,7 @@ srs_forward(srs_t *srs, char *buf, int buflen,
 					sendhost, senduser, alias);
 }
 
-int		
+int
 srs_forward_alloc(srs_t *srs, char **sptr,
 				const char *sender, const char *alias)
 {
