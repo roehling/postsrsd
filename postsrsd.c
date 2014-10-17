@@ -476,8 +476,8 @@ int main (int argc, char **argv)
             key = url_decode(keybuf, sizeof(keybuf), token);
             if (!key) break;
             handler[i](srs, fp, key, domain, excludes);
-            if (poll(&fds[2], 1, timeout * 1000) <= 0) break;
             fflush (fp);
+            if (poll(&fds[2], 1, timeout * 1000) <= 0) break;
             line = fgets(linebuf, sizeof(linebuf), fp);
           }
           fclose (fp);
