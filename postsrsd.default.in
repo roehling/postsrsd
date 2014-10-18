@@ -33,3 +33,6 @@ SRS_SECRET=@SYSCONF_DIR@/@PROJECT_NAME@.secret
 #
 RUN_AS=nobody
 
+# Change root directory to a safe place before dropping root priviledges.
+# This is highly recommended as postsrsd handles untrusted input.
+CHROOT=@CHROOT_DIR@
