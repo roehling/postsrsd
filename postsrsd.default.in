@@ -17,7 +17,7 @@ SRS_DOMAIN=@MYDOMAIN@
 # When postsrsd is installed for the first time, a random secret is generated
 # and stored in /etc/postsrsd.secret. For most installations, that's just fine.
 #
-#SRS_SECRET=/etc/postsrsd.secret
+SRS_SECRET=@SYSCONF_DIR@/@PROJECT_NAME@.secret
 
 # Local ports for TCP list.
 # These ports are used to bind the TCP list for postfix. If you change
