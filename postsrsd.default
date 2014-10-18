@@ -4,7 +4,7 @@
 # Addresses are rewritten to originate from this domain. The default value 
 # is taken from `postconf -h mydomain` and probably okay.
 #
-#SRS_DOMAIN=example.com
+SRS_DOMAIN=@MYDOMAIN@
 
 # Exclude additional domains.
 # You may list domains which shall not be subjected to address rewriting.
