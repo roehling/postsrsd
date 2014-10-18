@@ -28,10 +28,17 @@
 #include <pwd.h>
 #include <string.h>
 #include <poll.h>
-#ifdef __APPLE__
-    #include <sys/wait.h>
-#else
-    #include <wait.h>
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#ifdef HAVE_TIME_H
+#include <time.h>
+#endif
+#ifdef HAVE_SYS_WAIT_H
+#include <sys/wait.h>
+#endif
+#ifdef HAVE_WAIT_H
+#include <wait.h>
 #endif
 #include <syslog.h>
 
@@ -184,7 +191,7 @@ static void handle_reverse (srs_t *srs, FILE *fp, const char *address, const cha
   if (result == SRS_SUCCESS) {
     output = url_encode(outputbuf, sizeof(outputbuf), value);
     fprintf (fp, "200 %s\n", output);
-    syslog (LOG_MAIL | LOG_INFO, "srs_reverse: <%s> rewritten as <%s>", address, value); 
+    syslog (LOG_MAIL | LOG_INFO, "srs_reverse: <%s> rewritten as <%s>", address, value);
   } else {
     fprintf (fp, "500 %s\n", srs_strerror(result));
     if (result != SRS_ENOTREWRITTEN && result != SRS_ENOTSRSADDRESS)
@@ -452,20 +459,24 @@ int main (int argc, char **argv)
           if (poll(&fds[2], 1, timeout * 1000) <= 0) return EXIT_FAILURE;
           line = fgets(linebuf, sizeof(linebuf), fp);
           while (line) {
+            fseek (fp, 0, SEEK_CUR); /* Workaround for Solaris */
             char* token;
             token = strtok(line, " \r\n");
             if (token == NULL || strcmp(token, "get") != 0) {
               fprintf (fp, "500 Invalid request\n");
+              fflush (fp);
               return EXIT_FAILURE;
             }
             token = strtok(NULL, "\r\n");
             if (!token) {
               fprintf (fp, "500 Invalid request\n");
+              fflush (fp);
               return EXIT_FAILURE;
             }
             key = url_decode(keybuf, sizeof(keybuf), token);
             if (!key) break;
             handler[i](srs, fp, key, domain, excludes);
+            fflush (fp);
             if (poll(&fds[2], 1, timeout * 1000) <= 0) break;
             line = fgets(linebuf, sizeof(linebuf), fp);
           }
