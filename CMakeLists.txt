@@ -56,8 +56,13 @@ endif()
 
 add_executable(${PROJECT_NAME} postsrsd.c sha1.c srs2.c)
 
-get_target_property(POSTSRSD ${PROJECT_NAME} LOCATION)
-get_filename_component(POSTSRSD ${POSTSRSD} NAME_WE)
+if(CMAKE_VERSION VERSION_EQUAL "2.8.12" OR CMAKE_VERSION VERSION_GREATER "2.8.12")
+ set(POSTSRSD $<TARGET_FILE:${PROJECT_NAME}>)
+else()
+ get_target_property(POSTSRSD ${PROJECT_NAME} LOCATION)
+ get_filename_component(POSTSRSD ${POSTSRSD} NAME_WE)
+endif()
+
 set(APPARMOR_PROFILE "${CMAKE_INSTALL_PREFIX}/sbin/${POSTSRSD}")
 string(REGEX REPLACE "^/+" "" APPARMOR_PROFILE "${APPARMOR_PROFILE}")
 string(REPLACE "/" "." APPARMOR_PROFILE "${APPARMOR_PROFILE}")
