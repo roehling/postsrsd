@@ -31,8 +31,8 @@ SRS_SECRET=@SYSCONF_DIR@/@PROJECT_NAME@.secret
 # Drop root privileges and run as another user after initialization. 
 # This is highly recommended as postsrsd handles untrusted input.
 #
-RUN_AS=nobody
+SRS_RUN_AS=nobody
 
 # Change root directory to a safe place before dropping root priviledges.
 # This is highly recommended as postsrsd handles untrusted input.
-CHROOT=@CHROOT_DIR@
+SRS_CHROOT=@CHROOT_DIR@
