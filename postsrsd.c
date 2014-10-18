@@ -253,6 +253,7 @@ int main (int argc, char **argv)
   handle_t handler[2] = { handle_forward, handle_reverse };
 
   excludes = (const char**)calloc(1, sizeof(char*));
+  int excludes_set = 0;
   tmp = strrchr(argv[0], '/');
   if (tmp) self = strdup(tmp + 1); else self = strdup(argv[0]);
 
@@ -313,6 +314,7 @@ int main (int argc, char **argv)
           }
           excludes[s1] = NULL;
         }
+		excludes_set = 1;
         break;
       case 'v':
         fprintf (stdout, "%s\n", VERSION);
@@ -323,6 +325,43 @@ int main (int argc, char **argv)
     fprintf (stderr, "%s: extra argument on command line: %s\n", self, argv[optind]);
     return EXIT_FAILURE;
   }
+
+  /* Read configuration directly from environment variables (if not set by configuration switches) */
+  if (domain == NULL) {
+    domain = getenv("SRS_DOMAIN");
+  }
+  if (forward_service == NULL) {
+    forward_service = getenv("SRS_FORWARD_PORT");
+  }
+  if (reverse_service == NULL) {
+    reverse_service = getenv("SRS_REVERSE_PORTT");
+  }
+  if (secret_file == NULL) {
+    secret_file = getenv("SRS_SECRET");
+  }
+  if (user == NULL) {
+    user = getenv("SRS_RUN_AS");
+  }
+  if (chroot_dir == NULL) {
+    chroot_dir = getenv("SRS_CHROOT");
+  }
+  if (excludes_set == 0 && getenv("SRS_EXCLUDE_DOMAINS") != NULL) {
+    tmp = strtok(getenv("SRS_EXCLUDE_DOMAINS"), ",; \t\r\n");
+    while (tmp) {
+      if (s1 + 1 >= s2) {
+        s2 *= 2;
+        excludes = (const char **)realloc(excludes, s2 * sizeof(char*));
+        if (excludes == NULL) {
+          fprintf (stderr, "%s: Out of memory\n\n", self);
+          return EXIT_FAILURE;
+        }
+      }
+      excludes[s1++] = strdup(tmp);
+      tmp = strtok(NULL, ",; \t\r\n");
+    }
+    excludes[s1] = NULL;
+  }
+
   if (domain == NULL) {
     fprintf (stderr, "%s: You must set a home domain (-d)\n", self);
     return EXIT_FAILURE;
@@ -353,14 +392,12 @@ int main (int argc, char **argv)
   /* Bind ports. May require privileges if the config specifies ports below 1024 */
   if (forward_service != NULL) {
     forward_sock = bind_service(forward_service, family);
-    free (forward_service);
   } else {
     forward_sock = bind_service("10001", family);
   }
   if (forward_sock < 0) return EXIT_FAILURE;
   if (reverse_service != NULL) {
     reverse_sock = bind_service(reverse_service, family);
-    free (reverse_service);
   } else {
     reverse_sock = bind_service("10002", family);
   }
