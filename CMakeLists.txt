@@ -77,7 +77,7 @@ configure_file(${PROJECT_NAME}.rh_init.in ${PROJECT_NAME}.rh_init @ONLY)
 configure_file(${PROJECT_NAME}.upstart.in ${PROJECT_NAME}.upstart @ONLY)
 configure_file(${PROJECT_NAME}.apparmor.in ${PROJECT_NAME}.apparmor @ONLY)
 configure_file(${PROJECT_NAME}.service.in ${PROJECT_NAME}.service @ONLY)
-configure_file(${PROJECT_NAME}.default ${PROJECT_NAME}.default @ONLY)
+configure_file(${PROJECT_NAME}.default.in ${PROJECT_NAME}.default @ONLY)
 
 configure_file(postinstall.cmake.in postinstall.cmake @ONLY)
 
