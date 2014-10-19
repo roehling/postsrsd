@@ -1,0 +1,14 @@
+[Unit]
+Description=PostSRSd Daemon
+After=network.target
+
+[Service]
+Type=simple
+Environment=SRS_DOMAIN=localhost.localdomain SRS_FORWARD_PORT=10001 SRS_REVERSE_PORT=10002 SRS_SECRET=@SYSCONF_DIR@/@PROJECT_NAME@.secret
+Environment=SRS_EXCLUDE_DOMAINS= RUN_AS=nobody CHROOT=@CHROOT_DIR@
+EnvironmentFile=-@CONFIG_DIR@/@PROJECT_NAME@
+ExecStart=@CMAKE_INSTALL_PREFIX@/sbin/@POSTSRSD@ -4 -f${SRS_FORWARD_PORT} -r${SRS_REVERSE_PORT} -d${SRS_DOMAIN} -s${SRS_SECRET} -u${RUN_AS} -c${CHROOT} -X${SRS_EXCLUDE_DOMAINS}
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
