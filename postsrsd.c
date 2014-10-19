@@ -235,7 +235,7 @@ typedef void(*handle_t)(srs_t*, FILE*, const char*, const char*, const char**);
 
 int main (int argc, char **argv)
 {
-  int opt, timeout = 1800, family = AF_UNSPEC;
+  int opt, timeout = 1800, family = AF_INET;
   int daemonize = FALSE;
   char *forward_service = NULL, *reverse_service = NULL,
        *user = NULL, *domain = NULL, *chroot_dir = NULL;
