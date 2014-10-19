@@ -1,0 +1,12 @@
+[Unit]
+Description=PostSRSd Daemon
+After=network.target
+
+[Service]
+Type=simple
+EnvironmentFile=-@CONFIG_DIR@/@PROJECT_NAME@
+ExecStart=@CMAKE_INSTALL_PREFIX@/sbin/@POSTSRSD@ -4
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

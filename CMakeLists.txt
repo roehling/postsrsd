@@ -15,6 +15,7 @@ find_program(DD dd DOC "path to dd executable")
 find_program(BASE64 base64 DOC "path to base64 executable")
 find_program(INSSERV insserv DOC "path to insserv executable")
 find_program(CHKCONFIG chkconfig DOC "path to chkconfig executable")
+find_program(POSTCONF postconf DOC "path to postconf executable")
 
 check_include_file(sys/wait.h HAVE_SYS_WAIT_H)
 if(HAVE_SYS_WAIT_H)
@@ -34,7 +35,10 @@ if(HAVE_TIME_H)
 endif()
 
 if(NOT DEFINED INIT_FLAVOR)
-    if(IS_DIRECTORY "${SYSCONF_DIR}/init" AND EXISTS "/lib/init/upstart-job")
+	if(IS_DIRECTORY "${SYSCONF_DIR}/systemd" AND EXISTS "/usr/lib/systemd/systemd")
+        message(STATUS "Detected init flavor: systemd")
+        set(INIT_FLAVOR "systemd" CACHE STRING "Init daemon of this system")
+    elseif(IS_DIRECTORY "${SYSCONF_DIR}/init" AND EXISTS "/lib/init/upstart-job")
         message(STATUS "Detected init flavor: upstart")
         set(INIT_FLAVOR "upstart" CACHE STRING "Init daemon of this system")
     elseif(IS_DIRECTORY "${SYSCONF_DIR}/init.d" AND EXISTS "${SYSCONF_DIR}/init.d/functions")
@@ -52,16 +56,34 @@ endif()
 
 add_executable(${PROJECT_NAME} postsrsd.c sha1.c srs2.c)
 
-get_target_property(POSTSRSD ${PROJECT_NAME} LOCATION)
-get_filename_component(POSTSRSD ${POSTSRSD} NAME_WE)
+if(CMAKE_VERSION VERSION_EQUAL "2.8.12" OR CMAKE_VERSION VERSION_GREATER "2.8.12")
+ set(POSTSRSD ${PROJECT_NAME})
+else()
+ get_target_property(POSTSRSD ${PROJECT_NAME} LOCATION)
+ get_filename_component(POSTSRSD ${POSTSRSD} NAME_WE)
+endif()
+
 set(APPARMOR_PROFILE "${CMAKE_INSTALL_PREFIX}/sbin/${POSTSRSD}")
 string(REGEX REPLACE "^/+" "" APPARMOR_PROFILE "${APPARMOR_PROFILE}")
 string(REPLACE "/" "." APPARMOR_PROFILE "${APPARMOR_PROFILE}")
+
+execute_process(COMMAND ${POSTCONF} -h mydomain
+    OUTPUT_VARIABLE MYDOMAIN
+    ERROR_QUIET
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+if (NOT MYDOMAIN)
+    set(MYDOMAIN "localhost.localdomain")
+endif()
 
 configure_file(${PROJECT_NAME}.lsb_init.in ${PROJECT_NAME}.lsb_init @ONLY)
 configure_file(${PROJECT_NAME}.rh_init.in ${PROJECT_NAME}.rh_init @ONLY)
 configure_file(${PROJECT_NAME}.upstart.in ${PROJECT_NAME}.upstart @ONLY)
 configure_file(${PROJECT_NAME}.apparmor.in ${PROJECT_NAME}.apparmor @ONLY)
+configure_file(${PROJECT_NAME}.service.in ${PROJECT_NAME}.service @ONLY)
+configure_file(${PROJECT_NAME}.default.in ${PROJECT_NAME}.default @ONLY)
+
 configure_file(postinstall.cmake.in postinstall.cmake @ONLY)
 
 if(HELP2MAN)
