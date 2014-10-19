@@ -212,7 +212,7 @@ const char *SRS_TIME_BASECHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 #define SRS_TIME_SLOTS		(1<<(SRS_TIME_BASEBITS<<(SRS_TIME_SIZE-1)))
 
 int
-srs_timestamp_create(srs_t *srs, char *buf, time_t now)
+srs_timestamp_create(srs_t *srs __attribute__((unused)), char *buf, time_t now)
 {
 	now = now / SRS_TIME_PRECISION;
 	buf[1] = SRS_TIME_BASECHARS[now & ((1 << SRS_TIME_BASEBITS) - 1)];
@@ -507,7 +507,7 @@ srs_compile_guarded(srs_t *srs,
 }
 
 int
-srs_parse_shortcut(srs_t *srs, char *buf, int buflen, char *senduser)
+srs_parse_shortcut(srs_t *srs, char *buf, unsigned buflen, char *senduser)
 {
 	char	*srshash;
 	char	*srsstamp;
@@ -538,7 +538,7 @@ srs_parse_shortcut(srs_t *srs, char *buf, int buflen, char *senduser)
 						srshost, srsuser);
 		if (ret != SRS_SUCCESS)
 			return ret;
-		sprintf(buf, "%s@%s", srsuser, srshost);
+		snprintf(buf, buflen, "%s@%s", srsuser, srshost);
 		return SRS_SUCCESS;
 	}
 
@@ -577,13 +577,13 @@ srs_parse_guarded(srs_t *srs, char *buf, int buflen, char *senduser)
 }
 
 int
-srs_forward(srs_t *srs, char *buf, int buflen,
+srs_forward(srs_t *srs, char *buf, unsigned buflen,
 				const char *sender, const char *alias)
 {
 	char	*senduser;
 	char	*sendhost;
 	char	*tmp;
-	int		 len;
+	unsigned		 len;
 
 	if (srs->noforward)
 		return SRS_ENOTREWRITTEN;
@@ -650,11 +650,11 @@ srs_forward_alloc(srs_t *srs, char **sptr,
 }
 
 int
-srs_reverse(srs_t *srs, char *buf, int buflen, const char *sender)
+srs_reverse(srs_t *srs, char *buf, unsigned buflen, const char *sender)
 {
 	char	*senduser;
 	char	*tmp;
-	int		 len;
+	unsigned		 len;
 
 	if (!SRS_IS_SRS_ADDRESS(sender))
 		return SRS_ENOTSRSADDRESS;

@@ -122,11 +122,11 @@ int		 srs_set_malloc(srs_malloc_t m, srs_realloc_t r, srs_free_t f);
 srs_t	*srs_new();
 void	 srs_init(srs_t *srs);
 void	 srs_free(srs_t *srs);
-int		 srs_forward(srs_t *srs, char *buf, int buflen,
+int		 srs_forward(srs_t *srs, char *buf, unsigned buflen,
 				const char *sender, const char *alias);
 int		 srs_forward_alloc(srs_t *srs, char **sptr,
 				const char *sender, const char *alias);
-int		 srs_reverse(srs_t *srs, char *buf, int buflen,
+int		 srs_reverse(srs_t *srs, char *buf, unsigned buflen,
 				const char *sender);
 int		 srs_reverse_alloc(srs_t *srs, char **sptr, const char *sender);
 const char *
@@ -172,8 +172,8 @@ struct _srs_hmac_ctx_t {
 	char		opad[SHA_BLOCKSIZE + 1];
 } srs_hmac_ctx_t;
 
-void	 srs_hmac_init(srs_hmac_ctx_t *ctx, char *secret, int len);
-void	 srs_hmac_update(srs_hmac_ctx_t *ctx, char *data, int len);
+void	 srs_hmac_init(srs_hmac_ctx_t *ctx, char *secret, unsigned len);
+void	 srs_hmac_update(srs_hmac_ctx_t *ctx, char *data, unsigned len);
 void	 srs_hmac_fini(srs_hmac_ctx_t *ctx, char *out);
 
 

@@ -182,7 +182,7 @@ static void handle_forward (srs_t *srs, FILE *fp, const char *address, const cha
   fflush (fp);
 }
 
-static void handle_reverse (srs_t *srs, FILE *fp, const char *address, const char *domain, const char **excludes)
+static void handle_reverse (srs_t *srs, FILE *fp, const char *address, const char *domain __attribute__((unused)), const char **excludes __attribute__((unused)) )
 {
   int result;
   char value[1024];
@@ -340,7 +340,6 @@ int main (int argc, char **argv)
   }
   /* Read secret. The default installation makes this root accessible only. */
   if (secret_file != NULL) {
-    size_t len;
     sf = fopen(secret_file, "rb");
     if (sf == NULL) {
       fprintf (stderr, "%s: Cannot open file with secret: %s\n", self, secret_file);
