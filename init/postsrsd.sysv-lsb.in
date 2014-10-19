@@ -29,17 +29,10 @@ test -x $DAEMON || exit 0
 
 # Default configuration
 SRS_DOMAIN=`postconf -h mydomain || true`
-SRS_FORWARD_PORT=10001
-SRS_REVERSE_PORT=10002
-SRS_SECRET=@SYSCONF_DIR@/@PROJECT_NAME@.secret
-RUN_AS=nobody
-CHROOT=@CHROOT_DIR@
+SRS_EXCLUDE_DOMAINS=
 
-# Read config file if it is present.
-if [ -r @CONFIG_DIR@/$NAME ]
-then
-    . @CONFIG_DIR@/$NAME
-fi
+# Read config file
+. @CONFIG_DIR@/$NAME
 
 test -r "$SRS_SECRET" -a -n "$SRS_DOMAIN" || exit 0
 
@@ -51,7 +44,7 @@ case "$1" in
 		--pidfile $PIDFILE \
 		--name $NAME \
 		--startas $DAEMON \
-		-- -4 -f"$SRS_FORWARD_PORT" -r"$SRS_REVERSE_PORT" -d"$SRS_DOMAIN" -s"$SRS_SECRET" -u"$RUN_AS" -p"$PIDFILE" -c"$CHROOT" -X"$SRS_EXCLUDE_DOMAINS" -D
+		-- -f"$SRS_FORWARD_PORT" -r"$SRS_REVERSE_PORT" -d"$SRS_DOMAIN" -s"$SRS_SECRET" -u"$RUN_AS" -p"$PIDFILE" -c"$CHROOT" -X"$SRS_EXCLUDE_DOMAINS" -D
 	then
 	    log_end_msg 0
 	else

@@ -5,19 +5,10 @@ start on (filesystem and net-device-up)
 stop on runlevel [!2345]
 respawn
 
-env DEFAULTFILE=@CONFIG_DIR@/@PROJECT_NAME@
-
 script
 	SRS_DOMAIN=`postconf -h mydomain || true`
-	SRS_FORWARD_PORT=10001
-	SRS_REVERSE_PORT=10002
-	SRS_SECRET=@SYSCONF_DIR@/@PROJECT_NAME@.secret
 	SRS_EXCLUDE_DOMAINS=
-	RUN_AS=nobody
-	CHROOT=@CHROOT_DIR@
-	if [ -r "$DEFAULTFILE" ]; then
-		. "$DEFAULTFILE"
-	fi
-	exec @CMAKE_INSTALL_PREFIX@/sbin/@POSTSRSD@ -4 -f"$SRS_FORWARD_PORT" -r"$SRS_REVERSE_PORT" -d"$SRS_DOMAIN" -s"$SRS_SECRET" -u"$RUN_AS" -c"$CHROOT" -X"$SRS_EXCLUDE_DOMAINS"
+	. "@CONFIG_DIR@/@PROJECT_NAME@"
+	exec @CMAKE_INSTALL_PREFIX@/sbin/@POSTSRSD@ -f"$SRS_FORWARD_PORT" -r"$SRS_REVERSE_PORT" -d"$SRS_DOMAIN" -s"$SRS_SECRET" -u"$RUN_AS" -c"$CHROOT" -X"$SRS_EXCLUDE_DOMAINS"
 end script
 

@@ -17,7 +17,7 @@
 # When postsrsd is installed for the first time, a random secret is generated
 # and stored in /etc/postsrsd.secret. For most installations, that's just fine.
 #
-#SRS_SECRET=@SYSCONF_DIR@/@PROJECT_NAME@.secret
+SRS_SECRET=@SYSCONF_DIR@/@PROJECT_NAME@.secret
 
 # Local ports for TCP list.
 # These ports are used to bind the TCP list for postfix. If you change
@@ -25,11 +25,14 @@
 # are bound to the loopback interface, and should never be exposed on
 # the internet.
 #
-#SRS_FORWARD_PORT=10001
-#SRS_REVERSE_PORT=10002
+SRS_FORWARD_PORT=10001
+SRS_REVERSE_PORT=10002
 
 # Drop root privileges and run as another user after initialization.
 # This is highly recommended as postsrsd handles untrusted input.
 #
-#RUN_AS=nobody
+RUN_AS=nobody
+
+# Jail daemon in chroot environment
+CHROOT=@CHROOT_DIR@
 
