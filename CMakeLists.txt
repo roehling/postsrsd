@@ -15,6 +15,8 @@ find_program(DD dd DOC "path to dd executable")
 find_program(BASE64 base64 DOC "path to base64 executable")
 find_program(INSSERV insserv DOC "path to insserv executable")
 find_program(CHKCONFIG chkconfig DOC "path to chkconfig executable")
+find_library(LIBSOCKET socket)
+find_library(LIBNSL nsl)
 
 check_include_file(sys/wait.h HAVE_SYS_WAIT_H)
 if(HAVE_SYS_WAIT_H)
@@ -54,6 +56,10 @@ if(NOT DEFINED INIT_FLAVOR)
 endif()
 
 add_executable(${PROJECT_NAME} postsrsd.c sha1.c srs2.c)
+
+if(${CMAKE_SYSTEM_NAME} MATCHES "SunOS")
+    target_link_libraries(${PROJECT_NAME} ${LIBSOCKET} ${LIBNSL})
+endif()
 
 get_target_property(POSTSRSD ${PROJECT_NAME} LOCATION)
 get_filename_component(POSTSRSD ${POSTSRSD} NAME_WE)
