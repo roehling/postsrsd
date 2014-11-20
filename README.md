@@ -85,3 +85,9 @@ your main.cf:
 This will transparently rewrite incoming and outgoing envelope addresses.
 Run `service postsrsd start` and `postfix reload` as root, or reboot.
 
+Known Issues
+------------
+
+- The Postfix package in CentOS 6 lacks the required support for TCP
+  dictionaries. Please upgrade your distribution or build Postfix yourself.
+
