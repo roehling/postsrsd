@@ -88,6 +88,11 @@ Run `service postsrsd start` and `postfix reload` as root, or reboot.
 Known Issues
 ------------
 
+- Due to the way PostSRRSd is integrated with Postfix, sender addresses
+  will always be rewritten even if the mail is not forwarded at all. This
+  is because the canonical maps are read by the cleanup daemon, which
+  processes mails at the very beginning before any routing decision is made.
+
 - The Postfix package in CentOS 6 lacks the required support for TCP
   dictionaries. Please upgrade your distribution or build Postfix yourself.
 
