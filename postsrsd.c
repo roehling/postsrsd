@@ -58,7 +58,7 @@ static int bind_service (const char *service, int family)
   memset (&hints, 0, sizeof(hints));
   hints.ai_family = family;
   hints.ai_socktype = SOCK_STREAM;
-  hints.ai_flags = AI_ADDRCONFIG | AI_V4MAPPED;
+
   err = getaddrinfo(NULL, service, &hints, &addr);
   if (err != 0) {
     fprintf(stderr, "%s: bind_service(%s): %s\n", self, service, gai_strerror(err));
