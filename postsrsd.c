@@ -74,7 +74,7 @@ static int bind_service (const char *service, int family)
     flags = fcntl (sock, F_GETFL, 0);
     if (flags < 0) goto fail;
     if (fcntl(sock, F_SETFL, flags | O_NONBLOCK) < 0) goto fail;
-    break;
+    continue;
   fail:
     err = errno;
     if (sock >= 0) close (sock);
@@ -235,7 +235,7 @@ typedef void(*handle_t)(srs_t*, FILE*, const char*, const char*, const char**);
 
 int main (int argc, char **argv)
 {
-  int opt, timeout = 1800, family = AF_INET;
+  int opt, timeout = 1800, family = AF_UNSPEC;
   int daemonize = FALSE;
   char *forward_service = NULL, *reverse_service = NULL,
        *user = NULL, *domain = NULL, *chroot_dir = NULL;
