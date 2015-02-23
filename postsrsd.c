@@ -221,6 +221,7 @@ static void show_help ()
     "   -u<user>       switch user id after port bind (default: none)\n"
     "   -t<seconds>    timeout for idle client connections (default: 1800)\n"
     "   -X<domain>     exclude additional domain from address rewriting\n"
+    "   -e             attempt to read above parameters from environment\n"
     "   -D             fork into background\n"
     "   -4             force IPv4 socket (default: any)\n"
     "   -6             force IPv6 socket (default: any)\n"
@@ -256,7 +257,7 @@ int main (int argc, char **argv)
   tmp = strrchr(argv[0], '/');
   if (tmp) self = strdup(tmp + 1); else self = strdup(argv[0]);
 
-  while ((opt = getopt(argc, argv, "46d:f:r:s:u:t:p:c:X::Dhv")) != -1) {
+  while ((opt = getopt(argc, argv, "46d:f:r:s:u:t:p:c:X::Dhev")) != -1) {
     switch (opt) {
       case '?':
         return EXIT_FAILURE;
@@ -299,6 +300,40 @@ int main (int argc, char **argv)
       case 'X':
         if (optarg != NULL) {
           tmp = strtok(optarg, ",; \t\r\n");
+          while (tmp) {
+            if (s1 + 1 >= s2) {
+              s2 *= 2;
+              excludes = (const char **)realloc(excludes, s2 * sizeof(char*));
+              if (excludes == NULL) {
+                fprintf (stderr, "%s: Out of memory\n\n", self);
+                return EXIT_FAILURE;
+              }
+            }
+            excludes[s1++] = strdup(tmp);
+            tmp = strtok(NULL, ",; \t\r\n");
+          }
+          excludes[s1] = NULL;
+        }
+        break;
+      case 'e':
+        if ( getenv("SRS_DOMAIN") != NULL )
+          domain = strdup(getenv("SRS_DOMAIN"));
+        if ( getenv("SRS_FORWARD_PORT") != NULL )
+          forward_service = strdup(getenv("SRS_FORWARD_PORT"));
+        if ( getenv("SRS_REVERSE_PORT") != NULL )
+          reverse_service = strdup(getenv("SRS_REVERSE_PORT"));
+        if ( getenv("SRS_TIMEOUT") != NULL )
+          timeout = atoi(getenv("SRS_TIMEOUT"));
+        if ( getenv("SRS_SECRET") != NULL )
+          secret_file = strdup(getenv("SRS_SECRET"));
+        if ( getenv("SRS_PID_FILE") != NULL )
+          pid_file = strdup(getenv("SRS_PID_FILE"));
+        if ( getenv("RUN_AS") != NULL )
+          user = strdup(getenv("RUN_AS"));
+        if ( getenv("CHROOT") != NULL )
+          chroot_dir = strdup(getenv("CHROOT"));
+        if (getenv("SRS_EXCLUDE_DOMAINS") != NULL) {
+          tmp = strtok(getenv("SRS_EXCLUDE_DOMAINS"), ",; \t\r\n");
           while (tmp) {
             if (s1 + 1 >= s2) {
               s2 *= 2;

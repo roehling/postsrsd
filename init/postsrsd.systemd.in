@@ -1,6 +1,5 @@
 [Unit]
 Description=PostSRSd Daemon
-After=network.target
 
 [Service]
 Type=simple
@@ -12,4 +11,3 @@ Restart=always
 
 [Install]
 WantedBy=multi-user.target
-
