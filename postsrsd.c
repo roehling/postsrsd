@@ -240,7 +240,8 @@ int main (int argc, char **argv)
   int opt, timeout = 1800, family = AF_INET;
   int daemonize = FALSE;
   char *forward_service = NULL, *reverse_service = NULL,
-       *user = NULL, *domain = NULL, *chroot_dir = NULL, separator = NULL;
+       *user = NULL, *domain = NULL, *chroot_dir = NULL;
+  char separator = '=';
   int forward_sock, reverse_sock;
   char *secret_file = NULL, *pid_file = NULL;
   FILE *pf = NULL, *sf = NULL;
@@ -272,7 +273,7 @@ int main (int argc, char **argv)
         domain = strdup(optarg);
         break;
       case 'a':
-        separator = (char)*optarg;
+        separator = *optarg;
         break;
       case 'f':
         forward_service = strdup(optarg);
@@ -323,7 +324,7 @@ int main (int argc, char **argv)
         if ( getenv("SRS_DOMAIN") != NULL )
           domain = strdup(getenv("SRS_DOMAIN"));
         if ( getenv("SRS_SEPARATOR") != NULL )
-          separator = (char)*getenv("SRS_SEPARATOR");
+          separator = *getenv("SRS_SEPARATOR");
         if ( getenv("SRS_FORWARD_PORT") != NULL )
           forward_service = strdup(getenv("SRS_FORWARD_PORT"));
         if ( getenv("SRS_REVERSE_PORT") != NULL )
@@ -366,6 +367,11 @@ int main (int argc, char **argv)
   }
   if (domain == NULL) {
     fprintf (stderr, "%s: You must set a home domain (-d)\n", self);
+    return EXIT_FAILURE;
+  }
+
+  if (separator != '=' && separator != '+' && separator != '-') {
+    fprintf (stderr, "%s: SRS separator character must be one of '=+-'\n", self);
     return EXIT_FAILURE;
   }
 
@@ -461,9 +467,8 @@ int main (int argc, char **argv)
       srs_add_secret (srs, secret);
   }
   fclose (sf);
-  if (separator && srs_set_separator (srs, separator) != SRS_SUCCESS) {
-    srs_set_separator (srs, '=');
-  }
+
+  srs_set_separator (srs, separator);
 
   fds[0].fd = forward_sock;
   fds[0].events = POLLIN;
