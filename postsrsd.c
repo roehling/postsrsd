@@ -214,6 +214,7 @@ static void show_help ()
     "Options:\n"
     "   -s<file>       read secrets from file (required)\n"
     "   -d<domain>     set domain name for rewrite (required)\n"
+    "   -a<char>       set first separator character which can be one of: -=+ (default: =)\n"
     "   -f<port>       set port for the forward SRS lookup (default: 10001)\n"
     "   -r<port>       set port for the reverse SRS lookup (default: 10002)\n"
     "   -p<pidfile>    write process ID to pidfile (default: none)\n"
@@ -240,6 +241,7 @@ int main (int argc, char **argv)
   int daemonize = FALSE;
   char *forward_service = NULL, *reverse_service = NULL,
        *user = NULL, *domain = NULL, *chroot_dir = NULL;
+  char separator = '=';
   int forward_sock, reverse_sock;
   char *secret_file = NULL, *pid_file = NULL;
   FILE *pf = NULL, *sf = NULL;
@@ -257,7 +259,7 @@ int main (int argc, char **argv)
   tmp = strrchr(argv[0], '/');
   if (tmp) self = strdup(tmp + 1); else self = strdup(argv[0]);
 
-  while ((opt = getopt(argc, argv, "46d:f:r:s:u:t:p:c:X::Dhev")) != -1) {
+  while ((opt = getopt(argc, argv, "46d:a:f:r:s:u:t:p:c:X::Dhev")) != -1) {
     switch (opt) {
       case '?':
         return EXIT_FAILURE;
@@ -269,6 +271,9 @@ int main (int argc, char **argv)
         break;
       case 'd':
         domain = strdup(optarg);
+        break;
+      case 'a':
+        separator = *optarg;
         break;
       case 'f':
         forward_service = strdup(optarg);
@@ -318,6 +323,8 @@ int main (int argc, char **argv)
       case 'e':
         if ( getenv("SRS_DOMAIN") != NULL )
           domain = strdup(getenv("SRS_DOMAIN"));
+        if ( getenv("SRS_SEPARATOR") != NULL )
+          separator = *getenv("SRS_SEPARATOR");
         if ( getenv("SRS_FORWARD_PORT") != NULL )
           forward_service = strdup(getenv("SRS_FORWARD_PORT"));
         if ( getenv("SRS_REVERSE_PORT") != NULL )
@@ -360,6 +367,11 @@ int main (int argc, char **argv)
   }
   if (domain == NULL) {
     fprintf (stderr, "%s: You must set a home domain (-d)\n", self);
+    return EXIT_FAILURE;
+  }
+
+  if (separator != '=' && separator != '+' && separator != '-') {
+    fprintf (stderr, "%s: SRS separator character must be one of '=+-'\n", self);
     return EXIT_FAILURE;
   }
 
@@ -455,7 +467,8 @@ int main (int argc, char **argv)
       srs_add_secret (srs, secret);
   }
   fclose (sf);
-  srs_set_separator (srs, '+');
+
+  srs_set_separator (srs, separator);
 
   fds[0].fd = forward_sock;
   fds[0].events = POLLIN;
