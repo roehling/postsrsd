@@ -100,6 +100,6 @@ if(USE_APPARMOR)
 endif()
 
 install(TARGETS ${PROJECT_NAME} DESTINATION "sbin")
-install(FILES README.md main.cf.ex DESTINATION "${DOC_DIR}")
+install(FILES README.md README_UPGRADE.md main.cf.ex DESTINATION "${DOC_DIR}")
 install(SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/postinstall.cmake")
 
