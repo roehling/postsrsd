@@ -20,10 +20,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
-#ifdef __APPLE__
-    #include <sys/types.h>
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
 #endif
-
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#ifdef HAVE_TIME_H
+#include <time.h>
+#endif
 
 #ifndef __BEGIN_DECLS
 #define __BEGIN_DECLS

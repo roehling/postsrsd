@@ -17,11 +17,10 @@
 #undef USE_OPENSSL
 
 #include <stdarg.h>
-#include <time.h>       /* time */
-#include <sys/types.h>  /* tyepdefs */
-#include <sys/time.h>   /* timeval / timezone struct */
 #include <string.h>		/* memcpy, strcpy, memset */
+#ifdef HAVE_ALLOCA_H
 #include <alloca.h>
+#endif
 
 #ifdef USE_OPENSSL
 #include <openssl/hmac.h>
