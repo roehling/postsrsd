@@ -412,7 +412,7 @@ int main (int argc, char **argv)
   }
   if (reverse_sock < 0) return EXIT_FAILURE;
 
-  /* Open syslog now (NDELAY), because it may no longer reachable from chroot */
+  /* Open syslog now (NDELAY), because it may no longer be reachable from chroot */
   openlog (self, LOG_PID | LOG_NDELAY, LOG_MAIL);
   /* Force loading of timezone info (suggested by patrickdk77) */
   now = time(NULL);
