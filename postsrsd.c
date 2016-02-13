@@ -48,11 +48,12 @@
 
 static char *self = NULL;
 
-static int bind_service (const char *service, int family)
+static size_t bind_service (const char *service, int family, int* socks, size_t max_socks)
 {
   struct addrinfo *addr, *it;
   struct addrinfo hints;
   int err, sock, flags;
+  size_t count = 0;
   static const int one = 1;
 
   memset (&hints, 0, sizeof(hints));
@@ -62,10 +63,11 @@ static int bind_service (const char *service, int family)
   err = getaddrinfo(NULL, service, &hints, &addr);
   if (err != 0) {
     fprintf(stderr, "%s: bind_service(%s): %s\n", self, service, gai_strerror(err));
-    return -1;
+    return count;
   }
   sock = -1;
   for (it = addr; it; it = it->ai_next) {
+    if (max_socks == 0) break;
     sock = socket(it->ai_family, it->ai_socktype, it->ai_protocol);
     if (sock < 0) goto fail;
     if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one)) < 0) goto fail;
@@ -74,16 +76,18 @@ static int bind_service (const char *service, int family)
     flags = fcntl (sock, F_GETFL, 0);
     if (flags < 0) goto fail;
     if (fcntl(sock, F_SETFL, flags | O_NONBLOCK) < 0) goto fail;
-    break;
+    *socks++ = sock;
+    ++count;
+    --max_socks;
+    continue;
   fail:
     err = errno;
     if (sock >= 0) close (sock);
-    sock = -1;
   }
   freeaddrinfo (addr);
-  if (sock < 0)
+  if (count == 0)
     fprintf (stderr, "%s: bind_service(%s): %s\n", self, service, strerror(err));
-  return sock;
+  return count;
 }
 
 static int is_hexdigit (char c)
@@ -237,12 +241,11 @@ typedef void(*handle_t)(srs_t*, FILE*, const char*, const char*, const char**);
 
 int main (int argc, char **argv)
 {
-  int opt, timeout = 1800, family = AF_INET;
+  int opt, timeout = 1800, family = AF_UNSPEC;
   int daemonize = FALSE;
   char *forward_service = NULL, *reverse_service = NULL,
        *user = NULL, *domain = NULL, *chroot_dir = NULL;
   char separator = '=';
-  int forward_sock, reverse_sock;
   char *secret_file = NULL, *pid_file = NULL;
   FILE *pf = NULL, *sf = NULL;
   struct passwd *pwd = NULL;
@@ -250,10 +253,12 @@ int main (int argc, char **argv)
   char *tmp;
   time_t now;
   srs_t *srs;
-  struct pollfd fds[3];
   const char **excludes;
   size_t s1 = 0, s2 = 1;
-  handle_t handler[2] = { handle_forward, handle_reverse };
+  struct pollfd fds[4];
+  size_t socket_count = 0, sc;
+  int sockets[4] = { -1, -1, -1, -1 };
+  handle_t handler[4] = { 0, 0, 0, 0 };
 
   excludes = (const char**)calloc(1, sizeof(char*));
   tmp = strrchr(argv[0], '/');
@@ -374,6 +379,8 @@ int main (int argc, char **argv)
     fprintf (stderr, "%s: SRS separator character must be one of '=+-'\n", self);
     return EXIT_FAILURE;
   }
+  if (forward_service == NULL) forward_service = strdup("10001");
+  if (reverse_service == NULL) reverse_service = strdup("10002");
 
   /* The stuff we do first may not be possible from within chroot or without privileges */
 
@@ -397,21 +404,14 @@ int main (int argc, char **argv)
     return EXIT_FAILURE;
   }
   /* Bind ports. May require privileges if the config specifies ports below 1024 */
-  if (forward_service != NULL) {
-    forward_sock = bind_service(forward_service, family);
-    free (forward_service);
-  } else {
-    forward_sock = bind_service("10001", family);
-  }
-  if (forward_sock < 0) return EXIT_FAILURE;
-  if (reverse_service != NULL) {
-    reverse_sock = bind_service(reverse_service, family);
-    free (reverse_service);
-  } else {
-    reverse_sock = bind_service("10002", family);
-  }
-  if (reverse_sock < 0) return EXIT_FAILURE;
-
+  sc = bind_service(forward_service, family, &sockets[socket_count], 4 - socket_count);
+  if (sc == 0) return EXIT_FAILURE;
+  while (sc-- > 0) handler[socket_count++] = handle_forward;
+  free (forward_service);
+  sc = bind_service(reverse_service, family, &sockets[socket_count], 4 - socket_count);
+  if (sc == 0) return EXIT_FAILURE;
+  while (sc-- > 0) handler[socket_count++] = handle_reverse;
+  free (reverse_service);
   /* Open syslog now (NDELAY), because it may no longer be reachable from chroot */
   openlog (self, LOG_PID | LOG_NDELAY, LOG_MAIL);
   /* Force loading of timezone info (suggested by patrickdk77) */
@@ -470,18 +470,17 @@ int main (int argc, char **argv)
 
   srs_set_separator (srs, separator);
 
-  fds[0].fd = forward_sock;
-  fds[0].events = POLLIN;
-  fds[1].fd = reverse_sock;
-  fds[1].events = POLLIN;
-
+  for (sc = 0; sc < socket_count; ++sc) {
+    fds[sc].fd = sockets[sc];
+    fds[sc].events = POLLIN;
+  }
   while(TRUE) {
-    int i, conn;
+    int conn;
     FILE *fp;
     char linebuf[1024], *line;
     char keybuf[1024], *key;
 
-    if (poll(fds, 2, 1000) < 0) {
+    if (poll(fds, socket_count, 1000) < 0) {
       if (errno == EINTR)
         continue;
       if (daemonize)
@@ -490,20 +489,20 @@ int main (int argc, char **argv)
         fprintf (stderr, "%s: Poll failure: %s\n", self, strerror(errno));
       return EXIT_FAILURE;
     }
-    for (i = 0; i < 2; ++i) {
-      if (fds[i].revents) {
-        conn = accept(fds[i].fd, NULL, NULL);
+    for (sc = 0; sc < socket_count; ++sc) {
+      if (fds[sc].revents) {
+        conn = accept(fds[sc].fd, NULL, NULL);
         if (conn < 0) continue;
         if (fork() == 0) {
+          int i;
           // close listen sockets so that we don't stop the main daemon process from restarting
-          close(forward_sock);
-          close(reverse_sock);
+          for (i = 0; i < socket_count; ++i) close (sockets[i]);
 
           fp = fdopen(conn, "r+");
           if (fp == NULL) exit(EXIT_FAILURE);
-          fds[2].fd = conn;
-          fds[2].events = POLLIN;
-          if (poll(&fds[2], 1, timeout * 1000) <= 0) return EXIT_FAILURE;
+          fds[0].fd = conn;
+          fds[0].events = POLLIN;
+          if (poll(fds, 1, timeout * 1000) <= 0) return EXIT_FAILURE;
           line = fgets(linebuf, sizeof(linebuf), fp);
           while (line) {
             fseek (fp, 0, SEEK_CUR); /* Workaround for Solaris */
@@ -522,9 +521,9 @@ int main (int argc, char **argv)
             }
             key = url_decode(keybuf, sizeof(keybuf), token);
             if (!key) break;
-            handler[i](srs, fp, key, domain, excludes);
+            handler[sc](srs, fp, key, domain, excludes);
             fflush (fp);
-            if (poll(&fds[2], 1, timeout * 1000) <= 0) break;
+            if (poll(fds, 1, timeout * 1000) <= 0) break;
             line = fgets(linebuf, sizeof(linebuf), fp);
           }
           fclose (fp);
