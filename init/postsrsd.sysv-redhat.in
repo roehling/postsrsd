@@ -30,10 +30,11 @@ SRS_EXCLUDE_DOMAINS=
 # Read config file
 . @CONFIG_DIR@/$NAME
 
-test -r "$SRS_SECRET" -a -n "$SRS_DOMAIN" || exit 0
+test -n "$SRS_SECRET" -a -n "$SRS_DOMAIN" || exit 0
 
 do_start()
 {
+	@CMAKE_INSTALL_PREFIX@/sbin/@POSTSRSD@-generate-secret "$SRS_SECRET"
 	echo -n "Starting $DESC: "
 	daemon $DAEMON -f "$SRS_FORWARD_PORT" -r "$SRS_REVERSE_PORT" -d "$SRS_DOMAIN" -s "$SRS_SECRET" \
 	               -u "$RUN_AS" -p "$PIDFILE" -a "$SRS_SEPARATOR" -c "$CHROOT" -D -X"$SRS_EXCLUDE_DOMAINS"

@@ -9,6 +9,7 @@ script
 	SRS_DOMAIN=`postconf -h mydomain || true`
 	SRS_EXCLUDE_DOMAINS=
 	. "@CONFIG_DIR@/@PROJECT_NAME@"
+	@CMAKE_INSTALL_PREFIX@/sbin/@POSTSRSD@-generate-secret "$SRS_SECRET"
 	exec @CMAKE_INSTALL_PREFIX@/sbin/@POSTSRSD@ -f "$SRS_FORWARD_PORT" -r "$SRS_REVERSE_PORT" -d "$SRS_DOMAIN" -s "$SRS_SECRET" -a "$SRS_SEPARATOR" -u "$RUN_AS" -c "$CHROOT" -X"$SRS_EXCLUDE_DOMAINS"
 end script
 

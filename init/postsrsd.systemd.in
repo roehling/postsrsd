@@ -3,11 +3,24 @@ Description=PostSRSd Daemon
 
 [Service]
 Type=simple
-Environment=SRS_DOMAIN=localhost.localdomain
-Environment=SRS_EXCLUDE_DOMAINS=
-EnvironmentFile=@CONFIG_DIR@/@PROJECT_NAME@
-ExecStart=@CMAKE_INSTALL_PREFIX@/sbin/@POSTSRSD@ -f "${SRS_FORWARD_PORT}" -r "${SRS_REVERSE_PORT}" -d "${SRS_DOMAIN}" -s "${SRS_SECRET}" -a "${SRS_SEPARATOR}" -u "${RUN_AS}" -c "${CHROOT}" -X"${SRS_EXCLUDE_DOMAINS}"
 Restart=always
 
+# Fallback defaults.
+Environment=SRS_DOMAIN=localhost.localdomain
+Environment=SRS_EXCLUDE_DOMAINS=
+
+# Fill in a default value for SRS_DOMAIN using postconf.
+RuntimeDirectory=@PROJECT_NAME@
+ExecStartPre=/bin/sh -c '{ echo -n SRS_DOMAIN= ; postconf -h mydomain ; } >/run/@PROJECT_NAME@/default'
+EnvironmentFile=-/run/@PROJECT_NAME@/default
+
+# Load the real configuration.
+EnvironmentFile=@CONFIG_DIR@/@PROJECT_NAME@
+
+# Generate a secret key if one does not already exist.
+ExecStartPre=@CMAKE_INSTALL_PREFIX@/sbin/@POSTSRSD@-generate-secret "${SRS_SECRET}"
+
+ExecStart=@CMAKE_INSTALL_PREFIX@/sbin/@POSTSRSD@ -d "${SRS_DOMAIN}" -s "${SRS_SECRET}" -a "${SRS_SEPARATOR}" -u "${RUN_AS}" -c "${CHROOT}" -X"${SRS_EXCLUDE_DOMAINS}"
+
 [Install]
-WantedBy=multi-user.target
+Also=@PROJECT_NAME@.socket
