@@ -41,6 +41,9 @@
 #include <wait.h>
 #endif
 #include <syslog.h>
+#ifdef HAVE_SD_DAEMON_H
+#include <systemd/sd-daemon.h>
+#endif
 
 #ifndef VERSION
 #define VERSION "1.4"
@@ -404,13 +407,28 @@ int main (int argc, char **argv)
     return EXIT_FAILURE;
   }
   /* Bind ports. May require privileges if the config specifies ports below 1024 */
-  sc = bind_service(forward_service, family, &sockets[socket_count], 4 - socket_count);
-  if (sc == 0) return EXIT_FAILURE;
-  while (sc-- > 0) handler[socket_count++] = handle_forward;
+#ifdef HAVE_SD_DAEMON_H
+  if (sd_listen_fds(1) == 2 &&
+      sd_is_socket(SD_LISTEN_FDS_START, family, SOCK_STREAM, 1) &&
+      sd_is_socket(SD_LISTEN_FDS_START + 1, family, SOCK_STREAM, 1)) {
+    /* Sockets are already bound and passed to us by systemd. */
+    sockets[0] = SD_LISTEN_FDS_START;
+    handler[0] = handle_forward;
+    sockets[1] = SD_LISTEN_FDS_START + 1;
+    handler[1] = handle_reverse;
+    socket_count = 2;
+  } else {
+#endif
+    sc = bind_service(forward_service, family, &sockets[socket_count], 4 - socket_count);
+    if (sc == 0) return EXIT_FAILURE;
+    while (sc-- > 0) handler[socket_count++] = handle_forward;
+    sc = bind_service(reverse_service, family, &sockets[socket_count], 4 - socket_count);
+    if (sc == 0) return EXIT_FAILURE;
+    while (sc-- > 0) handler[socket_count++] = handle_reverse;
+#ifdef HAVE_SD_DAEMON_H
+  }
+#endif
   free (forward_service);
-  sc = bind_service(reverse_service, family, &sockets[socket_count], 4 - socket_count);
-  if (sc == 0) return EXIT_FAILURE;
-  while (sc-- > 0) handler[socket_count++] = handle_reverse;
   free (reverse_service);
   /* Open syslog now (NDELAY), because it may no longer be reachable from chroot */
   openlog (self, LOG_PID | LOG_NDELAY, LOG_MAIL);
