@@ -4,6 +4,7 @@ include(CheckIncludeFile)
 
 option(GENERATE_SRS_SECRET "Generate a random SRS secret if none exists during install" ON)
 option(USE_APPARMOR "Enable AppArmor profile" OFF)
+option(USE_SELINUX "Enable SELinux policy module" OFF)
 
 set(CHROOT_DIR "${CMAKE_INSTALL_PREFIX}/lib/${PROJECT_NAME}" CACHE PATH "Chroot jail for daemon")
 set(SYSCONF_DIR "/etc" CACHE PATH "Global system configuration folder")
@@ -105,6 +106,15 @@ endif()
 
 if(USE_APPARMOR)
 	install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.apparmor DESTINATION "${SYSCONF_DIR}/apparmor.d" RENAME "${APPARMOR_PROFILE}")
+endif()
+
+if(USE_SELINUX)
+	file(COPY selinux/${PROJECT_NAME}.te selinux/${PROJECT_NAME}.fc DESTINATION selinux)
+	add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+		WORKING_DIRECTORY selinux
+		COMMAND make -f /usr/share/selinux/devel/Makefile)
+	install(FILES ${CMAKE_CURRENT_BINARY_DIR}/selinux/${PROJECT_NAME}.pp
+		DESTINATION /usr/share/selinux/packages/${PROJECT_NAME})
 endif()
 
 install(TARGETS ${PROJECT_NAME} DESTINATION "sbin")
