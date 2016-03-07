@@ -34,11 +34,12 @@ SRS_EXCLUDE_DOMAINS=
 # Read config file
 . @CONFIG_DIR@/$NAME
 
-test -r "$SRS_SECRET" -a -n "$SRS_DOMAIN" || exit 0
+test -n "$SRS_SECRET" -a -n "$SRS_DOMAIN" || exit 0
 
 ret=0
 case "$1" in
   start)
+	@CMAKE_INSTALL_PREFIX@/sbin/@POSTSRSD@-generate-secret "$SRS_SECRET"
 	log_daemon_msg "Starting $DESC" "$NAME"
 	if start-stop-daemon --start --oknodo --quiet \
 		--pidfile $PIDFILE \

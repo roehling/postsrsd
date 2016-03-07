@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 2.4)
 project(postsrsd C)
 include(CheckIncludeFile)
 
-option(GENERATE_SRS_SECRET "Generate a random SRS secret if none exists during install" ON)
 option(USE_APPARMOR "Enable AppArmor profile" OFF)
 
 set(CHROOT_DIR "${CMAKE_INSTALL_PREFIX}/lib/${PROJECT_NAME}" CACHE PATH "Chroot jail for daemon")
@@ -100,6 +99,8 @@ configure_file(init/${PROJECT_NAME}.systemd.in ${PROJECT_NAME}.systemd @ONLY)
 configure_file(init/${PROJECT_NAME}.socket.in ${PROJECT_NAME}.socket @ONLY)
 configure_file(init/${PROJECT_NAME}.default.in ${PROJECT_NAME}.default @ONLY)
 
+configure_file(${PROJECT_NAME}-generate-secret.in ${PROJECT_NAME}-generate-secret @ONLY)
+
 configure_file(postinstall.cmake.in postinstall.cmake @ONLY)
 
 if(HELP2MAN)
@@ -115,6 +116,7 @@ if(USE_APPARMOR)
 endif()
 
 install(TARGETS ${PROJECT_NAME} DESTINATION "sbin")
+install(PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-generate-secret" DESTINATION "sbin")
 install(FILES README.md README_UPGRADE.md main.cf.ex DESTINATION "${DOC_DIR}")
 install(SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/postinstall.cmake")
 

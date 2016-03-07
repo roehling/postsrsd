@@ -17,6 +17,9 @@ EnvironmentFile=-/run/@PROJECT_NAME@/default
 # Load the real configuration.
 EnvironmentFile=@CONFIG_DIR@/@PROJECT_NAME@
 
+# Generate a secret key if one does not already exist.
+ExecStartPre=@CMAKE_INSTALL_PREFIX@/sbin/@POSTSRSD@-generate-secret "${SRS_SECRET}"
+
 ExecStart=@CMAKE_INSTALL_PREFIX@/sbin/@POSTSRSD@ -d "${SRS_DOMAIN}" -s "${SRS_SECRET}" -a "${SRS_SEPARATOR}" -u "${RUN_AS}" -c "${CHROOT}" -X"${SRS_EXCLUDE_DOMAINS}"
 
 [Install]
