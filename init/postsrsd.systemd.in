@@ -3,11 +3,21 @@ Description=PostSRSd Daemon
 
 [Service]
 Type=simple
+Restart=always
+
+# Fallback defaults.
 Environment=SRS_DOMAIN=localhost.localdomain
 Environment=SRS_EXCLUDE_DOMAINS=
+
+# Fill in a default value for SRS_DOMAIN using postconf.
+RuntimeDirectory=@PROJECT_NAME@
+ExecStartPre=/bin/sh -c '{ echo -n SRS_DOMAIN= ; postconf -h mydomain ; } >/run/@PROJECT_NAME@/default'
+EnvironmentFile=-/run/@PROJECT_NAME@/default
+
+# Load the real configuration.
 EnvironmentFile=@CONFIG_DIR@/@PROJECT_NAME@
+
 ExecStart=@CMAKE_INSTALL_PREFIX@/sbin/@POSTSRSD@ -f "${SRS_FORWARD_PORT}" -r "${SRS_REVERSE_PORT}" -d "${SRS_DOMAIN}" -s "${SRS_SECRET}" -a "${SRS_SEPARATOR}" -u "${RUN_AS}" -c "${CHROOT}" -X"${SRS_EXCLUDE_DOMAINS}"
-Restart=always
 
 [Install]
 WantedBy=multi-user.target
