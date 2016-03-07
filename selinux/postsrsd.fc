@@ -1,0 +1,2 @@
+/usr/sbin/postsrsd      gen_context(system_u:object_r:postsrsd_exec_t,s0)
+/etc/postsrsd\.secret   gen_context(system_u:object_r:postsrsd_secret_t,s0)
