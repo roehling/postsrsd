@@ -4,19 +4,19 @@ PostSRSd
 About
 -----
 
-PostSRSd provides the Sender Rewriting Scheme (SRS) via TCP-based 
+PostSRSd provides the Sender Rewriting Scheme (SRS) via TCP-based
 lookup tables for Postfix. SRS is needed if your mail server acts
-as forwarder. 
+as forwarder.
 
 
 Sender Rewriting Scheme Crash Course
 ------------------------------------
 Imagine your server receives a mail from alice@example.com
-that is to be forwarded. If example.com uses the Sender Policy Framework 
-to indicate that all legit mails originate from their server, your 
+that is to be forwarded. If example.com uses the Sender Policy Framework
+to indicate that all legit mails originate from their server, your
 forwarded mail might be bounced, because you have no permission to send
 on behalf of example.com. The solution is that you map the address to
-your own domain, e.g. 
+your own domain, e.g.
 SRS0+xxxx=yy=example.com=alice@yourdomain.org (forward SRS). If the
 mail is bounced later and a notification arrives, you can extract the
 original address from the rewritten one (reverse SRS) and return the
@@ -28,7 +28,7 @@ does not match, the address is forged and the mail can be discarded.
 Building
 --------
 
-PostSRSd requires a POSIX compatible system and CMake to build. 
+PostSRSd requires a POSIX compatible system and CMake to build.
 Optionally, help2man is used to create a manual page.
 
 For convenience, a Makefile fragment is provided which calls CMake with
@@ -47,8 +47,8 @@ standard CMake flags. Use `-D<option>=<value>` to override the defaults.
 
 *   `GENERATE_SRS_SECRET` (default: `ON`). Generate a random secret on install.
 *   `USE_APPARMOR` (default: `OFF`): Install an AppArmor profile for the daemon.
-*   `INIT_FLAVOR` (default: auto-detect). Select the appriopriate startup 
-    script type. Must be one of (`upstart`,`sysv-lsb`,`sysv-redhat`) or `none`.
+*   `INIT_FLAVOR` (default: auto-detect). Select the appriopriate startup
+    script type. Must be one of (`systemd`, `upstart`,`sysv-lsb`,`sysv-redhat`) or `none`.
 *   `CHROOT_DIR` (default: `${CMAKE_INSTALL_PREFIX}/lib/postsrsd`). Chroot jail
     for the daemon.
 *   `SYSCONF_DIR` (default: `/etc`). Location of system configuration files.
