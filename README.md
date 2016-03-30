@@ -11,18 +11,18 @@ as forwarder.
 
 Sender Rewriting Scheme Crash Course
 ------------------------------------
-Imagine your server receives a mail from alice@example.com
+Imagine your server receives a mail from `alice@example.com`
 that is to be forwarded. If example.com uses the Sender Policy Framework
 to indicate that all legit mails originate from their server, your
 forwarded mail might be bounced, because you have no permission to send
 on behalf of example.com. The solution is that you map the address to
 your own domain, e.g.
-SRS0+xxxx=yy=example.com=alice@yourdomain.org (forward SRS). If the
+`SRS0+xxxx=yy=example.com=alice@yourdomain.org` (forward SRS). If the
 mail is bounced later and a notification arrives, you can extract the
 original address from the rewritten one (reverse SRS) and return the
 notification to the sender. You might notice that the reverse SRS can
-be abused to turn your server into an open relay. For this reason, xxxx
-and yy are a cryptographic signature and a time stamp. If the signature
+be abused to turn your server into an open relay. For this reason, `xxxx`
+and `yy` are a cryptographic signature and a time stamp. If the signature
 does not match, the address is forged and the mail can be discarded.
 
 Building
@@ -47,8 +47,11 @@ standard CMake flags. Use `-D<option>=<value>` to override the defaults.
 
 *   `GENERATE_SRS_SECRET` (default: `ON`). Generate a random secret on install.
 *   `USE_APPARMOR` (default: `OFF`): Install an AppArmor profile for the daemon.
+*   `USE_SELINUX` (default: `OFF`): Install an SELinux policy module for
+    the daemon.
 *   `INIT_FLAVOR` (default: auto-detect). Select the appriopriate startup
-    script type. Must be one of (`systemd`, `upstart`,`sysv-lsb`,`sysv-redhat`) or `none`.
+    script type. Must be one of (`systemd`, `upstart`,`sysv-lsb`,`sysv-redhat`)
+    or `none`.
 *   `CHROOT_DIR` (default: `${CMAKE_INSTALL_PREFIX}/lib/postsrsd`). Chroot jail
     for the daemon.
 *   `SYSCONF_DIR` (default: `/etc`). Location of system configuration files.
@@ -56,6 +59,8 @@ standard CMake flags. Use `-D<option>=<value>` to override the defaults.
     the postsrsd settings.
 *   `DOC_DIR` (default: `${CMAKE_INSTALL_PREFIX}/share/doc/postsrsd`). Install
     destination for documentation files.
+*   `SYSD_UNIT_DIR` (default: `${SYSCONF_DIR}/systemd/system`). Install
+    destination for systemd startup files.
 
 Installing
 ----------
@@ -66,20 +71,25 @@ files.
 Configuration
 -------------
 
-The configuration is located in `/etc/default/postsrsd` by default. You must store
-at least one secret key in `/etc/postsrsd.secret`. The installer tries to generate
-one from `/dev/urandom`. Be careful that no one can guess your secret,
-because anyone who knows it can use your mail server as open relay!
-Each line of `/etc/postsrsd.secret` is used as secret. The first secret is
-used for signing and verification, the others for verification only.
+The configuration is located in `/etc/default/postsrsd` by default. On many
+systems, the default configuration will work out-of-the-box, but please take
+the two minutes to check the settings for yourself. Also, please make sure
+that Postfix has the correct domain name configured, i.e.
+`postconf -h mydomain` returns the correct value.
+
+You must store at least one secret key in `/etc/postsrsd.secret`. The installer
+tries to generate one from `/dev/urandom`. Be careful that no one can guess
+your secret, because anyone who knows it can use your mail server as open
+relay!  Each line of `/etc/postsrsd.secret` is used as secret. The first secret
+is used for signing and verification, the others for verification only.
 
 PostSRSd exposes its functionality via two TCP lookup tables. The
 recommended Postfix configuration is to add the following fragment to
 your main.cf:
 
-    sender_canonical_maps = tcp:127.0.0.1:10001
+    sender_canonical_maps = tcp:localhost:10001
     sender_canonical_classes = envelope_sender
-    recipient_canonical_maps = tcp:127.0.0.1:10002
+    recipient_canonical_maps = tcp:localhost:10002
     recipient_canonical_classes= envelope_recipient,header_recipient
 
 This will transparently rewrite incoming and outgoing envelope addresses,
