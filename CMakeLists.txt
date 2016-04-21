@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.4)
 if(COMMAND cmake_policy)
     if(POLICY CMP0026)
-        cmake_policy(CMP0026 OLD)
+        cmake_policy(SET CMP0026 OLD)
     endif()
 endif()
 project(postsrsd C)
