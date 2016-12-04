@@ -9,7 +9,7 @@ If using a domain solely for SRS return addresses:
     
     begin routers
     
-    srs0_return:
+    srs_return:
       caseful_local_part
       domains = SRS_DOMAIN
       driver = redirect
@@ -31,7 +31,7 @@ If your SRS domain is also used for other addresses:
     
     begin routers
     
-    srs0_return:
+    srs_return:
       caseful_local_part
       domains = SRS_DOMAIN
       local_part_prefix = srs0= : srs1=
