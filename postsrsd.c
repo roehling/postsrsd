@@ -219,6 +219,8 @@ static void show_help ()
     "   -s<file>       read secrets from file (required)\n"
     "   -d<domain>     set domain name for rewrite (required)\n"
     "   -a<char>       set first separator character which can be one of: -=+ (default: =)\n"
+    "   -n<num>        length of hash to be used in rewritten addresses (default: 4)\n"
+    "   -N<num>        minimum length of hash to accept for validation (default: 4)\n"
     "   -l<addr>       set socket listen address (default: 127.0.0.1)\n"
     "   -f<port>       set port for the forward SRS lookup (default: 10001)\n"
     "   -r<port>       set port for the reverse SRS lookup (default: 10002)\n"
@@ -242,7 +244,7 @@ typedef void(*handle_t)(srs_t*, FILE*, const char*, const char*, const char**);
 
 int main (int argc, char **argv)
 {
-  int opt, timeout = 1800, family = AF_UNSPEC;
+  int opt, timeout = 1800, family = AF_UNSPEC, hashlength = 0, hashmin = 0;
   int daemonize = FALSE;
   char *listen_addr = NULL, *forward_service = NULL, *reverse_service = NULL,
        *user = NULL, *domain = NULL, *chroot_dir = NULL;
@@ -265,7 +267,7 @@ int main (int argc, char **argv)
   tmp = strrchr(argv[0], '/');
   if (tmp) self = strdup(tmp + 1); else self = strdup(argv[0]);
 
-  while ((opt = getopt(argc, argv, "46d:a:l:f:r:s:u:t:p:c:X::Dhev")) != -1) {
+  while ((opt = getopt(argc, argv, "46d:a:l:f:r:s:n:N:u:t:p:c:X::Dhev")) != -1) {
     switch (opt) {
       case '?':
         return EXIT_FAILURE;
@@ -295,6 +297,12 @@ int main (int argc, char **argv)
         break;
       case 's':
         secret_file = strdup(optarg);
+        break;
+      case 'n':
+        hashlength = atoi(optarg);
+        break;
+      case 'N':
+        hashmin = atoi(optarg);
         break;
       case 'p':
         pid_file = strdup(optarg);
@@ -334,6 +342,10 @@ int main (int argc, char **argv)
           domain = strdup(getenv("SRS_DOMAIN"));
         if ( getenv("SRS_SEPARATOR") != NULL )
           separator = *getenv("SRS_SEPARATOR");
+        if ( getenv("SRS_HASHLENGTH") != NULL )
+          hashlength = atoi(getenv("SRS_HASHLENGTH"));
+        if ( getenv("SRS_HASHMIN") != NULL )
+          hashmin = atoi(getenv("SRS_HASHMIN"));
         if ( getenv("SRS_FORWARD_PORT") != NULL )
           forward_service = strdup(getenv("SRS_FORWARD_PORT"));
         if ( getenv("SRS_REVERSE_PORT") != NULL )
@@ -473,6 +485,10 @@ int main (int argc, char **argv)
   fclose (sf);
 
   srs_set_separator (srs, separator);
+  if (hashlength)
+    srs_set_hashlength (srs, hashlength);
+  if (hashmin)
+    srs_set_hashmin (srs, hashmin);
 
   for (sc = 0; sc < socket_count; ++sc) {
     fds[sc].fd = sockets[sc];
