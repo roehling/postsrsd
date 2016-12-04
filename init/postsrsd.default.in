@@ -26,7 +26,10 @@ SRS_SECRET=@SYSCONF_DIR@/@PROJECT_NAME@.secret
 # Length of hash to be used in rewritten addresses
 SRS_HASHLENGTH=4
 
-# Minimum length of hash to accept when validating return addresses
+# Minimum length of hash to accept when validating return addresses.
+# When increasing SRS_HASHLENGTH, set this to its previous value and
+# wait for the duration of SRS return address validity (21 days) before
+# increading this value as well.
 SRS_HASHMIN=4
 
 # Local ports for TCP list.
