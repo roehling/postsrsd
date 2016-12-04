@@ -1,0 +1,69 @@
+PostSRSd integration with Exim
+==============================
+
+## SRS Return router
+
+If using a domain solely for SRS return addresses:
+
+    SRS_DOMAIN = srs.your.domain
+    
+    begin routers
+    
+    srs0_return:
+      caseful_local_part
+      domains = SRS_DOMAIN
+      driver = redirect
+      allow_fail
+      data = ${if match {$local_part}{\N(?i)^srs[01]=\N} \
+    	{${if match \
+    	  {${readsocket{inet:localhost:10002}{get ${quote_local_part:$local_part_prefix$local_part}@$domain}{3s}}} \
+    	  {\N^200 (.+)\N} \
+    	  {$1} \
+    	  {:fail: Invalid SRS bounce} \
+    	}} \
+    	{:fail: Invalid SRS bounce} \
+      }
+      no_more
+
+If your SRS domain is also used for other addresses:
+
+    SRS_DOMAIN = srs.your.domain
+    
+    begin routers
+    
+    srs0_return:
+      caseful_local_part
+      domains = SRS_DOMAIN
+      local_part_prefix = srs0= : srs1=
+      driver = redirect
+      allow_fail
+      data = ${if match \
+        {${readsocket{inet:localhost:10002}{get ${quote_local_part:$local_part_prefix$local_part}@$domain}{3s}}} \
+        {\N^200 (.+)\N} \
+        {$1} \
+        {:fail: Invalid SRS bounce} \
+      }
+
+## Rewriting outgoing mail in the SMTP transport
+
+The following excludes locally submitted mail, or mail submitted by authenticated
+users from SRS rewriting. Of course, if the sender address is already in
+one of our local domains, there is no need to rewrite the address.
+
+    begin transports
+    
+    remote_smtp:
+      debug_print = "T: remote_smtp for $local_part@$domain"
+      driver = smtp
+      return_path = ${if and { \
+    		{!match_ip{$sender_host_address}{:@[]}} \
+    		{!def:authenticated_id} \
+    		{!match_address {$sender_address} { : *@+local_domains : *@+virtual_domains : SRS_DOMAIN}} \
+    	} \
+    	{${if match \
+    	  {${readsocket{inet:localhost:10001}{get $sender_address}{3s}}} \
+    	  {\N^200 (.+)\N} \
+    	  {$1} \
+    	  fail } \
+    	} \
+    	fail }
