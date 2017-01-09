@@ -109,3 +109,7 @@ Known Issues
 - The Postfix package in CentOS 6 lacks the required support for TCP
   dictionaries. Please upgrade your distribution or build Postfix yourself.
 
+Use with Exim
+-------------
+
+Exim configuration examples can be found in [README.exim.md](README.exim.md)

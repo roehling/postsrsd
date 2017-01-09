@@ -371,7 +371,7 @@ srs_hash_check(srs_t *srs, char *hash, int nargs, ...)
 	len = strlen(hash);
 	if (len < srs->hashmin)
 		return SRS_EHASHTOOSHORT;
-	if (len < srs->hashlength) {
+	if (len > srs->hashlength) {
 		tmp = alloca(srs->hashlength + 1);
 		strncpy(tmp, hash, srs->hashlength);
 		tmp[srs->hashlength] = '\0';

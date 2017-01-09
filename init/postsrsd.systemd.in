@@ -17,7 +17,7 @@ EnvironmentFile=-/run/@PROJECT_NAME@/default
 # Load the real configuration.
 EnvironmentFile=@CONFIG_DIR@/@PROJECT_NAME@
 
-ExecStart=@CMAKE_INSTALL_PREFIX@/sbin/@POSTSRSD@ -f "${SRS_FORWARD_PORT}" -r "${SRS_REVERSE_PORT}" -d "${SRS_DOMAIN}" -s "${SRS_SECRET}" -a "${SRS_SEPARATOR}" -u "${RUN_AS}" -c "${CHROOT}" -X"${SRS_EXCLUDE_DOMAINS}"
+ExecStart=@CMAKE_INSTALL_PREFIX@/sbin/@POSTSRSD@ -f "${SRS_FORWARD_PORT}" -r "${SRS_REVERSE_PORT}" -d "${SRS_DOMAIN}" -s "${SRS_SECRET}" -a "${SRS_SEPARATOR}" -n "${SRS_HASHLENGTH}" -N "${SRS_HASHMIN}" -u "${RUN_AS}" -c "${CHROOT}" -X"${SRS_EXCLUDE_DOMAINS}"
 
 [Install]
 WantedBy=multi-user.target
