@@ -262,6 +262,7 @@ int main (int argc, char **argv)
   size_t socket_count = 0, sc;
   int sockets[4] = { -1, -1, -1, -1 };
   handle_t handler[4] = { 0, 0, 0, 0 };
+  int fd, maxfd;
 
   excludes = (const char**)calloc(1, sizeof(char*));
   tmp = strrchr(argv[0], '/');
@@ -397,6 +398,11 @@ int main (int argc, char **argv)
   }
   if (forward_service == NULL) forward_service = strdup("10001");
   if (reverse_service == NULL) reverse_service = strdup("10002");
+
+  /* Close all file descriptors (std ones will be closed later). */
+  maxfd = sysconf(_SC_OPEN_MAX);
+  for(fd = 3; fd < maxfd; fd++)
+    close(fd);
 
   /* The stuff we do first may not be possible from within chroot or without privileges */
 
