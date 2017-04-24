@@ -1,4 +1,4 @@
-all install: build/Makefile
+all install test: build/Makefile
 	$(MAKE) -C build $@
 
 clean distclean:

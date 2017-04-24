@@ -81,9 +81,13 @@ if(NOT DEFINED INIT_FLAVOR)
 endif()
 
 add_executable(${PROJECT_NAME} postsrsd.c sha1.c srs2.c)
+enable_testing()
+add_executable(${PROJECT_NAME}_tests tests.c sha1.c srs2.c)
+add_test(AllTests ${PROJECT_NAME}_tests)
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "SunOS")
     target_link_libraries(${PROJECT_NAME} ${LIBSOCKET} ${LIBNSL})
+    target_link_libraries(${PROJECT_NAME}_tests ${LIBSOCKET} ${LIBNSL})
 endif()
 
 get_target_property(POSTSRSD ${PROJECT_NAME} LOCATION)
