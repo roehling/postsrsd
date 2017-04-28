@@ -1,22 +1,22 @@
-policy_module(postsrsd, 1.0.0)
-
-gen_require(`
-    type http_cache_port_t;
-')
+policy_module(postsrsd, 1.1.0)
 
 type postsrsd_t;
 type postsrsd_exec_t;
+type postsrsd_var_lib_t;
+type postsrsd_secret_t;
+
 init_daemon_domain(postsrsd_t, postsrsd_exec_t)
 
-type postsrsd_secret_t;
 files_type(postsrsd_secret_t)
+files_type(postsrsd_var_lib_t)
 
 miscfiles_read_localization(postsrsd_t)
 auth_use_nsswitch(postsrsd_t)
 logging_send_syslog_msg(postsrsd_t)
-allow postsrsd_t self:capability { setuid sys_chroot };
+allow postsrsd_t self:capability { setuid sys_chroot dac_override dac_read_search };
 # 10001 and 10002 are labelled http_cache_port_t for whatever reason,
 # no point arguing with that...
 corenet_tcp_bind_http_cache_port(postsrsd_t)
 allow postsrsd_t self:tcp_socket server_stream_socket_perms;
-allow postsrsd_t postsrsd_secret_t:file read_file_perms;
+read_files_pattern(postsrsd_t, postsrsd_secret_t, postsrsd_secret_t)
+manage_files_pattern(postsrsd_t, postsrsd_var_lib_t, postsrsd_var_lib_t)
