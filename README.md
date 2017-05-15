@@ -105,6 +105,8 @@ Known Issues
   will always be rewritten even if the mail is not forwarded at all. This
   is because the canonical maps are read by the cleanup daemon, which
   processes mails at the very beginning before any routing decision is made.
+  In particular, anti-spam software (such as Spam Assassin) will fail to verify
+  SPF policy, increasing the chance of marking genuine mail as spam.
 
 - The Postfix package in CentOS 6 lacks the required support for TCP
   dictionaries. Please upgrade your distribution or build Postfix yourself.
