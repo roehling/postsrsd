@@ -34,7 +34,7 @@ SRS_EXCLUDE_DOMAINS=
 # Read config file
 . @CONFIG_DIR@/$NAME
 
-test -r "$SRS_SECRET" -a -n "$SRS_DOMAIN" || exit 0
+test -r "$SRS_SECRET" -a -n "$SRS_DOMAIN" || exit 1
 
 ret=0
 case "$1" in
