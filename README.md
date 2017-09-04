@@ -105,6 +105,10 @@ Known Issues
   will always be rewritten even if the mail is not forwarded at all. This
   is because the canonical maps are read by the cleanup daemon, which
   processes mails at the very beginning before any routing decision is made.
+  
+  Where piping into an external command is not a problem,
+  [Postforward](https://github.com/zoni/postforward) offers an alternative
+  way to integrate PostSRSd with Postfix which avoids this problem.
 
 - The Postfix package in CentOS 6 lacks the required support for TCP
   dictionaries. Please upgrade your distribution or build Postfix yourself.
