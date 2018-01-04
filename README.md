@@ -96,7 +96,7 @@ This will transparently rewrite incoming and outgoing envelope addresses,
 and additionally undo SRS rewrites in the To: header of bounce notifications
 and vacation autoreplies.
 
-Run `service postsrsd start` and `postfix reload` as root, or reboot.
+Run `service postsrsd start` and `postfix reload` as root, or reboot. For Debian and Ubuntu you need to run `systemctl enable postsrsd` first.
 
 Known Issues
 ------------
