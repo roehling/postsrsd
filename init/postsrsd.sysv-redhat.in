@@ -37,7 +37,7 @@ do_start()
 	echo -n "Starting $DESC: "
 	daemon $DAEMON -f "$SRS_FORWARD_PORT" -r "$SRS_REVERSE_PORT" -d "$SRS_DOMAIN" \
 	               -s "$SRS_SECRET" -n "$SRS_HASHLENGTH" -N "$SRS_HASHMIN" \
-	               -u "$RUN_AS" -p "$PIDFILE" -a "$SRS_SEPARATOR" -c "$CHROOT" -D -X"$SRS_EXCLUDE_DOMAINS"
+	               -u "$RUN_AS" -p "$PIDFILE" -a "$SRS_SEPARATOR" -c "$CHROOT" -D -X"$SRS_EXCLUDE_DOMAINS" -l "$SRS_LISTEN"
 	RETVAL=$?
 	echo
     	[ $RETVAL -eq 0 ] && touch /var/lock/subsys/$NAME
