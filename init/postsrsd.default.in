@@ -48,7 +48,7 @@ RUN_AS=nobody
 
 # Bind to this address
 #
-SRS_LISTEN=127.0.0.1
+SRS_LISTEN_ADDR=127.0.0.1
 
 # Jail daemon in chroot environment
 CHROOT=@CHROOT_DIR@
