@@ -44,7 +44,7 @@ case "$1" in
 		--pidfile $PIDFILE \
 		--name $NAME \
 		--startas $DAEMON \
-		-- -f "$SRS_FORWARD_PORT" -r "$SRS_REVERSE_PORT" -d "$SRS_DOMAIN" -s "$SRS_SECRET" -a "$SRS_SEPARATOR" -n "$SRS_HASHLENGTH" -N "$SRS_HASHMIN" -u "$RUN_AS" -p "$PIDFILE" -c "$CHROOT" -D -X"$SRS_EXCLUDE_DOMAINS"
+		-- -f "$SRS_FORWARD_PORT" -r "$SRS_REVERSE_PORT" -d "$SRS_DOMAIN" -s "$SRS_SECRET" -a "$SRS_SEPARATOR" -n "$SRS_HASHLENGTH" -N "$SRS_HASHMIN" -u "$RUN_AS" -p "$PIDFILE" -c "$CHROOT" -l "$SRS_LISTEN_ADDR" -D -X"$SRS_EXCLUDE_DOMAINS"
 	then
 	    log_end_msg 0
 	else
