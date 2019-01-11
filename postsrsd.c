@@ -43,7 +43,7 @@
 #include <syslog.h>
 
 #ifndef VERSION
-#define VERSION "1.4"
+#define VERSION "1.5"
 #endif
 
 static char *self = NULL;
