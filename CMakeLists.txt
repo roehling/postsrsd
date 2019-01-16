@@ -1,9 +1,4 @@
 cmake_minimum_required(VERSION 2.4)
-if(COMMAND cmake_policy)
-    if(POLICY CMP0026)
-        cmake_policy(SET CMP0026 OLD)
-    endif()
-endif()
 project(postsrsd C)
 include(CheckIncludeFile)
 
@@ -90,9 +85,7 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "SunOS")
     target_link_libraries(${PROJECT_NAME}_tests ${LIBSOCKET} ${LIBNSL})
 endif()
 
-get_target_property(POSTSRSD ${PROJECT_NAME} LOCATION)
-get_filename_component(POSTSRSD ${POSTSRSD} NAME_WE)
-set(APPARMOR_PROFILE "${CMAKE_INSTALL_PREFIX}/sbin/${POSTSRSD}")
+set(APPARMOR_PROFILE "${CMAKE_INSTALL_PREFIX}/sbin/${PROJECT_NAME}${CMAKE_EXECUTABLE_SUFFIX}")
 string(REGEX REPLACE "^/+" "" APPARMOR_PROFILE "${APPARMOR_PROFILE}")
 string(REPLACE "/" "." APPARMOR_PROFILE "${APPARMOR_PROFILE}")
 
