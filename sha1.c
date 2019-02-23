@@ -29,12 +29,21 @@
 #endif
 #endif
 
-#ifdef WORDS_BIGENDIAN
-#define BYTEORDER 0x4321
+#if SIZEOF_UNSIGNED_LONG == 4
+#  ifdef WORDS_BIGENDIAN
+#    define BYTEORDER 0x4321
+#  else
+#    define BYTEORDER 0x1234
+#  endif
+#elif SIZEOF_UNSIGNED_LONG == 8
+#  ifdef WORDS_BIGENDIAN
+#    define BYTEORDER 0x87654321
+#  else
+#    define BYTEORDER 0x12345678
+#  endif
 #else
-#define BYTEORDER 0x1234
+#  error "SHA1 requires an unsigned long of either 4 or 8 bytes"
 #endif
-
 
 /* UNRAVEL should be fastest & biggest */
 /* UNROLL_LOOPS should be just as big, but slightly slower */

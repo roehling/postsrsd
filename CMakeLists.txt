@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.4)
 project(postsrsd C)
 include(CheckIncludeFile)
+include(CheckTypeSize)
+include(TestBigEndian)
 
 option(GENERATE_SRS_SECRET "Generate a random SRS secret if none exists during install" ON)
 option(USE_APPARMOR "Enable AppArmor profile" OFF)
@@ -55,6 +57,13 @@ check_include_file(sys/types.h HAVE_SYS_TYPES_H)
 if(HAVE_SYS_TYPES_H)
     add_definitions(-DHAVE_SYS_TYPES_H)
 endif()
+
+test_big_endian(WORDS_BIGENDIAN)
+if(WORDS_BIGENDIAN)
+    add_definitions(-DWORDS_BIGENDIAN)
+endif()
+check_type_size("unsigned long" SIZEOF_UNSIGNED_LONG)
+add_definitions(-DSIZEOF_UNSIGNED_LONG=${SIZEOF_UNSIGNED_LONG})
 
 if(NOT DEFINED INIT_FLAVOR)
     if(SYSTEMD)
