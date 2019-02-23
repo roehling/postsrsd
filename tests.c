@@ -85,6 +85,7 @@ int main (int argc, char** argv)
 
   srs = srs_new();
   srs_add_secret (srs, "t0ps3cr3t");
+  srs_set_hashlength(srs, 16);
 
   for (l1 = 1; l1 <= 63; ++l1)
   {
