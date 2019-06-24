@@ -439,7 +439,7 @@ int main (int argc, char **argv)
   /* Force loading of timezone info (suggested by patrickdk77) */
   now = time(NULL);
   localtime (&now);
-  /* We also have to lookup the uid of the unprivileged user for the same reason. */
+  /* We also have to lookup the uid of the unprivileged user before the chroot. */
   if (user) {
     errno = 0;
     pwd = getpwnam(user);
