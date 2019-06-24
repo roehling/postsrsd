@@ -464,6 +464,10 @@ int main (int argc, char **argv)
   }
   /* Finally, we revert to the unprivileged user */
   if (pwd) {
+    if (setgid(pwd->pw_gid) < 0) {
+      fprintf(stderr, "%s: Failed to switch group id: %s\n", self, strerror(errno));
+      return EXIT_FAILURE;
+    }
     if (setuid(pwd->pw_uid) < 0) {
       fprintf (stderr, "%s: Failed to switch user id: %s\n", self, strerror(errno));
       return EXIT_FAILURE;
