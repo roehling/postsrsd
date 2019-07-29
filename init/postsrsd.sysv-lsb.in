@@ -55,7 +55,7 @@ case "$1" in
   stop)
 	log_daemon_msg "Stopping $DESC" "$NAME"
 	if start-stop-daemon --stop --oknodo --quiet \
-		--pidfile $PIDFILE --name $NAME
+		--pidfile $PIDFILE --exec $DAEMON --name $NAME
 	then
 	    log_end_msg 0
 	else
