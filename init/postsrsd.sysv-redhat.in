@@ -36,7 +36,7 @@ do_start()
 {
 	echo -n "Starting $DESC: "
 	daemon $DAEMON -f "$SRS_FORWARD_PORT" -r "$SRS_REVERSE_PORT" -d "$SRS_DOMAIN" \
-	               -s "$SRS_SECRET" -n "$SRS_HASHLENGTH" -N "$SRS_HASHMIN" \
+	               -s "$SRS_SECRET" -n "$SRS_HASHLENGTH" -N "$SRS_HASHMIN" -A "$SRS_ALWAYSREWRITE" \
 	               -u "$RUN_AS" -p "$PIDFILE" -a "$SRS_SEPARATOR" -c "$CHROOT" -l "$SRS_LISTEN_ADDR" -D -X"$SRS_EXCLUDE_DOMAINS"
 	RETVAL=$?
 	echo

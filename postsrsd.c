@@ -161,6 +161,7 @@ static void handle_forward (srs_t *srs, FILE *fp, const char *address, const cha
   size_t addrlen;
   char value[1024];
   char outputbuf[1024], *output;
+  char *tmp;
 
   addrlen = strlen(address);
   for(; *excludes; excludes++) {
@@ -172,6 +173,20 @@ static void handle_forward (srs_t *srs, FILE *fp, const char *address, const cha
       fflush (fp);
       return;
     }
+  }
+  /* # Ok, first check whether we already have a signed SRS address;
+   * if so, just return the old address: we do not want to double-sign
+   * by accident! (Non-locally generated SRS0 addresses, by nature
+   * of the protocol, will not 'eval'; so, they will simply become
+   * SRS1 addresses. Thus, only locally generated SRS0 addresses are
+   * exempted from double-signing.) */
+  result = srs_reverse(srs, value, sizeof(value), address);
+  if (result == SRS_SUCCESS) {
+    output = url_encode(outputbuf, sizeof(outputbuf), address);
+    fprintf (fp, "200 %s\n", output);
+    syslog (LOG_MAIL | LOG_INFO, "srs_forward: <%s> already signed", address);
+    fflush (fp);
+    return;
   }
   result = srs_forward(srs, value, sizeof(value), address, domain);
   if (result == SRS_SUCCESS) {
@@ -245,6 +260,7 @@ typedef void(*handle_t)(srs_t*, FILE*, const char*, const char*, const char**);
 int main (int argc, char **argv)
 {
   int opt, timeout = 1800, family = AF_UNSPEC, hashlength = 0, hashmin = 0;
+  int alwaysrewrite = FALSE;
   int daemonize = FALSE;
   char *listen_addr = NULL, *forward_service = NULL, *reverse_service = NULL,
        *user = NULL, *domain = NULL, *chroot_dir = NULL;
@@ -268,7 +284,7 @@ int main (int argc, char **argv)
   tmp = strrchr(argv[0], '/');
   if (tmp) self = strdup(tmp + 1); else self = strdup(argv[0]);
 
-  while ((opt = getopt(argc, argv, "46d:a:l:f:r:s:n:N:u:t:p:c:X::Dhev")) != -1) {
+  while ((opt = getopt(argc, argv, "46d:a:l:f:r:s:n:N:u:t:p:c:X::A:Dhev")) != -1) {
     switch (opt) {
       case '?':
         return EXIT_FAILURE;
@@ -304,6 +320,9 @@ int main (int argc, char **argv)
         break;
       case 'N':
         hashmin = atoi(optarg);
+        break;
+      case 'A':
+        alwaysrewrite = atoi(optarg);
         break;
       case 'p':
         pid_file = strdup(optarg);
@@ -347,6 +366,8 @@ int main (int argc, char **argv)
           hashlength = atoi(getenv("SRS_HASHLENGTH"));
         if ( getenv("SRS_HASHMIN") != NULL )
           hashmin = atoi(getenv("SRS_HASHMIN"));
+        if ( getenv("SRS_ALWAYSREWRITE") != NULL )
+          alwaysrewrite = atoi(getenv("SRS_ALWAYSREWRITE"));
         if ( getenv("SRS_FORWARD_PORT") != NULL )
           forward_service = strdup(getenv("SRS_FORWARD_PORT"));
         if ( getenv("SRS_REVERSE_PORT") != NULL )
@@ -499,6 +520,8 @@ int main (int argc, char **argv)
     srs_set_hashlength (srs, hashlength);
   if (hashmin)
     srs_set_hashmin (srs, hashmin);
+  if (alwaysrewrite)
+    srs_set_alwaysrewrite (srs, TRUE);
 
   for (sc = 0; sc < socket_count; ++sc) {
     fds[sc].fd = sockets[sc];

@@ -32,6 +32,9 @@ SRS_HASHLENGTH=4
 # increading this value as well.
 SRS_HASHMIN=4
 
+# Perform SRS rewriting for ALL forwarding, even when not required.
+SRS_ALWAYSREWRITE=0
+
 # Local ports for TCP list.
 # These ports are used to bind the TCP list for postfix. If you change
 # these, you have to modify the postfix settings accordingly. The ports
