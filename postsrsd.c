@@ -174,12 +174,13 @@ static void handle_forward (srs_t *srs, FILE *fp, const char *address, const cha
       return;
     }
   }
-  /* # Ok, first check whether we already have a signed SRS address;
+  /* Comment from Mark Kramer's envfrom2srs.pl:
+   * "Ok, first check whether we already have a signed SRS address;
    * if so, just return the old address: we do not want to double-sign
    * by accident! (Non-locally generated SRS0 addresses, by nature
    * of the protocol, will not 'eval'; so, they will simply become
    * SRS1 addresses. Thus, only locally generated SRS0 addresses are
-   * exempted from double-signing.) */
+   * exempted from double-signing.)" */
   result = srs_reverse(srs, value, sizeof(value), address);
   if (result == SRS_SUCCESS) {
     output = url_encode(outputbuf, sizeof(outputbuf), address);
