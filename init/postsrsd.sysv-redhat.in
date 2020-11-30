@@ -24,13 +24,25 @@ test -x $DAEMON || exit 0
 . @SYSCONF_DIR@/init.d/functions
 
 # Default configuration
+SRS_FORWARD_PORT=10001
+SRS_REVERSE_PORT=10002
 SRS_DOMAIN=`postconf -h mydomain || true`
+SRS_SECRET=@SYSCONF_DIR@/@PROJECT_NAME@.secret
+SRS_SEPARATOR==
+SRS_HASHLENGTH=4
+SRS_HASHMIN=4
+RUN_AS=postsrsd
+CHROOT=@CHROOT_DIR@
+SRS_LISTEN_ADDR=127.0.0.1
 SRS_EXCLUDE_DOMAINS=
 
-# Read config file
-. @CONFIG_DIR@/$NAME
+# Read config file if it is present
+if [ -r @CONFIG_DIR@/$NAME ]
+then
+	. @CONFIG_DIR@/$NAME
+fi
 
-test -r "$SRS_SECRET" -a -n "$SRS_DOMAIN" || exit 0
+test -r "$SRS_SECRET" -a -n "$SRS_DOMAIN" || exit 1
 
 do_start()
 {
