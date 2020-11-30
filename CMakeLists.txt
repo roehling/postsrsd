@@ -101,7 +101,6 @@ string(REPLACE "/" "." APPARMOR_PROFILE "${APPARMOR_PROFILE}")
 
 configure_file(init/${PROJECT_NAME}.sysv-lsb.in ${PROJECT_NAME}.sysv-lsb @ONLY)
 configure_file(init/${PROJECT_NAME}.sysv-redhat.in ${PROJECT_NAME}.sysv-redhat @ONLY)
-configure_file(init/${PROJECT_NAME}.upstart.in ${PROJECT_NAME}.upstart @ONLY)
 configure_file(init/${PROJECT_NAME}.apparmor.in ${PROJECT_NAME}.apparmor @ONLY)
 configure_file(init/${PROJECT_NAME}.systemd.in ${PROJECT_NAME}.systemd @ONLY)
 configure_file(init/${PROJECT_NAME}.default.in ${PROJECT_NAME}.default @ONLY)
