@@ -11,7 +11,7 @@ Environment=SRS_EXCLUDE_DOMAINS=
 
 # Fill in a default value for SRS_DOMAIN using postconf.
 RuntimeDirectory=@PROJECT_NAME@
-ExecStartPre=-/bin/sh -c 'command -v postconf >/dev/null && echo -n SRS_DOMAIN=$(postconf -h mydomain) >/run/postsrsd/default'
+ExecStartPre=-/bin/sh -c 'command -v postconf >/dev/null && echo -n SRS_DOMAIN=$(postconf -h mydomain) >/run/@PROJECT_NAME@/default'
 EnvironmentFile=-/run/@PROJECT_NAME@/default
 
 # Load the real configuration.
