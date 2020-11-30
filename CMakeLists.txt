@@ -1,5 +1,5 @@
-cmake_minimum_required(VERSION 2.8.12)
-project(postsrsd C)
+cmake_minimum_required(VERSION 3.0)
+project(postsrsd VERSION 1.6 LANGUAGES C)
 include(CheckIncludeFile)
 include(CheckTypeSize)
 include(TestBigEndian)
@@ -86,6 +86,7 @@ if(NOT DEFINED INIT_FLAVOR)
     endif()
 endif()
 
+add_definitions(-DPOSTSRSD_VERSION=\"${PROJECT_VERSION}\")
 add_executable(${PROJECT_NAME} postsrsd.c sha1.c srs2.c)
 
 if(CMAKE_SYSTEM_NAME MATCHES "SunOS")

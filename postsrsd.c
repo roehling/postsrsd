@@ -42,10 +42,6 @@
 #endif
 #include <syslog.h>
 
-#ifndef VERSION
-#define VERSION "1.6"
-#endif
-
 static char *self = NULL;
 
 static size_t bind_service (const char *listen_addr, const char *service, int family, int* socks, size_t max_socks)
@@ -379,7 +375,7 @@ int main (int argc, char **argv)
         }
         break;
       case 'v':
-        fprintf (stdout, "%s\n", VERSION);
+        fprintf (stdout, "%s\n", POSTSRSD_VERSION);
         return EXIT_SUCCESS;
     }
   }
