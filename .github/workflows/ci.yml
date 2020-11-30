@@ -16,7 +16,7 @@ jobs:
           sudo apt-get install cmake help2man
       - name: Build PostSRSd
         run: |
-          make
+          make VERBOSE=ON
       - name: Run tests
         run: |
           make test
