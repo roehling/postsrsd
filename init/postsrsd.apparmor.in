@@ -5,6 +5,7 @@
   #include <abstractions/nameservice>
 
   capability setuid,
+  capability setgid,
   capability sys_chroot,
   /etc/postsrsd.secret r,
   @CMAKE_INSTALL_PREFIX@/sbin/@POSTSRSD@ mr,
