@@ -13,7 +13,7 @@ files_type(postsrsd_var_lib_t)
 miscfiles_read_localization(postsrsd_t)
 auth_use_nsswitch(postsrsd_t)
 logging_send_syslog_msg(postsrsd_t)
-allow postsrsd_t self:capability { setuid sys_chroot dac_override dac_read_search };
+allow postsrsd_t self:capability { setuid setgid sys_chroot dac_override dac_read_search };
 # 10001 and 10002 are labelled http_cache_port_t for whatever reason,
 # no point arguing with that...
 corenet_tcp_bind_http_cache_port(postsrsd_t)
