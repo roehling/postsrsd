@@ -27,4 +27,4 @@ jobs:
       - name: Run PostSRSd daemon
         run: |
           cd build
-          ../daemon_tests.bats
+          ../run_postsrsd_tests.bats
