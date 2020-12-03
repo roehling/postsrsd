@@ -13,14 +13,18 @@ jobs:
       - uses: actions/checkout@v2
       - name: Install dependencies
         run: |
-          sudo apt-get install cmake help2man
+          sudo apt-get install cmake help2man bats faketime
       - name: Build PostSRSd
         run: |
           make VERBOSE=ON
-      - name: Run tests
+      - name: Run unit tests
         run: |
           make test
       - name: Run installation
         run: |
           make install DESTDIR=T
           ls -R build/T
+      - name: Run PostSRSd daemon
+        run: |
+          cd build
+          ../daemon_tests.bats
