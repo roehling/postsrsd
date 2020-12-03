@@ -14,6 +14,7 @@ Environment=SRS_SECRET=@SYSCONF_DIR@/@PROJECT_NAME@.secret
 Environment=SRS_SEPARATOR==
 Environment=SRS_HASHLENGTH=4
 Environment=SRS_HASHMIN=4
+Environment=SRS_EXTRA_OPTIONS=
 Environment=RUN_AS=postsrsd
 Environment=SRS_LISTEN_ADDR=127.0.0.1
 Environment=CHROOT=@CHROOT_DIR@
@@ -25,9 +26,9 @@ ExecStartPre=-/bin/sh -c 'command -v postconf >/dev/null && echo -n SRS_DOMAIN=$
 EnvironmentFile=-/run/@PROJECT_NAME@/default
 
 # Load the real configuration.
-EnvironmentFile=@CONFIG_DIR@/@PROJECT_NAME@
+EnvironmentFile=-@CONFIG_DIR@/@PROJECT_NAME@
 
-ExecStart=@CMAKE_INSTALL_PREFIX@/sbin/@POSTSRSD@ -f "${SRS_FORWARD_PORT}" -r "${SRS_REVERSE_PORT}" -d "${SRS_DOMAIN}" -s "${SRS_SECRET}" -a "${SRS_SEPARATOR}" -n "${SRS_HASHLENGTH}" -N "${SRS_HASHMIN}" -u "${RUN_AS}" -l "${SRS_LISTEN_ADDR}" -c "${CHROOT}" "-X${SRS_EXCLUDE_DOMAINS}"
+ExecStart=@CMAKE_INSTALL_PREFIX@/sbin/@POSTSRSD@ ${SRS_EXTRA_OPTIONS} -f "${SRS_FORWARD_PORT}" -r "${SRS_REVERSE_PORT}" -d "${SRS_DOMAIN}" -s "${SRS_SECRET}" -a "${SRS_SEPARATOR}" -n "${SRS_HASHLENGTH}" -N "${SRS_HASHMIN}" -u "${RUN_AS}" -l "${SRS_LISTEN_ADDR}" -c "${CHROOT}" "-X${SRS_EXCLUDE_DOMAINS}"
 
 [Install]
 WantedBy=multi-user.target

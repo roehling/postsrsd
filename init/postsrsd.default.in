@@ -1,4 +1,4 @@
-# Default settings for postsrsd
+# Default settings for PostSRSd
 
 # Local domain name.
 # Addresses are rewritten to originate from this domain. The default value
@@ -51,5 +51,12 @@ RUN_AS=nobody
 SRS_LISTEN_ADDR=127.0.0.1
 
 # Jail daemon in chroot environment
+#
 CHROOT=@CHROOT_DIR@
 
+# Additional Options
+# PostSRSd understands a few rarely needed extra options:
+# -A     always rewrite email addresses, even from SRS_DOMAIN
+# -t<n>  set connection timeout to <n> seconds (default: 1800)
+#
+#SRS_EXTRA_OPTIONS=-A

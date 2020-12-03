@@ -169,6 +169,13 @@ static void handle_forward (srs_t *srs, FILE *fp, const char *address, const cha
       return;
     }
   }
+  if (srs_reverse(srs, value, sizeof(value), address) == SRS_SUCCESS)
+  {
+    fprintf (fp, "500 already rewritten\n");
+    fflush (fp);
+    syslog (LOG_MAIL | LOG_NOTICE, "srs_forward: not rewriting <%s> again (original address: <%s>)", address, value);
+    return;
+  }
   result = srs_forward(srs, value, sizeof(value), address, domain);
   if (result == SRS_SUCCESS) {
     output = url_encode(outputbuf, sizeof(outputbuf), value);
@@ -225,6 +232,7 @@ static void show_help ()
     "   -u<user>       switch user id after port bind (default: none)\n"
     "   -t<seconds>    timeout for idle client connections (default: 1800)\n"
     "   -X<domain>     exclude additional domain from address rewriting\n"
+    "   -A             always rewrite addresses\n"
     "   -e             attempt to read above parameters from environment\n"
     "   -D             fork into background\n"
     "   -4             force IPv4 socket (default: any)\n"
@@ -241,7 +249,7 @@ typedef void(*handle_t)(srs_t*, FILE*, const char*, const char*, const char**);
 int main (int argc, char **argv)
 {
   int opt, timeout = 1800, family = AF_UNSPEC, hashlength = 0, hashmin = 0;
-  int daemonize = FALSE;
+  int daemonize = FALSE, always_rewrite = FALSE;
   char *listen_addr = NULL, *forward_service = NULL, *reverse_service = NULL,
        *user = NULL, *domain = NULL, *chroot_dir = NULL;
   char separator = '=';
@@ -264,7 +272,7 @@ int main (int argc, char **argv)
   tmp = strrchr(argv[0], '/');
   if (tmp) self = strdup(tmp + 1); else self = strdup(argv[0]);
 
-  while ((opt = getopt(argc, argv, "46d:a:l:f:r:s:n:N:u:t:p:c:X::Dhev")) != -1) {
+  while ((opt = getopt(argc, argv, "46d:a:l:f:r:s:n:N:u:t:p:c:X::ADhev")) != -1) {
     switch (opt) {
       case '?':
         return EXIT_FAILURE;
@@ -312,6 +320,9 @@ int main (int argc, char **argv)
         break;
       case 'D':
         daemonize = TRUE;
+        break;
+      case 'A':
+        always_rewrite = TRUE;
         break;
       case 'h':
         show_help();
@@ -490,6 +501,7 @@ int main (int argc, char **argv)
   }
   fclose (sf);
 
+  srs_set_alwaysrewrite (srs, always_rewrite);
   srs_set_separator (srs, separator);
   if (hashlength)
     srs_set_hashlength (srs, hashlength);
