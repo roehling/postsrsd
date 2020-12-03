@@ -168,16 +168,17 @@ static void handle_forward (srs_t *srs, FILE *fp, const char *address, const cha
     len = strlen(*excludes);
     if (len >= addrlen) continue;
     if (strcasecmp(*excludes, &address[addrlen - len]) == 0 && (**excludes == '.' || address[addrlen - len - 1] == '@')) {
-      fputs ("500 Domain excluded from SRS\n", fp);
+      syslog (LOG_MAIL | LOG_INFO, "srs_forward: <%s> not rewritten: Domain excluded by policy", address);
+      fputs ("500 Domain excluded py policy\n", fp);
       fflush (fp);
       return;
     }
   }
   if (srs_reverse(srs, value, sizeof(value), address) == SRS_SUCCESS)
   {
-    fprintf (fp, "500 already rewritten\n");
+    fprintf (fp, "500 Already rewritten\n");
     fflush (fp);
-    syslog (LOG_MAIL | LOG_NOTICE, "srs_forward: not rewriting <%s> again (original address: <%s>)", address, value);
+    syslog (LOG_MAIL | LOG_NOTICE, "srs_forward: <%s> not rewritten: Valid SRS address for <%s>", address, value);
     return;
   }
   result = srs_forward(srs, value, sizeof(value), address, domain);
@@ -562,7 +563,11 @@ int main (int argc, char **argv)
               return EXIT_FAILURE;
             }
             key = url_decode(keybuf, sizeof(keybuf), token);
-            if (!key) break;
+            if (!key) {
+              fprintf (fp, "500 Invalid request\n");
+              fflush(fp);
+              return EXIT_FAILURE;
+            }
             handler[sc](srs, fp, key, domain, excludes);
             fflush (fp);
             if (poll(fds, 1, timeout * 1000) <= 0) break;
