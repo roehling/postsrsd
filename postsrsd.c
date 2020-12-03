@@ -122,9 +122,13 @@ static char* url_decode (char *buf, size_t len, const char *input)
   if (!input || !output || len == 0) return NULL;
 
   while (*input && --len) {
-    if (*input == '%' && is_hexdigit(input[1]) && is_hexdigit(input[2])) {
-      *output++ = hex2char(++input);
-      input += 2;
+    if (*input == '%') {
+      if (is_hexdigit(input[1]) && is_hexdigit(input[2])) {
+        *output++ = hex2char(++input);
+        input += 2;
+      } else {
+        return 0;
+      }
     } else {
       *output++ = *input++;
     }
