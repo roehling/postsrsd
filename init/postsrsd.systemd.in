@@ -15,7 +15,7 @@ Environment=SRS_SEPARATOR==
 Environment=SRS_HASHLENGTH=4
 Environment=SRS_HASHMIN=4
 Environment=SRS_EXTRA_OPTIONS=
-Environment=RUN_AS=postsrsd
+Environment=RUN_AS=nobody
 Environment=SRS_LISTEN_ADDR=127.0.0.1
 Environment=CHROOT=@CHROOT_DIR@
 Environment=SRS_EXCLUDE_DOMAINS=
