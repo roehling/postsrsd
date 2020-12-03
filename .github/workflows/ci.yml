@@ -24,7 +24,6 @@ jobs:
         run: |
           make install DESTDIR=T
           ls -R build/T
-      - name: Run PostSRSd daemon
+      - name: Run PostSRSd blackbox tests
         run: |
-          cd build
-          ../run_postsrsd_tests.bats
+          ./run_postsrsd_tests.bats

@@ -1,8 +1,30 @@
 #!/usr/bin/env bats
 # vim: filetype=bash:
 
-POSTSRSD="./postsrsd"
+if [ ! -x "$POSTSRSD" ]
+then
+	for builddir in . build* obj*
+	do
+		if [ -x "${builddir}/postsrsd" ]
+		then
+			POSTSRSD="${builddir}/postsrsd"
+			break
+		fi
+	done
+fi
+if [ ! -x "$POSTSRSD" ]
+then
+	cat>&2 <<- EOF
+	cannot find postsrsd executable (looked in ., build*, obj*)
+	please build the executable first, or set the POSTSRSD
+	environment variable if it is in a different location.
+
+	EOF
+	exit 1
+fi
+
 LANG=C.UTF-8
+
 
 start_postsrsd_at()
 {
@@ -136,7 +158,6 @@ teardown()
 	read<&9 line
 	[[ "$line" =~ ^"500 Domain excluded" ]]
 }
-
 
 @test "SRS invalid requests" {
 	start_postsrsd_at "2020-01-01 00:01:00 UTC"
