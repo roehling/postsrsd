@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0)
-project(postsrsd VERSION 1.7 LANGUAGES C)
+project(postsrsd VERSION 1.8 LANGUAGES C)
 include(CheckIncludeFile)
 include(CheckTypeSize)
 include(TestBigEndian)
