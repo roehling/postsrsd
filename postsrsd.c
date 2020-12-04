@@ -399,7 +399,7 @@ int main (int argc, char **argv)
     fprintf (stderr, "%s: extra argument on command line: %s\n", self, argv[optind]);
     return EXIT_FAILURE;
   }
-  if (domain == NULL) {
+  if (domain == NULL || *domain == 0) {
     fprintf (stderr, "%s: You must set a home domain (-d)\n", self);
     return EXIT_FAILURE;
   }

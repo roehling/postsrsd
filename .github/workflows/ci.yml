@@ -29,6 +29,7 @@ jobs:
       - name: Check systemd service file
         run: |
           sudo systemctl daemon-reload
+          sudo sed -i -e 's/#SRS_DOMAIN/SRS_DOMAIN' /etc/default/postsrsd
           sudo systemctl start postsrsd
           sudo systemctl --no-pager status postsrsd
           sudo journalctl -u postsrsd
