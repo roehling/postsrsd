@@ -104,6 +104,7 @@ configure_file(init/${PROJECT_NAME}.sysv-redhat.in ${PROJECT_NAME}.sysv-redhat @
 configure_file(init/${PROJECT_NAME}.apparmor.in ${PROJECT_NAME}.apparmor @ONLY)
 configure_file(init/${PROJECT_NAME}.systemd.in ${PROJECT_NAME}.systemd @ONLY)
 configure_file(init/${PROJECT_NAME}.default.in ${PROJECT_NAME}.default @ONLY)
+configure_file(init/${PROJECT_NAME}-systemd-launcher.in ${PROJECT_NAME}-systemd-launcher @ONLY)
 
 configure_file(postinstall.cmake.in postinstall.cmake @ONLY)
 
@@ -134,5 +135,6 @@ if(USE_SELINUX)
 endif()
 
 install(TARGETS ${PROJECT_NAME} DESTINATION "sbin")
+install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-systemd-launcher DESTINATION "share/${PROJECT_NAME}")
 install(FILES README.md README_UPGRADE.md main.cf.ex DESTINATION "${DOC_DIR}")
 install(SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/postinstall.cmake")

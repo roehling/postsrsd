@@ -6,29 +6,7 @@ Documentation=man:postsrsd(8)
 Type=simple
 Restart=always
 
-# Fallback defaults.
-Environment=SRS_FORWARD_PORT=10001
-Environment=SRS_REVERSE_PORT=10002
-Environment=SRS_DOMAIN=localhost.localdomain
-Environment=SRS_SECRET=@SYSCONF_DIR@/@PROJECT_NAME@.secret
-Environment=SRS_SEPARATOR==
-Environment=SRS_HASHLENGTH=4
-Environment=SRS_HASHMIN=4
-Environment=SRS_EXTRA_OPTIONS=
-Environment=RUN_AS=nobody
-Environment=SRS_LISTEN_ADDR=127.0.0.1
-Environment=CHROOT=@CHROOT_DIR@
-Environment=SRS_EXCLUDE_DOMAINS=
-
-# Fill in a default value for SRS_DOMAIN using postconf.
-RuntimeDirectory=@PROJECT_NAME@
-ExecStartPre=-/bin/sh -c 'command -v postconf >/dev/null && echo -n SRS_DOMAIN=$(postconf -h mydomain) >/run/@PROJECT_NAME@/default'
-EnvironmentFile=-/run/@PROJECT_NAME@/default
-
-# Load the real configuration.
-EnvironmentFile=-@CONFIG_DIR@/@PROJECT_NAME@
-
-ExecStart=@CMAKE_INSTALL_PREFIX@/sbin/@POSTSRSD@ ${SRS_EXTRA_OPTIONS} -f "${SRS_FORWARD_PORT}" -r "${SRS_REVERSE_PORT}" -d "${SRS_DOMAIN}" -s "${SRS_SECRET}" -a "${SRS_SEPARATOR}" -n "${SRS_HASHLENGTH}" -N "${SRS_HASHMIN}" -u "${RUN_AS}" -l "${SRS_LISTEN_ADDR}" -c "${CHROOT}" "-X${SRS_EXCLUDE_DOMAINS}"
+ExecStart=@CMAKE_INSTALL_PREFIX@/share/@PROJECT_NAME@/@PROJECT_NAME@-systemd-launcher
 
 [Install]
 WantedBy=multi-user.target

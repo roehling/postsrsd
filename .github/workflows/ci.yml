@@ -29,5 +29,8 @@ jobs:
       - name: Check systemd service file
         run: |
           sudo systemctl daemon-reload
-          sudo systemctl start postsrsd || ( sudo systemctl status postsrsd ; exit 1 )
+          sudo systemctl start postsrsd
+          sudo systemctl --no-pager status postsrsd
+          sudo journalctl -u postsrsd
+          pidof postsrsd
           sudo systemctl stop postsrsd
