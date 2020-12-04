@@ -31,7 +31,7 @@ jobs:
           sudo systemctl daemon-reload
           sudo sed -i -e 's/#SRS_DOMAIN/SRS_DOMAIN/' /etc/default/postsrsd
           sudo systemctl start postsrsd
+          sudo journalctl --no-pager -u postsrsd
           sudo systemctl --no-pager status postsrsd
-          sudo journalctl -u postsrsd
           pidof postsrsd
           sudo systemctl stop postsrsd
