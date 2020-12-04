@@ -20,10 +20,14 @@ jobs:
       - name: Run unit tests
         run: |
           make test
-      - name: Run installation
-        run: |
-          make install DESTDIR=T
-          ls -R build/T
       - name: Run PostSRSd blackbox tests
         run: |
           ./run_postsrsd_tests.bats
+      - name: Install PostSRSd
+        run: |
+          sudo make install
+      - name: Check systemd service file
+        run: |
+          sudo systemctl daemon-reload
+          sudo systemctl start postsrsd || ( sudo systemctl status postsrsd ; exit 1 )
+          sudo systemctl stop postsrsd
