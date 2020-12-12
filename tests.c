@@ -26,14 +26,18 @@ static int run_srs(srs_t* srs, const char* address, const char* domain)
   char buf1[1024];
   char buf2[1024];
 
-  printf("srs_forward(\"%s\", \"%s\") = ", address, domain);
   result = srs_forward(srs, buf1, sizeof(buf1), address, domain);
-  printf ("%d\n", result);
-  if (result != SRS_SUCCESS) return 0;
-  printf("srs_reverse(\"%s\") = ", buf1);
+  if (result != SRS_SUCCESS)
+  {
+    printf("srs_forward(\"%s\", \"%s\") = %d (EXPECTED: 0)\n", address, domain, result);
+    return 0;
+  }
   result = srs_reverse(srs, buf2, sizeof(buf2), buf1);
-  printf("%d\n", result);
-  if (result != SRS_SUCCESS) return 0;
+  if (result != SRS_SUCCESS)
+  {
+    printf("srs_reverse(\"%s\") = %d\n (EXPECTED: 0)", buf1, result);
+    return 0;
+  }
   if (strcasecmp(address, buf2))
   {
     printf("SRS not idempotent: \"%s\" != \"%s\"\n", address, buf2);
@@ -44,12 +48,12 @@ static int run_srs(srs_t* srs, const char* address, const char* domain)
   while (i > 0)
   {
     --i;
-    if (buf1[i] == '=' || buf1[i] == '-' || buf1[i] == '+') continue;
     buf1[i]++;
-    printf("srs_reverse(\"%s\") = ", buf1);
     result = srs_reverse(srs, buf2, sizeof(buf2), buf1);
-    printf("%d\n", result);
-    if (result == SRS_SUCCESS) return 0;
+    if (result == SRS_SUCCESS) {
+      printf("srs_reverse(\"%s\") = %d\n (EXPECTED: != 0)", buf1, result);
+      return 0;
+    }
     buf1[i]--;
   }
   return 1;
@@ -75,16 +79,17 @@ static void generate_random_address(char* buf, size_t len1, size_t len2)
   buf[i++] = 0;
 }
 
-#define ASSERT_SRS_OK(...) if (!run_srs(srs, __VA_ARGS__)) return EXIT_FAILURE
+#define ASSERT_SRS_OK(...) if (!run_srs(srs, __VA_ARGS__)) exit(EXIT_FAILURE);
 
-int main (int argc, char** argv)
+static void run_tests_with_secret(const char* secret)
 {
   srs_t* srs;
   size_t l1, l2;
   char addr[128];
 
   srs = srs_new();
-  srs_add_secret (srs, "t0ps3cr3t");
+  printf("Testing with secret '%s'\n", secret);
+  srs_add_secret (srs, secret);
   srs_set_hashlength(srs, 16);
 
   for (l1 = 1; l1 <= 63; ++l1)
@@ -95,6 +100,13 @@ int main (int argc, char** argv)
       ASSERT_SRS_OK(addr, "example.com");
     }
   }
+  srs_free(srs);
+}
+
+int main (int argc, char** argv)
+{
+  run_tests_with_secret("tops3cr3t");
+  run_tests_with_secret("string that has 119 bytes, which is excessively long from an operational point of view but should still work regardless");
   return EXIT_SUCCESS;
 }
 
