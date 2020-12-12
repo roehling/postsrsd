@@ -360,7 +360,7 @@ srs_hmac_init(srs_hmac_ctx_t *ctx, char *secret, unsigned len)
 	if (len > SHA_BLOCKSIZE) {
 		sha_digest(sbuf, secret, len);
 		secret = sbuf;
-		len = strlen(sbuf);	/* SHA_BLOCKSIZE? */
+		len = SHA_DIGESTSIZE;
 	}
 
 	memset(ctx->ipad, 0x36, SHA_BLOCKSIZE);
