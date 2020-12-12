@@ -230,6 +230,7 @@ srs_timestamp_check(srs_t *srs, const char *stamp)
 	time_t		 now;
 	time_t		 then;
 
+	if (strlen(stamp) != 2) return SRS_ETIMESTAMPOUTOFDATE;
 	/* We had better go around this loop exactly twice! */
 	then = 0;
 	for (sp = stamp; *sp; sp++) {
