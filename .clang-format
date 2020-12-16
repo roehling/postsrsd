@@ -1,0 +1,23 @@
+BasedOnStyle: LLVM
+AccessModifierOffset: -4
+AlignConsecutiveMacros: true
+AlignEscapedNewlines: Left
+AllowShortBlocksOnASingleLine: Empty
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortLambdasOnASingleLine: Inline
+AlwaysBreakBeforeMultilineStrings: true
+AlwaysBreakTemplateDeclarations: Yes
+BreakBeforeBinaryOperators: NonAssignment
+BreakBeforeBraces: Allman
+IncludeBlocks: Regroup
+IncludeCategories:
+- Regex: '<[[:alnum:]+>'
+  SortPriority: 3
+- Regex: '<.*>'
+  SortPriority: 2
+- Regex: '".*"'
+  SortPriority: 1
+IndentCaseLabels: true
+IndentPPDirectives: AfterHash
+IndentWidth: 4
+SpacesBeforeTrailingComments: 2
