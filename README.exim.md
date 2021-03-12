@@ -48,7 +48,8 @@ If your SRS domain is also used for other addresses:
 
 The following excludes locally submitted mail, or mail submitted by authenticated
 users from SRS rewriting. Of course, if the sender address is already in
-one of our local domains, there is no need to rewrite the address.
+one of our local domains, there is no need to rewrite the address. You may need
+to remove `*@+virtual_domains` from the list if you do not use them.
 
     begin transports
     
@@ -57,9 +58,9 @@ one of our local domains, there is no need to rewrite the address.
       driver = smtp
       return_path = \
         ${if and{\
-                  {!match_ip{$sender_host_address}{:@[]}} \
-                  {!def:authenticated_id} \
-                  {!match_address{$sender_address}{*@+local_domains:SRS_DOMAIN}}\
+                  {!match_ip{$sender_host_address}{:@[]}}\
+                  {!def:authenticated_id}\
+                  {!match_address{$sender_address}{*@+local_domains:*@+virtual_domains:SRS_DOMAIN}}\
                 }{${if match \
                   {${readsocket{inet:localhost:10001}{get $sender_address}{3s}}}\
                   {\N^200 (.+)\N}\
@@ -68,3 +69,21 @@ one of our local domains, there is no need to rewrite the address.
                 }\
          fail}
     
+In your router you're likely to know when you're forwarding an email. When you check a ldap for a 
+forwarding address for example. If that's the case you can set this in your router
+
+       address_data = "enable-forward=true"
+
+And add this config in `30_exim4-config_remote_smtp` if you use Debian split config for example
+
+    return_path = \
+    ${if and{\
+              {bool{${extract{enable-forward}{$address_data}}}}\
+              {!match_address{$sender_address}{*@+local_domains:*@+virtual_domains:SRS_DOMAIN}}\
+            }{${if match \
+              {${readsocket{inet:localhost:10001}{get $sender_address}{3s}}}\
+              {\N^200 (.+)\N}\
+              {$1}\
+              fail}\
+            }\
+     fail}
