@@ -55,15 +55,16 @@ one of our local domains, there is no need to rewrite the address.
     remote_smtp:
       debug_print = "T: remote_smtp for $local_part@$domain"
       driver = smtp
-      return_path = ${if and { \
-    		{!match_ip{$sender_host_address}{:@[]}} \
-    		{!def:authenticated_id} \
-    		{!match_address {$sender_address} { : *@+local_domains : *@+virtual_domains : SRS_DOMAIN}} \
-    	} \
-    	{${if match \
-    	  {${readsocket{inet:localhost:10001}{get $sender_address}{3s}}} \
-    	  {\N^200 (.+)\N} \
-    	  {$1} \
-    	  fail } \
-    	} \
-    	fail }
+      return_path = \
+        ${if and{\
+                  {!match_ip{$sender_host_address}{:@[]}} \
+                  {!def:authenticated_id} \
+                  {!match_address{$sender_address}{*@+local_domains:SRS_DOMAIN}}\
+                }{${if match \
+                  {${readsocket{inet:localhost:10001}{get $sender_address}{3s}}}\
+                  {\N^200 (.+)\N}\
+                  {$1}\
+                  fail}\
+                }\
+         fail}
+    
