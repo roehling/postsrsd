@@ -645,7 +645,7 @@ int main(int argc, char **argv)
     while (TRUE)
     {
         int conn;
-        FILE *fp;
+        FILE *fp_read, *fp_write;
         char linebuf[1024], *line;
         char keybuf[1024], *key;
 
@@ -674,47 +674,57 @@ int main(int argc, char **argv)
                      * daemon process from restarting */
                     for (i = 0; i < socket_count; ++i)
                         close(sockets[i]);
-
-                    fp = fdopen(conn, "r+");
-                    if (fp == NULL)
-                        exit(EXIT_FAILURE);
-                    fds[0].fd = conn;
-                    fds[0].events = POLLIN;
-                    if (poll(fds, 1, timeout * 1000) <= 0)
+                    /* create separate input/output streams */
+                    fp_read = fdopen(conn, "r");
+                    if (fp_read == NULL)
                         return EXIT_FAILURE;
-                    line = fgets(linebuf, sizeof(linebuf), fp);
-                    while (line)
+                    fp_write = fdopen(dup(conn), "w");
+                    if (fp_write == NULL)
+                        return EXIT_FAILURE;
+                    errno = 0;
+                    alarm(timeout);
+                    if (errno != 0)
+                        return EXIT_FAILURE;
+                    while ((line = fgets(linebuf, sizeof(linebuf), fp_read)))
                     {
-                        fseek(fp, 0, SEEK_CUR); /* Workaround for Solaris */
                         char *token;
+                        alarm(0);
+                        if (strlen(line) >= sizeof(linebuf) - 1)
+                        {
+                            fprintf(fp_write, "500 Invalid request\n");
+                            fflush(fp_write);
+                            return EXIT_FAILURE;
+                        }
                         token = strtok(line, " \r\n");
                         if (token == NULL || strcmp(token, "get") != 0)
                         {
-                            fprintf(fp, "500 Invalid request\n");
-                            fflush(fp);
+                            fprintf(fp_write, "500 Invalid request\n");
+                            fflush(fp_write);
                             return EXIT_FAILURE;
                         }
                         token = strtok(NULL, "\r\n");
                         if (!token)
                         {
-                            fprintf(fp, "500 Invalid request\n");
-                            fflush(fp);
+                            fprintf(fp_write, "500 Invalid request\n");
+                            fflush(fp_write);
                             return EXIT_FAILURE;
                         }
                         key = url_decode(keybuf, sizeof(keybuf), token);
                         if (!key)
                         {
-                            fprintf(fp, "500 Invalid request\n");
-                            fflush(fp);
+                            fprintf(fp_write, "500 Invalid request\n");
+                            fflush(fp_write);
                             return EXIT_FAILURE;
                         }
-                        handler[sc](srs, fp, key, domain, excludes);
-                        fflush(fp);
-                        if (poll(fds, 1, timeout * 1000) <= 0)
-                            break;
-                        line = fgets(linebuf, sizeof(linebuf), fp);
+                        handler[sc](srs, fp_write, key, domain, excludes);
+                        fflush(fp_write);
+                        errno = 0;
+                        alarm(timeout);
+                        if (errno != 0)
+                            return EXIT_FAILURE;
                     }
-                    fclose(fp);
+                    fclose(fp_write);
+                    fclose(fp_read);
                     return EXIT_SUCCESS;
                 }
                 close(conn);

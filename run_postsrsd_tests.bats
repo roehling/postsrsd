@@ -3,7 +3,7 @@
 
 if [ ! -x "$POSTSRSD" ]
 then
-	for builddir in . build* obj*
+	for builddir in . build* obj* _build*
 	do
 		if [ -x "${builddir}/postsrsd" ]
 		then
@@ -15,7 +15,7 @@ fi
 if [ ! -x "$POSTSRSD" ]
 then
 	cat>&2 <<- EOF
-	cannot find postsrsd executable (looked in ., build*, obj*)
+	cannot find postsrsd executable (looked in ., build*, obj*, _build*)
 	please build the executable first, or set the POSTSRSD
 	environment variable if it is in a different location.
 
@@ -26,12 +26,19 @@ fi
 LANG=C.UTF-8
 
 
+fillchar()
+{
+        local count="$1"
+        local char="$2"
+        eval 'printf "'"$char"'%.0s" {1..'"$count"'}'
+}
+
 start_postsrsd_at()
 {
 	echo 'tops3cr3t' > "$BATS_TMPDIR/postsrsd.secret"
 	local faketime="$1"
 	shift
-	faketime "${faketime}" ${POSTSRSD} -D -f 10001 -r 10002 -p "$BATS_TMPDIR/postsrsd.pid" -s "$BATS_TMPDIR/postsrsd.secret" -d example.com "$@"
+	faketime "${faketime}" ${POSTSRSD} -D -t1 -f 10001 -r 10002 -p "$BATS_TMPDIR/postsrsd.pid" -s "$BATS_TMPDIR/postsrsd.secret" -d example.com "$@"
 }
 
 stop_postsrsd()
@@ -159,7 +166,7 @@ teardown()
 	[[ "$line" =~ ^"500 Domain excluded" ]]
 }
 
-@test "SRS invalid requests" {
+@test "Malformed or invalid requests" {
 	start_postsrsd_at "2020-01-01 00:01:00 UTC"
 	exec 9<>/dev/tcp/127.0.0.1/10001
 	echo>&9 "get"
@@ -173,4 +180,29 @@ teardown()
 	echo>&9 "get encoding%error@otherdomain.com"
 	read<&9 line
 	[[ "$line" =~ ^500 ]]
+	exec 9<>/dev/tcp/127.0.0.1/10001
+	# Try to overflow the input buffer
+	echo>&9 "get too_long@`fillchar 1024 a`.com"
+	read<&9 line
+	[[ "$line" =~ ^500 ]]
+}
+
+@test "Pipelining multiple requests" {
+	start_postsrsd_at "2020-01-01 00:01:00 UTC"
+	exec 9<>/dev/tcp/127.0.0.1/10001
+	# Send two requests at once and see if PostSRSd answers both
+	echo>&9 -e "get test@domain1.com\nget test@domain2.com"
+	read<&9 line
+	[[ "$line" =~ ^200 ]]
+	read<&9 line
+	[[ "$line" =~ ^200 ]]
+}
+
+@test "Session timeout" {
+	start_postsrsd_at "2020-01-01 00:01:00 UTC"
+	exec 9<>/dev/tcp/127.0.0.1/10001
+	# Wait until PostSRSd disconnects due to inactivity
+	sleep 2
+	echo >&9 "get test@example.com"
+	! read <&9 line
 }
