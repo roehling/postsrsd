@@ -205,4 +205,10 @@ teardown()
 	sleep 2
 	echo >&9 "get test@example.com"
 	! read <&9 line
+	# Just to be sure, check if PostSRSd survived the timeout signal
+	exec 9<>/dev/tcp/127.0.0.1/10001
+	echo>&9 "get test@somedomain.com"
+	read <&9 line
+	[[ "$line" =~ ^200 ]]
 }
+
