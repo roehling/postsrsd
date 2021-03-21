@@ -670,8 +670,8 @@ int main(int argc, char **argv)
                 if (fork() == 0)
                 {
                     int i;
-                    // close listen sockets so that we don't stop the main
-                    // daemon process from restarting
+                    /* close listen sockets so that we don't stop the main
+                     * daemon process from restarting */
                     for (i = 0; i < socket_count; ++i)
                         close(sockets[i]);
 
