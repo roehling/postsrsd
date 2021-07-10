@@ -644,7 +644,7 @@ int main(int argc, char **argv)
     }
     while (TRUE)
     {
-        int conn;
+        int conn, flags;
         FILE *fp_read, *fp_write;
         char linebuf[1024], *line;
         char keybuf[1024], *key;
@@ -667,6 +667,16 @@ int main(int argc, char **argv)
                 conn = accept(fds[sc].fd, NULL, NULL);
                 if (conn < 0)
                     continue;
+                /* remove the nonblocking flag for OSes that bequeath it */
+                flags = fcntl(conn, F_GETFL, 0);
+                if (flags < 0) {
+                    close(conn);
+                    continue;
+                }
+                if (fcntl(conn, F_SETFL, flags & ~O_NONBLOCK) < 0) {
+                    close(conn);
+                    continue;
+                }
                 if (fork() == 0)
                 {
                     int i;
