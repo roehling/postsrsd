@@ -669,11 +669,13 @@ int main(int argc, char **argv)
                     continue;
                 /* remove the nonblocking flag for OSes that bequeath it */
                 flags = fcntl(conn, F_GETFL, 0);
-                if (flags < 0) {
+                if (flags < 0)
+                {
                     close(conn);
                     continue;
                 }
-                if (fcntl(conn, F_SETFL, flags & ~O_NONBLOCK) < 0) {
+                if (fcntl(conn, F_SETFL, flags & ~O_NONBLOCK) < 0)
+                {
                     close(conn);
                     continue;
                 }
