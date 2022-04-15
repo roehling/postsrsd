@@ -12,6 +12,20 @@ then
 		fi
 	done
 fi
+if [ ! -x "$FAKETIME" ]
+then
+	if ! FAKETIME="$(which faketime)"
+	then
+		cat>&2 <<-EOF
+		cannot find faketime executable (looked in PATH=$PATH)
+		please install the faketime tool, or set the FAKETIME
+		environment variable if it is not in PATH.
+
+		EOF
+		exit 1
+	fi
+fi
+
 if [ ! -x "$POSTSRSD" ]
 then
 	cat>&2 <<- EOF
@@ -22,7 +36,6 @@ then
 	EOF
 	exit 1
 fi
-
 LANG=C.UTF-8
 
 
@@ -38,7 +51,7 @@ start_postsrsd_at()
 	echo 'tops3cr3t' > "$BATS_TMPDIR/postsrsd.secret"
 	local faketime="$1"
 	shift
-	faketime "${faketime}" ${POSTSRSD} -D -t1 -f 10001 -r 10002 -p "$BATS_TMPDIR/postsrsd.pid" -s "$BATS_TMPDIR/postsrsd.secret" -d example.com "$@"
+	${FAKETIME} "${faketime}" ${POSTSRSD} -D -t1 -f 10001 -r 10002 -p "$BATS_TMPDIR/postsrsd.pid" -s "$BATS_TMPDIR/postsrsd.secret" -d example.com "$@"
 }
 
 stop_postsrsd()
