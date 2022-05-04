@@ -44,8 +44,8 @@
 #include <syslog.h>
 
 /* Prototype for milter function */
-int milter_main(char *oconn, srs_t *srs_in,
-		const char *domain_in, const char **excludes_in);
+int milter_main(char *oconn, srs_t *srs_in, const char *domain_in,
+                const char **excludes_in);
 
 static char *self = NULL;
 
@@ -306,7 +306,7 @@ static void show_help()
         "   -X<domain>     exclude additional domain from address rewriting\n"
         "   -A             always rewrite addresses\n"
         "   -e             attempt to read above parameters from environment\n"
-	"   -m             run in milter (instead of canonical) protocol mode\n"
+        "   -m             run in milter (instead of canonical) protocol mode\n"
         "   -D             fork into background\n"
         "   -4             force IPv4 socket (default: any)\n"
         "   -6             force IPv6 socket (default: any)\n"
@@ -324,7 +324,8 @@ int main(int argc, char **argv)
     int opt, timeout = 1800, family = AF_UNSPEC, hashlength = 0, hashmin = 0;
     int daemonize = FALSE, always_rewrite = FALSE;
     char *listen_addr = NULL, *forward_service = NULL, *reverse_service = NULL,
-      *milter_service = NULL, *user = NULL, *domain = NULL, *chroot_dir = NULL;
+         *milter_service = NULL, *user = NULL, *domain = NULL,
+         *chroot_dir = NULL;
     char separator = '=';
     char *secret_file = NULL, *pid_file = NULL;
     FILE *pf = NULL, *sf = NULL;
@@ -647,17 +648,18 @@ int main(int argc, char **argv)
 
     if (milter_service != NULL)
     {
-      /* Fork and pass child control to the milter library */
-      if (fork() == 0) {
-	/* close listen sockets so that we don't stop the main
-	 * daemon process from restarting */
-	for (int i = 0; i < socket_count; ++i)
-	  close(sockets[i]);
-	
-	return milter_main(milter_service, srs, domain, excludes);
-      }
+        /* Fork and pass child control to the milter library */
+        if (fork() == 0)
+        {
+            /* close listen sockets so that we don't stop the main
+             * daemon process from restarting */
+            for (int i = 0; i < socket_count; ++i)
+                close(sockets[i]);
+
+            return milter_main(milter_service, srs, domain, excludes);
+        }
     }
-    
+
     for (sc = 0; sc < socket_count; ++sc)
     {
         fds[sc].fd = sockets[sc];
