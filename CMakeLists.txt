@@ -29,6 +29,10 @@ if(CMAKE_SYSTEM_NAME MATCHES "SunOS")
     find_library(LIBNSL nsl)
 endif()
 
+find_library(LIBMILTER milter)
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+
 if(BASE64)
     set(BASE64_ENCODE "${BASE64}")
 elseif(OPENSSL)
@@ -87,12 +91,14 @@ if(NOT DEFINED INIT_FLAVOR)
 endif()
 
 add_definitions(-DPOSTSRSD_VERSION=\"${PROJECT_VERSION}\")
-add_executable(${PROJECT_NAME} postsrsd.c sha1.c srs2.c)
+add_executable(${PROJECT_NAME} postsrsd.c milter.c sha1.c srs2.c)
 
 if(CMAKE_SYSTEM_NAME MATCHES "SunOS")
-    target_link_libraries(${PROJECT_NAME} ${LIBSOCKET} ${LIBNSL})
+    target_link_libraries(${PROJECT_NAME} PRIVATE Threads::Threads ${LIBSOCKET} ${LIBNSL})
     target_link_libraries(${PROJECT_NAME}_tests ${LIBSOCKET} ${LIBNSL})
 endif()
+target_compile_options(postsrsd PUBLIC "-pthread")
+target_link_libraries(${PROJECT_NAME} PRIVATE Threads::Threads ${LIBMILTER} -pthread)
 
 set(POSTSRSD "${PROJECT_NAME}${CMAKE_EXECUTABLE_SUFFIX}")
 set(APPARMOR_PROFILE "${CMAKE_INSTALL_PREFIX}/sbin/${POSTSRSD}")

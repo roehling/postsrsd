@@ -83,9 +83,9 @@ your secret, because anyone who knows it can use your mail server as open
 relay!  Each line of `/etc/postsrsd.secret` is used as secret. The first secret
 is used for signing and verification, the others for verification only.
 
-PostSRSd exposes its functionality via two TCP lookup tables. The
-recommended Postfix configuration is to add the following fragment to
-your main.cf:
+PostSRSd exposes its functionality via two TCP lookup tables, and an
+optional milter (see below). The recommended Postfix configuration is
+to add the following fragment to your main.cf:
 
     sender_canonical_maps = tcp:localhost:10001
     sender_canonical_classes = envelope_sender
@@ -96,20 +96,36 @@ This will transparently rewrite incoming and outgoing envelope addresses,
 and additionally undo SRS rewrites in the To: header of bounce notifications
 and vacation autoreplies.
 
-Run `service postsrsd start` and `postfix reload` as root, or reboot. For Debian and Ubuntu you need to run `systemctl enable postsrsd` first.
+Run `service postsrsd start` and `postfix reload` as root, or
+reboot. For Debian and Ubuntu you need to run `systemctl enable
+postsrsd` first.
+
+Milter Configuration
+--------------------
+Due to the default way PostSRSd is integrated with Postfix, sender
+addresses will always be rewritten even if the mail is not forwarded
+at all. This is because the canonical maps are read by the cleanup
+daemon, which processes mails at the very beginning before any routing
+decision is made.
+
+To avoid this, sender rewriting can be implemented instead with a milter,
+which is can be selectively enabled by Postfix service.  (Recipient
+rewriting is still global; we always desire translation of locally-generated
+addresses.  This is also much more difficult to implement in a milter.)
+
+For sender rewriting, include the following optional argument in any
+desired smtpd stanza in master.cf that processes forwarded messages:
+
+    -o smtpd_milters=inet:localhost:10003
+  
+For recipient rewriting, continue to include this fragment in main.cf:
+
+    recipient_canonical_maps = tcp:localhost:10002
+    recipient_canonical_classes= envelope_recipient,header_recipient
+
 
 Known Issues
 ------------
-
-- Due to the way PostSRSd is integrated with Postfix, sender addresses
-  will always be rewritten even if the mail is not forwarded at all. This
-  is because the canonical maps are read by the cleanup daemon, which
-  processes mails at the very beginning before any routing decision is made.
-  
-  Where piping into an external command is not a problem,
-  [Postforward](https://github.com/zoni/postforward) offers an alternative
-  way to integrate PostSRSd with Postfix which avoids this problem.
-
 - The Postfix package in CentOS 6 lacks the required support for TCP
   dictionaries. Please upgrade your distribution or build Postfix yourself.
 

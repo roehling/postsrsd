@@ -41,6 +41,15 @@ SRS_HASHMIN=4
 SRS_FORWARD_PORT=10001
 SRS_REVERSE_PORT=10002
 
+# Milter socket for SRS sender rewriting
+# We always want to unwind SRS-rewritten recipients that are local,
+# but only forwarded messages should have remote senders rewritten.
+# This can be done by enabling sender rewriting in an smtpd(8) milter
+# rather than cleanup.  Any milter socket spec is allowed.
+#
+# Leave empty to disable milter interface.
+SRS_MILTER=inet:10003@127.0.0.1
+
 # Drop root privileges and run as another user after initialization.
 # This is highly recommended as postsrsd handles untrusted input.
 #
