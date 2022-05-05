@@ -23,10 +23,7 @@ srs_t *srs = NULL;
 char *domain = NULL;
 const char **excludes = NULL;
 
-sfsistat mlfi_connect(ctx, hostname, hostaddr)
-SMFICTX *ctx;
-char *hostname;
-_SOCK_ADDR *hostaddr;
+sfsistat mlfi_connect(SMFICTX *ctx, char *hostname, _SOCK_ADDR *hostaddr)
 {
     struct mlfiPriv *priv;
 
@@ -46,9 +43,7 @@ _SOCK_ADDR *hostaddr;
     return SMFIS_CONTINUE;
 }
 
-sfsistat mlfi_envfrom(ctx, argv)
-SMFICTX *ctx;
-char **argv;
+sfsistat mlfi_envfrom(SMFICTX *ctx, char **argv)
 {
     struct mlfiPriv *priv = MLFIPRIV;
 
@@ -123,8 +118,7 @@ int milter_forward(srs_t *srs, const char *address, char *value, int valuelen,
     return 0;
 }
 
-sfsistat mlfi_eom(ctx)
-SMFICTX *ctx;
+sfsistat mlfi_eom(SMFICTX *ctx)
 {
     struct mlfiPriv *priv = MLFIPRIV;
     char newaddr[1024];
@@ -150,8 +144,7 @@ SMFICTX *ctx;
     return SMFIS_CONTINUE;
 }
 
-sfsistat mlfi_close(ctx)
-SMFICTX *ctx;
+sfsistat mlfi_close(SMFICTX *ctx)
 {
     struct mlfiPriv *priv = MLFIPRIV;
 
