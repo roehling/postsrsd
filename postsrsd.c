@@ -244,12 +244,25 @@ static void handle_forward(srs_t *srs, FILE *fp, const char *address,
 }
 
 static void handle_reverse(srs_t *srs, FILE *fp, const char *address,
-                           const char *domain __attribute__((unused)),
+                           const char *domain,
                            const char **excludes __attribute__((unused)))
 {
     int result;
     char value[1024];
     char outputbuf[1024], *output;
+
+    size_t addrlen = strlen(address);
+    size_t domlen = strlen(domain);
+    if (domlen >= addrlen || strcasecmp(domain, &address[addrlen - domlen]) != 0
+        || address[addrlen - domlen - 1] != '@')
+    {
+        syslog(LOG_MAIL | LOG_INFO,
+               "srs_reverse: <%s> not rewritten: Not our SRS domain", address);
+        fputs("500 Not our SRS domain\n", fp);
+        fflush(fp);
+        return;
+    }
+
     result = srs_reverse(srs, value, sizeof(value), address);
     if (result == SRS_SUCCESS)
     {
