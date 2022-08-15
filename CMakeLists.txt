@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0)
-project(postsrsd VERSION 1.11 LANGUAGES C)
+project(postsrsd VERSION 1.12 LANGUAGES C)
 include(CheckIncludeFile)
 include(CheckSymbolExists)
 include(CheckTypeSize)
