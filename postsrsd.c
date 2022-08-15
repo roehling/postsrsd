@@ -334,7 +334,7 @@ int main(int argc, char **argv)
     size_t socket_count = 0, sc;
     int sockets[4] = {-1, -1, -1, -1};
     handle_t handler[4] = {0, 0, 0, 0};
-    int fd, maxfd;
+    int fd;
 
     excludes = (const char **)calloc(1, sizeof(char *));
     tmp = strrchr(argv[0], '/');
@@ -493,14 +493,29 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
     if (forward_service == NULL)
+    {
         forward_service = strdup("10001");
+    }
     if (reverse_service == NULL)
+    {
         reverse_service = strdup("10002");
+    }
 
-    /* Close all file descriptors (std ones will be closed later). */
-    maxfd = sysconf(_SC_OPEN_MAX);
-    for (fd = 3; fd < maxfd; fd++)
+    /* Close all file descriptors (std ones will be closed later).
+     * Apparently, some processes spawning PostSRSd like to leak
+     * descriptors. Technically, this is not our responsibility, we are
+     * nice and clean up for other people. */
+#ifdef HAVE_CLOSE_RANGE
+    close_range(3, ~0U, 0);
+#else
+    /* Fallback code. We try to close the first 1024 descriptors. The loop used
+     * to run until sysconf(_SC_OPEN_MAX), but that limit can be absurdly high
+     * (upwards of one billion on certain Docker containers), hanging PostSRSd
+     * for several minutes at startup.
+     */
+    for (fd = 3; fd < 1024; ++fd)
         close(fd);
+#endif
 
     /* The stuff we do first may not be possible from within chroot or without
      * privileges */
