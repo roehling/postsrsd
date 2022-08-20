@@ -1,0 +1,45 @@
+/* PostSRSd - Sender Rewriting Scheme daemon for Postfix
+ * Copyright (c) 2012-2022 Timo Röhling <timo@gaussglocke.de>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#ifndef POSTSRSD_BUILD_CONFIG_H
+#define POSTSRSD_BUILD_CONFIG_H
+
+#define POSTSRSD_VERSION     "@PROJECT_VERSION@"
+#define SIZEOF_UNSIGNED_LONG @SIZEOF_UNSIGNED_LONG@
+#define DEFAULT_CONFIG       "@CMAKE_INSTALL_FULL_SYSCONFDIR@/@PROJECT_NAME@.conf"
+
+#cmakedefine WITH_REDIS
+
+#cmakedefine HAVE_BIG_ENDIAN
+#cmakedefine HAVE_STRCASECMP
+#cmakedefine HAVE__STRICMP
+#cmakedefine HAVE_STRNCASECMP
+#cmakedefine HAVE__STRNICMP
+
+#cmakedefine HAVE_ALLOCA_H
+#cmakedefine HAVE_FCNTL_H
+#cmakedefine HAVE_NETDB_H
+#cmakedefine HAVE_SYS_FILE_H
+#cmakedefine HAVE_SYS_INOTIFY_H
+#cmakedefine HAVE_SYS_SOCKET_H
+#cmakedefine HAVE_SYS_STAT_H
+#cmakedefine HAVE_SYS_TIME_H
+#cmakedefine HAVE_SYS_TYPES_H
+#cmakedefine HAVE_SYS_UN_H
+#cmakedefine HAVE_TIME_H
+#cmakedefine HAVE_UNISTD_H
+
+#endif
