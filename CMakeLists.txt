@@ -1,5 +1,6 @@
 # PostSRSd - Sender Rewriting Scheme daemon for Postfix
-# Copyright (c) 2012-2022 Timo Röhling <timo@gaussglocke.de>
+# Copyright 2012-2022 Timo Röhling <timo@gaussglocke.de>
+# SPDX-License-Identifier: GPL-2.0-or-later
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,8 +18,8 @@
 cmake_minimum_required(VERSION 3.14...3.24)
 project(postsrsd VERSION 2.0.0 LANGUAGES C)
 
-option(WITH_REDIS "Enable Redis-based storage for opaque SRS tokens" ON)
-option(WITH_MILTER "Enable SRS rewrite via Milter" ON)
+option(WITH_MILTER "Enable SRS rewrite via Milter (requires libmilter)" ON)
+option(WITH_REDIS "Enable Redis-based storage for opaque SRS tokens (requires hiredis)" ON)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(AddAutotoolsDependency)
@@ -72,6 +73,11 @@ test_big_endian(HAVE_BIG_ENDIAN)
 
 set(CMAKE_REQUIRED_DEFINITIONS "${saved_CMAKE_REQUIRED_DEFINITIONS}")
 
+if(CMAKE_SYSTEM_NAME MATCHES "SunOS")
+    find_library(LIBSOCKET socket)
+    find_library(LIBNSL nsl)
+endif()
+
 add_autotools_dependency(Confuse
     LIBRARY_NAME confuse
     EXPORTED_TARGET Confuse::Confuse
@@ -109,7 +115,8 @@ add_executable(postsrsd
     src/srs2.c
 )
 
-target_compile_definitions(postsrsd PRIVATE _GNU_SOURCE _FILE_OFFSET_BITS=64
+target_compile_definitions(postsrsd PRIVATE
+    _GNU_SOURCE _FILE_OFFSET_BITS=64
 )
 target_include_directories(postsrsd PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 target_compile_features(postsrsd PRIVATE c_std_99)
@@ -117,6 +124,8 @@ target_link_libraries(postsrsd PRIVATE
     Confuse::Confuse
     sqlite3::sqlite3
     $<$<BOOL:WITH_REDIS>:${HIREDIS_TARGET}>
+    ${LIBSOCKET}
+    ${LIBNSL}
 )
 
 configure_file(

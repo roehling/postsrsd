@@ -1,5 +1,6 @@
 /* PostSRSd - Sender Rewriting Scheme daemon for Postfix
- * Copyright (c) 2012-2022 Timo Röhling <timo@gaussglocke.de>
+ * Copyright 2012-2022 Timo Röhling <timo@gaussglocke.de>
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -51,19 +52,19 @@ static int file_exists(const char* filename)
 
 void config_create(struct config* cfg)
 {
-    cfg->socket_forward_endpoint = strdup("unix:/var/spool/postfix/srs_forward");
-    cfg->socket_reverse_endpoint = strdup("unix:/var/spool/postfix/srs_reverse");
+    cfg->socketmap_endpoint = strdup("unix:/var/spool/postfix/srs");
     cfg->milter_endpoint = strdup("unix:/var/spool/postfix/srs_milter");
     cfg->pid_file = NULL;
+    cfg->secrets_file = strdup(DEFAULT_SECRETS);
     cfg->daemonize = 0;
 }
 
 void config_destroy(struct config* cfg)
 {
-    free_and_nullify(&cfg->socket_forward_endpoint);
-    free_and_nullify(&cfg->socket_reverse_endpoint);
+    free_and_nullify(&cfg->socketmap_endpoint);
     free_and_nullify(&cfg->milter_endpoint);
     free_and_nullify(&cfg->pid_file);
+    free_and_nullify(&cfg->secrets_file);
 }
 
 int config_parse_cmdline(struct config* cfg, int argc, char* const* argv)
@@ -98,6 +99,8 @@ int config_parse_cmdline(struct config* cfg, int argc, char* const* argv)
     }
     if (pid_file)
         set_string(&cfg->pid_file, pid_file);
+    if (daemonize)
+        cfg->daemonize = 1;
     return 1;
 }
 

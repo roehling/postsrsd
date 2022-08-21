@@ -1,5 +1,5 @@
 /* PostSRSd - Sender Rewriting Scheme daemon for Postfix
- * Copyright (c) 2012-2022 Timo Röhling <timo@gaussglocke.de>
+ * Copyright 2012-2022 Timo Röhling <timo@gaussglocke.de>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,7 +20,9 @@
 #define POSTSRSD_VERSION     "@PROJECT_VERSION@"
 #define SIZEOF_UNSIGNED_LONG @SIZEOF_UNSIGNED_LONG@
 #define DEFAULT_CONFIG       "@CMAKE_INSTALL_FULL_SYSCONFDIR@/@PROJECT_NAME@.conf"
+#define DEFAULT_SECRETS      "@CMAKE_INSTALL_FULL_SYSCONFDIR@/@PROJECT_NAME@.secret"
 
+#cmakedefine WITH_MILTER
 #cmakedefine WITH_REDIS
 
 #cmakedefine HAVE_BIG_ENDIAN

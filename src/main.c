@@ -1,5 +1,6 @@
 /* PostSRSd - Sender Rewriting Scheme daemon for Postfix
- * Copyright (c) 2012-2022 Timo Röhling <timo@gaussglocke.de>
+ * Copyright 2012-2022 Timo Röhling <timo@gaussglocke.de>
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

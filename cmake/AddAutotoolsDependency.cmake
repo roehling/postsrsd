@@ -1,4 +1,5 @@
-# Copyright (c) 2012-2022 Timo Röhling <timo@gaussglocke.de>
+# Copyright 2022 Timo Röhling <timo@gaussglocke.de>
+# SPDX-License-Identifier: FSFAP
 #
 # Copying and distribution of this file, with or without modification, are
 # permitted in any medium without royalty provided the copyright notice and
