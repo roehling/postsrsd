@@ -56,6 +56,7 @@ void config_create(struct config* cfg)
     cfg->milter_endpoint = strdup("unix:/var/spool/postfix/srs_milter");
     cfg->pid_file = NULL;
     cfg->secrets_file = strdup(DEFAULT_SECRETS);
+    cfg->tokens_db = strdup(DEFAULT_TOKENS_DB);
     cfg->daemonize = 0;
 }
 
@@ -65,6 +66,7 @@ void config_destroy(struct config* cfg)
     free_and_nullify(&cfg->milter_endpoint);
     free_and_nullify(&cfg->pid_file);
     free_and_nullify(&cfg->secrets_file);
+    free_and_nullify(&cfg->tokens_db);
 }
 
 int config_parse_cmdline(struct config* cfg, int argc, char* const* argv)

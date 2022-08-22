@@ -1,5 +1,10 @@
-/* This file is copied from the libsrs2 sources */
-/* Modified by Timo Röhling <timo@gaussglocke.de> */
+/* Copyright Gisle Ass, Peter C. Gutmann, Bruce Schneier
+ * Copyright 2004 Shevek <srs@anarres.org>
+ * Copyright 2012-2022 Timo Röhling <timo@gaussglocke.de>
+ * SPDX-License-Identifier: GPL-2.0-or-later OR BSD-4-Clause
+ * 
+ * This file has been copied from libsrs2. Original copyright follows:
+ */
 
 /* NIST Secure Hash Algorithm */
 /* Borrowed from SHA1.xs by Gisle Ass */

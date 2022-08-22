@@ -18,11 +18,12 @@
 cmake_minimum_required(VERSION 3.14...3.24)
 project(postsrsd VERSION 2.0.0 LANGUAGES C)
 
+option(GENERATE_SRS_SECRET "Generate and install a postsrsd.secret" ON)
 option(WITH_MILTER "Enable SRS rewrite via Milter (requires libmilter)" ON)
 option(WITH_REDIS "Enable Redis-based storage for opaque SRS tokens (requires hiredis)" ON)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-include(AddAutotoolsDependency)
+include(utils)
 include(FetchContent)
 include(GNUInstallDirs)
 include(CheckIncludeFile)
@@ -30,22 +31,24 @@ include(CheckTypeSize)
 include(CheckSymbolExists)
 include(TestBigEndian)
 
+find_systemd_unit_destination(DETECTED_SYSTEMD_UNITDIR)
+set(SYSTEMD_UNITDIR "${DETECTED_SYSTEMD_UNITDIR}" CACHE PATH "Install destination for systemd service unit")
+
+set(FETCHCONTENT_TRY_FIND_PACKAGE_MODE ALWAYS)
+
 FetchContent_Declare(Confuse
     URL https://github.com/libconfuse/libconfuse/releases/download/v3.3/confuse-3.3.tar.gz
     URL_HASH MD5=f590564c6ea4879db0c8f692bf12f42a
-    FIND_PACKAGE_ARGS
 )
 
 FetchContent_Declare(Hiredis
     GIT_REPOSITORY https://github.com/redis/hiredis
-    GIT_SHALLOW TRUE
     GIT_TAG b808c0c206e4b1eabdbce2ee723df4258461d4da
-    FIND_PACKAGE_ARGS
 )
 
 FetchContent_Declare(sqlite3
-    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/sqlite3
-    FIND_PACKAGE_ARGS
+    URL https://sqlite.org/2022/sqlite-amalgamation-3390200.zip
+    URL_HASH MD5=9edc80bacd6263d39f2cc36ba6b50e14
 )
 
 set(saved_CMAKE_REQUIRED_DEFINITIONS "${CMAKE_REQUIRED_DEFINITIONS}")
@@ -101,6 +104,20 @@ if(WITH_REDIS)
 endif()
 
 FetchContent_MakeAvailable(sqlite3)
+if (IS_DIRECTORY "${sqlite3_SOURCE_DIR}")
+    add_library(sqlite3 STATIC
+        "${sqlite3_SOURCE_DIR}/sqlite3.c"
+    )
+    target_include_directories(sqlite3 PUBLIC "${sqlite3_SOURCE_DIR}")
+    target_compile_definitions(sqlite3 PRIVATE
+        SQLITE_DQS=0
+        SQLITE_THREADSAFE=0
+        SQLITE_DEFAULT_MEMSTATUS=0
+        SQLITE_OMIT_PROGRESS_CALLBACK
+    )
+    add_library(sqlite3::sqlite3 ALIAS sqlite3)
+    target_link_libraries(sqlite3 PUBLIC ${CMAKE_DL_LIBS})
+endif()
 
 configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/src/postsrsd_build_config.h.in"
@@ -130,12 +147,48 @@ target_link_libraries(postsrsd PRIVATE
 
 configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/data/postsrsd.conf.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/postsrsd.conf"
+    "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.conf"
+    @ONLY
+)
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/data/postsrsd.service.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.service"
+    @ONLY
 )
 
 install(
-    TARGETS postsrsd RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+    TARGETS postsrsd RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR})
 install(
-    FILES "${CMAKE_CURRENT_BINARY_DIR}/postsrsd.conf"
+    FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.conf"
     DESTINATION "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}"
 )
+install(
+    FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.service"
+    DESTINATION "${SYSTEMD_UNITDIR}"
+)
+
+if(GENERATE_SRS_SECRET)
+    find_program(DD dd DOC "path to dd executable")
+    find_program(BASE64 base64 DOC "path to base64 executable")
+    find_program(OPENSSL openssl DOC "path to OpenSSL executable")
+    find_file(RANDOM_SOURCE NAMES urandom random PATHS /dev)
+    if(BASE64)
+        set(BASE64_ENCODE "${BASE64}")
+    elseif(OPENSSL)
+        set(BASE64_ENCODE "${OPENSSL} base64 -e")
+    endif()
+    if(DD AND BASE64_ENCODE AND RANDOM_SOURCE)
+        install(CODE "\
+        execute_process(
+            COMMAND ${DD} if=${RANDOM_SOURCE} bs=18 count=1
+            COMMAND ${BASE64_ENCODE}
+            OUTPUT_FILE \"${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.secret\"
+            ERROR_QUIET
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+        if(NOT EXISTS \"\$ENV{DESTDIR}${CMAKE_INSTALL_FULL_SYSCONFDIR}/${PROJECT_NAME}.secret\")
+            file(INSTALL DESTINATION \"${CMAKE_INSTALL_FULL_SYSCONFDIR}\" FILES \"${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.secret\" RENAME \"${PROJECT_NAME}.secret\" PERMISSIONS OWNER_READ OWNER_WRITE)
+        endif()
+        file(REMOVE \"${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.secret\")")
+    endif()
+endif()

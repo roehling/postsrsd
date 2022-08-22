@@ -1,0 +1,10 @@
+# PostSRSd systemd service file
+[Unit]
+Description=Sender Rewriting Scheme daemon for Postfix
+After=network.target
+
+[Service]
+ExecStart=@CMAKE_INSTALL_FULL_SBINDIR@/postsrsd -c @CMAKE_INSTALL_FULL_SYSCONFDIR@/@PROJECT_NAME@.conf
+
+[Install]
+WantedBy=multi-user.target

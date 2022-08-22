@@ -24,6 +24,7 @@ struct config
     char* milter_endpoint;
     char* pid_file;
     char* secrets_file;
+    char* tokens_db;
     int daemonize;
 };
 
