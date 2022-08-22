@@ -79,6 +79,11 @@ static int create_unix_socket(const char* path)
 {
     struct sockaddr_un sa;
     int flags;
+    if (path == NULL || *path == 0)
+    {
+        fprintf(stderr, "postsrsd: expected file path for unix socket\n");
+        return -1;
+    }
     if (acquire_exclusive_lock(path))
         unlink(path);
     int sock = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -110,12 +115,14 @@ fail:
 static int create_inet_sockets(char* addr, int family, int max_fds, int* fds)
 {
     const int one = 1;
+    char tmp[128];
     struct addrinfo hints, *ai;
     memset(&hints, 0, sizeof(struct addrinfo));
     char* node = addr;
+    char* service = NULL;
     if (addr[0] == '[')
     {
-        node++;
+        node = ++addr;
         while (*addr != ']')
         {
             if (*addr == 0)
@@ -133,39 +140,39 @@ static int create_inet_sockets(char* addr, int family, int max_fds, int* fds)
                     "postsrsd: expected ':' separator in socket address\n");
             return -1;
         }
-        ++addr;
+        service = ++addr;
     }
     else
     {
-        while (*addr != ':')
+        service = strchr(addr, ':');
+        if (service)
         {
-            if (*addr == 0)
-            {
-                fprintf(stderr,
-                        "postsrsd: expected ':' separator in socket address\n");
-                return -1;
-            }
-            ++addr;
+            *service = 0;
+            ++service;
         }
-        *addr++ = 0;
+        else
+        {
+            service = addr;
+            node = NULL;
+        }
     }
-    if (*addr == 0)
+    if (service == NULL || *service == 0)
     {
         fprintf(stderr, "postsrsd: expected port number in socket address\n");
         return -1;
     }
     hints.ai_family = family;
     hints.ai_socktype = SOCK_STREAM;
-    if (strcmp(node, "*") == 0)
+    if (node != NULL && strcmp(node, "*") == 0)
     {
         node = NULL;
         hints.ai_flags |= AI_PASSIVE;
     }
-    if (strcmp(node, "localhost") == 0)
+    if (node != NULL && strcmp(node, "localhost") == 0)
     {
         node = NULL;
     }
-    int err = getaddrinfo(node, addr, &hints, &ai);
+    int err = getaddrinfo(node, service, &hints, &ai);
     if (err != 0)
     {
         fprintf(stderr, "postsrsd: %s\n", gai_strerror(err));
@@ -197,15 +204,13 @@ static int create_inet_sockets(char* addr, int family, int max_fds, int* fds)
         continue;
 fail:
         err = errno;
+        fprintf(stderr, "postsrsd: %s\n", strerror(err));
         if (sock >= 0)
             close(sock);
     }
     freeaddrinfo(ai);
-    if (count == 0)
-    {
-        fprintf(stderr, "postsrsd: %s\n", strerror(err));
+    if (count == 0 && err != 0)
         return -1;
-    }
     return count;
 }
 #endif
@@ -226,7 +231,7 @@ int endpoint_create(const char* s, int max_fds, int* fds)
     }
     if (path)
     {
-        int fd = create_unix_socket(&s[5]);
+        int fd = create_unix_socket(path);
         if (fd < 0)
         {
             fprintf(stderr, "postsrsd: failed to create endpoint '%s'\n", s);
