@@ -46,6 +46,11 @@ FetchContent_Declare(Hiredis
     GIT_TAG b808c0c206e4b1eabdbce2ee723df4258461d4da
 )
 
+FetchContent_Declare(LibMilter
+    GIT_REPOSITORY https://github.com/jons/libmilter
+    GIT_TAG f3b7aa0336be0d0fdbca25b97e1e7fcb46e3f333
+)
+
 FetchContent_Declare(sqlite3
     URL https://sqlite.org/2022/sqlite-amalgamation-3390200.zip
     URL_HASH MD5=9edc80bacd6263d39f2cc36ba6b50e14
@@ -103,6 +108,48 @@ if(WITH_REDIS)
     endif()
 endif()
 
+if(WITH_MILTER)
+    FetchContent_MakeAvailable(LibMilter)
+    if (IS_DIRECTORY "${libmilter_SOURCE_DIR}")
+        string(TOLOWER "${CMAKE_SYSTEM_NAME}" lc_system)
+        set(SM_OS_H "${libmilter_SOURCE_DIR}/include/sm/os/sm_os_${lc_system}.h")
+        if(EXISTS "${SM_OS_H}")
+            execute_process(COMMAND "${CMAKE_COMMAND}"
+                 -E copy_if_different "${SM_OS_H}" "${libmilter_SOURCE_DIR}/include/sm/sm_os.h"
+            )
+            add_library(milter STATIC
+                "${libmilter_SOURCE_DIR}/errstring.c"
+                "${libmilter_SOURCE_DIR}/strl.c"
+                "${libmilter_SOURCE_DIR}/comm.c"
+                "${libmilter_SOURCE_DIR}/engine.c"
+                "${libmilter_SOURCE_DIR}/handler.c"
+                "${libmilter_SOURCE_DIR}/listener.c"
+                "${libmilter_SOURCE_DIR}/main.c"
+                "${libmilter_SOURCE_DIR}/monitor.c"
+                "${libmilter_SOURCE_DIR}/signal.c"
+                "${libmilter_SOURCE_DIR}/smfi.c"
+                "${libmilter_SOURCE_DIR}/sm_gethost.c"
+                "${libmilter_SOURCE_DIR}/worker.c"
+            )
+            target_compile_definitions(milter PRIVATE
+                NOT_SENDMAIL
+                sm_printf=snprintf
+                _REENTRANT
+                XP_MT
+            )
+            target_include_directories(milter
+                PRIVATE "${libmilter_SOURCE_DIR}/smapp"
+                PUBLIC "${libmilter_SOURCE_DIR}/include"
+                INTERFACE "${libmilter_SOURCE_DIR}/include/libmilter"
+            )
+            add_library(LibMilter::LibMilter ALIAS milter)
+        else()
+            message(STATUS "Missing support for ${CMAKE_SYSTEM_NAME} for LibMilter")
+            set(WITH_MILTER OFF)
+        endif()
+    endif()
+endif()
+
 FetchContent_MakeAvailable(sqlite3)
 if (IS_DIRECTORY "${sqlite3_SOURCE_DIR}")
     add_library(sqlite3 STATIC
@@ -141,6 +188,7 @@ target_link_libraries(postsrsd PRIVATE
     Confuse::Confuse
     sqlite3::sqlite3
     $<$<BOOL:WITH_REDIS>:${HIREDIS_TARGET}>
+    $<$<BOOL:WITH_MILTER>:LibMilter::LibMilter>
     ${LIBSOCKET}
     ${LIBNSL}
 )
