@@ -24,6 +24,7 @@ option(WITH_REDIS "Enable Redis-based storage for opaque SRS tokens (requires hi
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(utils)
+include(CTest)
 include(FetchContent)
 include(GNUInstallDirs)
 include(CheckIncludeFile)
@@ -54,6 +55,11 @@ FetchContent_Declare(LibMilter
 FetchContent_Declare(sqlite3
     URL https://sqlite.org/2022/sqlite-amalgamation-3390200.zip
     URL_HASH MD5=9edc80bacd6263d39f2cc36ba6b50e14
+)
+
+FetchContent_Declare(Check
+    URL https://github.com/libcheck/check/releases/download/0.15.2/check-0.15.2.tar.gz
+    URL_HASH MD5=50fcafcecde5a380415b12e9c574e0b2
 )
 
 set(saved_CMAKE_REQUIRED_DEFINITIONS "${CMAKE_REQUIRED_DEFINITIONS}")
@@ -175,6 +181,7 @@ add_executable(postsrsd
     src/config.c
     src/endpoint.c
     src/main.c
+    src/netstring.c
     src/sha1.c
     src/srs2.c
 )
@@ -239,4 +246,12 @@ if(GENERATE_SRS_SECRET)
         endif()
         file(REMOVE \"${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.secret\")")
     endif()
+endif()
+
+if(BUILD_TESTING)
+    FetchContent_MakeAvailable(Check)
+    if(IS_DIRECTORY "${check_SOURCE_DIR}")
+        set_property(DIRECTORY "${check_SOURCE_DIR}" PROPERTY EXCLUDE_FROM_ALL TRUE)
+    endif()
+    add_subdirectory(tests)
 endif()
