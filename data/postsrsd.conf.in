@@ -1,1 +1,21 @@
-# PostSRSd example configuration file
+## PostSRSd example configuration file
+
+## Your local domains which need not be rewritten.
+# domains = { example.com, example.org, example.net }
+
+## You can also store the domains in a text file, one domain name per line.
+# domains-file = "@CMAKE_INSTALL_FULL_SYSCONFDIR@/@PROJECT_NAME@.domains"
+
+## An arbitrary domain under your control, which is used to create the ephemeral
+## envelope addresses. By default, the first configured local domain will be
+## used, either from "domains" or "domains-file".
+# rewrite-domain = srs.example.com
+
+# original-sender = embed
+# senders-database = "sqlite:@CMAKE_INSTALL_FULL_LOCALSTATEDIR@/cache/@PROJECT_NAME@/senders.db"
+# separator = "="
+# hash-length = 4
+# hash-minimum = 4
+# always-rewrite = off
+# secrets = { "topsecret", "oldsecret" }
+# secrets-file = "@CMAKE_INSTALL_FULL_SYSCONFDIR@/@PROJECT_NAME@.secret"

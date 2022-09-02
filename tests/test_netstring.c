@@ -139,6 +139,7 @@ START_TEST(netstring_io_test)
     fseek(f, 0, SEEK_SET);
     data = netstring_read(f, buffer, sizeof(buffer), &length);
     ck_assert_ptr_null(data);
+    fclose(f);
 }
 END_TEST
 

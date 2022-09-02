@@ -17,19 +17,11 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-struct config
-{
-    char* socketmap_endpoint;
-    char* milter_endpoint;
-    char* pid_file;
-    char* secrets_file;
-    char* tokens_db;
-    int daemonize;
-};
+#define SRS_MODE_HASH  0
+#define SRS_MODE_TOKEN 1
 
-void config_create(struct config* cfg);
-void config_destroy(struct config* cfg);
-int config_parse_cmdline(struct config* cfg, int argc, char* const* argv);
-int config_load(struct config* cfg, const char* filename);
+#include <confuse.h>
+
+cfg_t* config_from_commandline(int argc, char* const* argv);
 
 #endif

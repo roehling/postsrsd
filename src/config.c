@@ -20,69 +20,132 @@
 #include "postsrsd_build_config.h"
 #include "util.h"
 
-#include <confuse.h>
+#include <errno.h>
 #include <string.h>
 #include <unistd.h>
 
-void config_create(struct config* cfg)
+static int parse_original_sender(cfg_t* cfg, cfg_opt_t* opt, const char* value,
+                          void* result)
 {
-    cfg->socketmap_endpoint = strdup("unix:/var/spool/postfix/srs");
-    cfg->milter_endpoint = strdup("unix:/var/spool/postfix/srs_milter");
-    cfg->pid_file = NULL;
-    cfg->secrets_file = strdup(DEFAULT_SECRETS);
-    cfg->tokens_db = strdup(DEFAULT_TOKENS_DB);
-    cfg->daemonize = 0;
+    if (strcasecmp(value, "hash"))
+        *(int*)result = SRS_MODE_HASH;
+    else if (strcasecmp(value, "token"))
+        *(int*)result = SRS_MODE_TOKEN;
+    else
+    {
+        cfg_error(cfg, "option '%s' must be either 'hash' or 'token'",
+                  cfg_opt_name(opt));
+        return -1;
+    }
+    return 0;
 }
 
-void config_destroy(struct config* cfg)
+static int validate_srs_separator(cfg_t* cfg, cfg_opt_t* opt)
 {
-    set_string(&cfg->socketmap_endpoint, NULL);
-    set_string(&cfg->milter_endpoint, NULL);
-    set_string(&cfg->pid_file, NULL);
-    set_string(&cfg->secrets_file, NULL);
-    set_string(&cfg->tokens_db, NULL);
+    const char* value = cfg_opt_getstr(opt);
+    if (strlen(value) != 1 || !strpbrk(value, "=+-"))
+    {
+        cfg_error(cfg, "option '%s' must be one of '=', '+', '-'",
+                  cfg_opt_name(opt));
+        return -1;
+    }
+    return 0;
 }
 
-int config_parse_cmdline(struct config* cfg, int argc, char* const* argv)
+cfg_t* config_from_commandline(int argc, char* const* argv)
 {
+    static cfg_opt_t opts[] = {
+        CFG_STR("rewrite-domain", NULL, CFGF_NODEFAULT),
+        CFG_STR_LIST("domains", "{}", CFGF_NONE),
+        CFG_STR("domains-file", NULL, CFGF_NODEFAULT),
+        CFG_INT_CB("original-sender", SRS_MODE_HASH, CFGF_NONE, parse_original_sender),
+        CFG_STR("separator", "=", CFGF_NONE),
+        CFG_INT("hash-length", 4, CFGF_NONE),
+        CFG_INT("hash-minimum", 4, CFGF_NONE),
+        CFG_BOOL("always-rewrite", cfg_false, CFGF_NONE),
+        CFG_STR("socketmap", "unix:/var/spool/postfix/srs", CFGF_NONE),
+        CFG_STR("milter", "unix:/var/spool/postfix/srs_milter", CFGF_NONE),
+        CFG_STR("secrets-file", DEFAULT_SECRETS_FILE, CFGF_NONE),
+        CFG_STR_LIST("secrets", "{}", CFGF_NONE),
+        CFG_STR("senders-database", DEFAULT_SENDERS_DATABASE, CFGF_NONE),
+        CFG_STR("pid-file", NULL, CFGF_NODEFAULT),
+        CFG_STR("unprivileged-user", NULL, CFGF_NODEFAULT),
+        CFG_STR("chroot-dir", NULL, CFGF_NODEFAULT),
+        CFG_BOOL("daemonize", cfg_false, CFGF_NONE),
+        CFG_END(),
+    };
+    cfg_t* cfg = cfg_init(opts, CFGF_NONE);
+    cfg_set_validate_func(cfg, "separator", validate_srs_separator);
     int opt;
     char* config_file = NULL;
     char* pid_file = NULL;
+    char* chroot_dir = NULL;
+    char* unprivileged_user = NULL;
     int daemonize = 0;
-    if (file_exists(DEFAULT_CONFIG))
-        set_string(&config_file, strdup(DEFAULT_CONFIG));
-    while ((opt = getopt(argc, argv, "c:p:D")) != -1)
+    int ok = 1;
+    if (file_exists(DEFAULT_CONFIG_FILE))
+        set_string(&config_file, strdup(DEFAULT_CONFIG_FILE));
+    while ((opt = getopt(argc, argv, "C:c:Dp:u:")) != -1)
     {
         switch (opt)
         {
             case '?':
-                return 1;
-            case 'c':
+                return 0;
+            case 'C':
                 set_string(&config_file, strdup(optarg));
                 break;
-            case 'p':
-                set_string(&pid_file, strdup(optarg));
+            case 'c':
+                set_string(&chroot_dir, strdup(optarg));
                 break;
             case 'D':
                 daemonize = 1;
                 break;
+            case 'p':
+                set_string(&pid_file, strdup(optarg));
+                break;
+            case 'u':
+                set_string(&unprivileged_user, strdup(optarg));
+                break;
+            default:
         }
     }
     if (config_file)
     {
-        if (!config_load(cfg, config_file))
-            return 0;
+        switch (cfg_parse(cfg, config_file))
+        {
+            case CFG_FILE_ERROR:
+                fprintf(stderr, "postsrsd: cannot read '%s': %s\n", config_file,
+                        strerror(errno));
+                ok = 0;
+                break;
+            case CFG_PARSE_ERROR:
+                fprintf(stderr, "postsrsd: malformed configuration file '%s'\n",
+                        config_file);
+                ok = 0;
+                break;
+            default:
+        }
+        set_string(&config_file, NULL);
     }
     if (pid_file)
-        set_string(&cfg->pid_file, pid_file);
+    {
+        cfg_setstr(cfg, "pid-file", pid_file);
+        set_string(&pid_file, NULL);
+    }
+    if (unprivileged_user)
+    {
+        cfg_setstr(cfg, "unprivileged-user", unprivileged_user);
+        set_string(&unprivileged_user, NULL);
+    }
+    if (chroot_dir)
+    {
+        cfg_setstr(cfg, "chroot-dir", chroot_dir);
+        set_string(&chroot_dir, NULL);
+    }
     if (daemonize)
-        cfg->daemonize = 1;
-    return 1;
-}
-
-int config_load(struct config* cfg, const char* filename)
-{
-    (void)cfg;
-    (void)filename;
-    return 0;
+        cfg_setbool(cfg, "daemonize", cfg_true);
+    if (ok)
+        return cfg;
+    cfg_free(cfg);
+    return NULL;
 }

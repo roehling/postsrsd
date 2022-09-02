@@ -22,9 +22,8 @@
 
 int main(int argc, char** argv)
 {
-    struct config cfg;
-    config_create(&cfg);
-    if (!config_parse_cmdline(&cfg, argc, argv))
+    cfg_t* cfg = config_from_commandline(argc, argv);
+    if (!cfg)
         return EXIT_FAILURE;
     return EXIT_SUCCESS;
 }

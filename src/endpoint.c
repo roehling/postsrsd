@@ -43,11 +43,11 @@
 #endif
 
 #if defined(AF_UNIX)
-#    define HAVE_UNIX_SOCKETS
+#    define HAVE_UNIX_SOCKETS 1
 #endif
 #if defined(HAVE_NETDB_H) && defined(AF_UNSPEC) && defined(AF_INET) \
     && defined(AF_INET6)
-#    define HAVE_INET_SOCKETS
+#    define HAVE_INET_SOCKETS 1
 #endif
 #ifndef SO_REUSEPORT
 #    define SO_REUSEPORT SO_REUSEADDR
