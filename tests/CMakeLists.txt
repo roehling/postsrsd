@@ -23,3 +23,4 @@ macro(add_postsrsd_test name)
 endmacro()
 
 add_postsrsd_test(test_netstring ../src/netstring.c)
+add_postsrsd_test(test_util ../src/util.c)

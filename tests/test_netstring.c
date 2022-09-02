@@ -14,11 +14,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "common.h"
 #include "netstring.h"
 
 #include <check.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <unistd.h>
 
 START_TEST(netstring_encode_test)
@@ -32,12 +32,14 @@ START_TEST(netstring_encode_test)
     ck_assert_uint_eq(length, 11);
     ck_assert_mem_eq(result, "8:PostSRSd,", length);
 
-    result = netstring_encode("ItBarelyFits", 12, buffer, sizeof(buffer), &length);
+    result =
+        netstring_encode("ItBarelyFits", 12, buffer, sizeof(buffer), &length);
     ck_assert_ptr_nonnull(result);
     ck_assert_uint_eq(length, 16);
     ck_assert_mem_eq(result, "12:ItBarelyFits,", length);
 
-    result = netstring_encode("ItDoesNotFit!", 13, buffer, sizeof(buffer), &length);
+    result =
+        netstring_encode("ItDoesNotFit!", 13, buffer, sizeof(buffer), &length);
     ck_assert_ptr_null(result);
 
     result = netstring_encode(NULL, 0, buffer, sizeof(buffer), &length);
@@ -61,7 +63,8 @@ START_TEST(netstring_decode_test)
     ck_assert_uint_eq(length, 8);
     ck_assert_mem_eq(result, "PostSRSd", length);
 
-    result = netstring_decode("16:0123456789abcdef,", buffer, sizeof(buffer), &length);
+    result = netstring_decode("16:0123456789abcdef,", buffer, sizeof(buffer),
+                              &length);
     ck_assert_ptr_nonnull(result);
     ck_assert_uint_eq(length, 16);
     ck_assert_mem_eq(result, "0123456789abcdef", length);
@@ -119,7 +122,7 @@ START_TEST(netstring_io_test)
     fseek(f, 0, SEEK_SET);
     ftruncate(fileno(f), 0);
     fwrite("3:abc,4:abcde", 1, 13, f);
-    
+
     fseek(f, 0, SEEK_SET);
     data = netstring_read(f, buffer, sizeof(buffer), &length);
     ck_assert_ptr_nonnull(data);
@@ -150,13 +153,4 @@ static Suite* netstring_suite()
     return s;
 }
 
-int main(int, char**)
-{
-    Suite* s = netstring_suite();
-    SRunner* sr = srunner_create(s);
-
-    srunner_run_all(sr, CK_NORMAL);
-    int number_failed = srunner_ntests_failed(sr);
-    srunner_free(sr);
-    return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
-}
+TEST_MAIN(netstring)

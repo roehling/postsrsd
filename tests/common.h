@@ -14,15 +14,21 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef UTIL_H
-#define UTIL_H
+#ifndef TEST_COMMON_H
+#define TEST_COMMON_H
 
-#include <stddef.h>
+#include <stdlib.h>
 
-void set_string(char** var, char* value);
-int file_exists(const char* filename);
-
-int acquire_lock(const char* path);
-void release_lock(const char* path, int fd);
+#define TEST_MAIN(suite) \
+    int main()                                                      \
+    {                                                               \
+        Suite* s = suite ## _suite();                               \
+        SRunner* sr = srunner_create(s);                            \
+                                                                    \
+        srunner_run_all(sr, CK_NORMAL);                             \
+        int number_failed = srunner_ntests_failed(sr);              \
+        srunner_free(sr);                                           \
+        return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;  \
+    }
 
 #endif

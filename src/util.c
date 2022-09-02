@@ -45,7 +45,7 @@ int file_exists(const char* filename)
     return S_ISREG(st.st_mode);
 }
 
-int acquire_dotlock(const char* path)
+int acquire_lock(const char* path)
 {
 #if defined(LOCK_EX) && defined(LOCK_NB)
     size_t len = strlen(path);
@@ -63,11 +63,11 @@ int acquire_dotlock(const char* path)
     }
     return fd;
 #else
-    return 1;
+    return 0;
 #endif
 }
 
-void release_dotlock(const char* path, int fd)
+void release_lock(const char* path, int fd)
 {
 #if defined(LOCK_EX) && defined(LOCK_NB)
     size_t len = strlen(path);

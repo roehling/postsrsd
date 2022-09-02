@@ -64,7 +64,7 @@ static int create_unix_socket(const char* path)
         fprintf(stderr, "postsrsd: expected file path for unix socket\n");
         return -1;
     }
-    if (acquire_dotlock(path) > 0)
+    if (acquire_lock(path) > 0)
         unlink(path);
     int sock = socket(AF_UNIX, SOCK_STREAM, 0);
     if (sock < 0)
