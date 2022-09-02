@@ -14,40 +14,15 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 #include "config.h"
 
 #include "postsrsd_build_config.h"
+#include "util.h"
 
 #include <confuse.h>
-#include <stdlib.h>
 #include <string.h>
-#ifdef HAVE_SYS_TYPES_H
-#    include <sys/types.h>
-#endif
-#ifdef HAVE_SYS_STAT_H
-#    include <sys/stat.h>
-#endif
 #include <unistd.h>
-
-static void set_string(char** var, char* value)
-{
-    free(*var);
-    *var = value;
-}
-
-static void free_and_nullify(char** var)
-{
-    free(*var);
-    *var = NULL;
-}
-
-static int file_exists(const char* filename)
-{
-    struct stat st;
-    if (stat(filename, &st) < 0)
-        return 0;
-    return S_ISREG(st.st_mode);
-}
 
 void config_create(struct config* cfg)
 {
@@ -61,11 +36,11 @@ void config_create(struct config* cfg)
 
 void config_destroy(struct config* cfg)
 {
-    free_and_nullify(&cfg->socketmap_endpoint);
-    free_and_nullify(&cfg->milter_endpoint);
-    free_and_nullify(&cfg->pid_file);
-    free_and_nullify(&cfg->secrets_file);
-    free_and_nullify(&cfg->tokens_db);
+    set_string(&cfg->socketmap_endpoint, NULL);
+    set_string(&cfg->milter_endpoint, NULL);
+    set_string(&cfg->pid_file, NULL);
+    set_string(&cfg->secrets_file, NULL);
+    set_string(&cfg->tokens_db, NULL);
 }
 
 int config_parse_cmdline(struct config* cfg, int argc, char* const* argv)

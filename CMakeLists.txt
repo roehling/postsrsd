@@ -183,6 +183,7 @@ add_executable(postsrsd
     src/netstring.c
     src/sha1.c
     src/srs2.c
+    src/util.c
 )
 
 target_compile_definitions(postsrsd PRIVATE

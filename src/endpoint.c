@@ -17,6 +17,7 @@
 #include "endpoint.h"
 
 #include "postsrsd_build_config.h"
+#include "util.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -24,9 +25,6 @@
 #include <string.h>
 #ifdef HAVE_FCNTL_H
 #    include <fcntl.h>
-#endif
-#ifdef HAVE_SYS_FILE_H
-#    include <sys/file.h>
 #endif
 #ifdef HAVE_SYS_TYPES_H
 #    include <sys/types.h>
@@ -57,23 +55,6 @@
 #define POSTSRSD_SOCKET_LISTEN_QUEUE 16
 
 #ifdef HAVE_UNIX_SOCKETS
-static int acquire_exclusive_lock(const char* path)
-{
-#    if defined(LOCK_EX) && defined(LOCK_NB)
-    size_t len = strlen(path);
-    char* lock_path = malloc(len + 6); /* ".lock" + "\0" */
-    strcpy(lock_path, path);
-    strcat(lock_path, ".lock");
-    int fd = open(lock_path, O_RDONLY | O_CREAT, 0600);
-    free(lock_path);
-    if (fd < 0)
-        return 0;
-    return flock(fd, LOCK_EX | LOCK_NB) == 0;
-#    else
-    return 0;
-#    endif
-}
-
 static int create_unix_socket(const char* path)
 {
     struct sockaddr_un sa;
@@ -83,7 +64,7 @@ static int create_unix_socket(const char* path)
         fprintf(stderr, "postsrsd: expected file path for unix socket\n");
         return -1;
     }
-    if (acquire_exclusive_lock(path))
+    if (acquire_dotlock(path) > 0)
         unlink(path);
     int sock = socket(AF_UNIX, SOCK_STREAM, 0);
     if (sock < 0)
