@@ -45,6 +45,14 @@ int file_exists(const char* filename)
     return S_ISREG(st.st_mode);
 }
 
+int directory_exists(const char* dirname)
+{
+    struct stat st;
+    if (stat(dirname, &st) < 0)
+        return 0;
+    return S_ISDIR(st.st_mode);
+}
+
 int acquire_lock(const char* path)
 {
 #if defined(LOCK_EX) && defined(LOCK_NB)
@@ -78,4 +86,99 @@ void release_lock(const char* path, int fd)
     free(lock_path);
     close(fd);
 #endif
+}
+
+struct domain_set
+{
+    struct domain_set* c[37];
+    struct domain_set* s;
+    int m;
+};
+
+#define DOMAIN_SET_ADD      1
+#define DOMAIN_SET_CONTAINS 0
+#define DOMAIN_SET_REMOVE   -1
+
+struct domain_set* domain_set_create()
+{
+    struct domain_set* D = malloc(sizeof(struct domain_set));
+    for (unsigned i = 0; i < sizeof(D->c) / sizeof(D->c[0]); ++i)
+        D->c[i] = NULL;
+    D->s = NULL;
+    D->m = 0;
+    return D;
+}
+
+void domain_set_destroy(struct domain_set* D)
+{
+    for (unsigned i = 0; i < sizeof(D->c) / sizeof(D->c[0]); ++i)
+        if (D->c[i])
+            domain_set_destroy(D->c[i]);
+    if (D->s)
+        domain_set_destroy(D->s);
+    free(D);
+}
+
+int walk_domain_set(struct domain_set* D, char* domain, int flag)
+{
+    char* dot = strrchr(domain, '.');
+    char* subdomain = domain;
+    if (dot)
+    {
+        subdomain = dot + 1;
+        *dot = 0;
+    }
+    int ch;
+    while ((ch = *subdomain++))
+    {
+        if (ch >= 'A' && ch <= 'Z')
+            ch -= 'A';
+        else if (ch >= 'a' && ch <= 'z')
+            ch -= 'a';
+        else if (ch >= '0' && ch <= '9')
+            ch = ch - '0' + 26;
+        else if (ch == '-')
+            ch = 36;
+        else
+            return 0;
+        if (D->c[ch] == NULL)
+        {
+            if (flag != DOMAIN_SET_ADD)
+                return 0;
+            D->c[ch] = domain_set_create();
+        }
+        D = D->c[ch];
+    }
+    if (dot)
+    {
+        if (D->s == NULL)
+        {
+            if (flag != DOMAIN_SET_ADD)
+                return 0;
+            D->s = domain_set_create();
+        }
+        return walk_domain_set(D->s, domain, flag);
+    }
+    int result = D->m;
+    if (flag == DOMAIN_SET_ADD)
+        D->m = 1;
+    if (flag == DOMAIN_SET_REMOVE)
+        D->m = 0;
+    return result;
+}
+
+int domain_set_add(struct domain_set* D, const char* domain)
+{
+    char buffer[1024];
+    strncpy(buffer, domain, sizeof(buffer) - 1);
+    buffer[sizeof(buffer) - 1] = 0;
+    return !walk_domain_set(D, buffer, DOMAIN_SET_ADD);
+}
+
+int domain_set_contains(struct domain_set* D, const char* domain)
+{
+    char buffer[1024];
+    strncpy(buffer, domain, sizeof(buffer) - 1);
+    buffer[sizeof(buffer) - 1] = 0;
+    return walk_domain_set(D, buffer, DOMAIN_SET_CONTAINS);
 }

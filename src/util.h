@@ -19,10 +19,18 @@
 
 #include <stddef.h>
 
+struct domain_set;
+
 void set_string(char** var, char* value);
 int file_exists(const char* filename);
+int directory_exists(const char* dirname);
 
 int acquire_lock(const char* path);
 void release_lock(const char* path, int fd);
+
+struct domain_set* domain_set_create();
+int domain_set_add(struct domain_set* D, const char* domain);
+int domain_set_contains(struct domain_set* D, const char* domain);
+void domain_set_destroy(struct domain_set* D);
 
 #endif

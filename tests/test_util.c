@@ -80,11 +80,35 @@ START_TEST(util_dotlock)
 }
 END_TEST
 
+START_TEST(util_domain_set)
+{
+    struct domain_set* D = domain_set_create();
+    ck_assert(!domain_set_contains(D, "example.com"));
+    ck_assert(!domain_set_contains(D, ".example.com"));
+    ck_assert(!domain_set_contains(D, "exam.com"));
+    domain_set_add(D, "example.com");
+    ck_assert(domain_set_contains(D, "example.com"));
+    ck_assert(!domain_set_contains(D, ".example.com"));
+    ck_assert(!domain_set_contains(D, "www.example.com"));
+    ck_assert(!domain_set_contains(D, "exam.com"));
+    domain_set_add(D, ".example.com");
+    ck_assert(domain_set_contains(D, "example.com"));
+    ck_assert(domain_set_contains(D, ".example.com"));
+    ck_assert(!domain_set_contains(D, "www.example.com"));
+    ck_assert(!domain_set_contains(D, "exam.com"));
+    domain_set_add(D, "my-example.com");
+    ck_assert(domain_set_contains(D, "my-example.com"));
+    domain_set_add(D, "invalid$domain.net");
+    ck_assert(!domain_set_contains(D, "invalid$domain.net"));
+    domain_set_destroy(D);
+}
+
 static Suite* util_suite()
 {
     Suite* s = suite_create("util");
     TCase* tc = tcase_create("test");
     tcase_add_test(tc, util_set_string);
+    tcase_add_test(tc, util_domain_set);
     suite_add_tcase(s, tc);
     TCase* tc_fs = tcase_create("fs");
     tcase_add_unchecked_fixture(tc_fs, setup_fs, teardown_fs);
