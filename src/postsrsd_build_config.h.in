@@ -23,26 +23,26 @@
 #define DEFAULT_SECRETS      "@CMAKE_INSTALL_FULL_SYSCONFDIR@/@PROJECT_NAME@.secret"
 #define DEFAULT_TOKENS_DB    "sqlite:@CMAKE_INSTALL_FULL_LOCALSTATEDIR@/@PROJECT_NAME@/tokens.db"
 
-#cmakedefine WITH_MILTER
-#cmakedefine WITH_REDIS
+#cmakedefine WITH_MILTER 1
+#cmakedefine WITH_REDIS 1
 
-#cmakedefine HAVE_BIG_ENDIAN
-#cmakedefine HAVE_STRCASECMP
-#cmakedefine HAVE__STRICMP
-#cmakedefine HAVE_STRNCASECMP
-#cmakedefine HAVE__STRNICMP
+#cmakedefine HAVE_BIG_ENDIAN 1
+#cmakedefine HAVE_STRCASECMP 1
+#cmakedefine HAVE__STRICMP 1
+#cmakedefine HAVE_STRNCASECMP 1
+#cmakedefine HAVE__STRNICMP 1
 
-#cmakedefine HAVE_ALLOCA_H
-#cmakedefine HAVE_FCNTL_H
-#cmakedefine HAVE_NETDB_H
-#cmakedefine HAVE_SYS_FILE_H
-#cmakedefine HAVE_SYS_INOTIFY_H
-#cmakedefine HAVE_SYS_SOCKET_H
-#cmakedefine HAVE_SYS_STAT_H
-#cmakedefine HAVE_SYS_TIME_H
-#cmakedefine HAVE_SYS_TYPES_H
-#cmakedefine HAVE_SYS_UN_H
-#cmakedefine HAVE_TIME_H
-#cmakedefine HAVE_UNISTD_H
+#cmakedefine HAVE_ALLOCA_H 1
+#cmakedefine HAVE_FCNTL_H 1
+#cmakedefine HAVE_NETDB_H 1
+#cmakedefine HAVE_SYS_FILE_H 1
+#cmakedefine HAVE_SYS_INOTIFY_H 1
+#cmakedefine HAVE_SYS_SOCKET_H 1
+#cmakedefine HAVE_SYS_STAT_H 1
+#cmakedefine HAVE_SYS_TIME_H 1
+#cmakedefine HAVE_SYS_TYPES_H 1
+#cmakedefine HAVE_SYS_UN_H 1
+#cmakedefine HAVE_TIME_H 1
+#cmakedefine HAVE_UNISTD_H 1
 
 #endif

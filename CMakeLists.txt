@@ -20,6 +20,7 @@ project(postsrsd VERSION 2.0.0 LANGUAGES C)
 option(GENERATE_SRS_SECRET "Generate and install a postsrsd.secret" ON)
 option(WITH_MILTER "Enable SRS rewrite via Milter (requires libmilter)" ON)
 option(WITH_REDIS "Enable Redis-based storage for opaque SRS tokens (requires hiredis)" ON)
+option(DEVELOPER_BUILD "Add strict compiler options for development only" ON)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(utils)
@@ -86,7 +87,7 @@ test_big_endian(HAVE_BIG_ENDIAN)
 
 set(CMAKE_REQUIRED_DEFINITIONS "${saved_CMAKE_REQUIRED_DEFINITIONS}")
 
-if(CMAKE_SYSTEM_NAME MATCHES "SunOS")
+if(CMAKE_SYSTEM_NAME MATCHES "Solaris|SunOS")
     find_library(LIBSOCKET socket)
     find_library(LIBNSL nsl)
 endif()
@@ -137,10 +138,8 @@ if(WITH_MILTER)
                 "${libmilter_SOURCE_DIR}/worker.c"
             )
             target_compile_definitions(milter PRIVATE
-                NOT_SENDMAIL
+                NOT_SENDMAIL=1
                 sm_printf=snprintf
-                _REENTRANT
-                XP_MT
             )
             target_include_directories(milter
                 PRIVATE "${libmilter_SOURCE_DIR}/smapp"
@@ -175,6 +174,10 @@ configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/src/postsrsd_build_config.h.in"
     "${CMAKE_CURRENT_BINARY_DIR}/postsrsd_build_config.h"
 )
+
+if(DEVELOPER_BUILD AND CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    add_compile_options(-Wall -Wextra -Werror)
+endif()
 
 add_executable(postsrsd
     src/config.c

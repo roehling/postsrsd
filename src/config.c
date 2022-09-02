@@ -82,5 +82,7 @@ int config_parse_cmdline(struct config* cfg, int argc, char* const* argv)
 
 int config_load(struct config* cfg, const char* filename)
 {
+    (void)cfg;
+    (void)filename;
     return 0;
 }

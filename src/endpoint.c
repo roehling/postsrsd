@@ -95,7 +95,6 @@ fail:
 static int create_inet_sockets(char* addr, int family, int max_fds, int* fds)
 {
     const int one = 1;
-    char tmp[128];
     struct addrinfo hints, *ai;
     memset(&hints, 0, sizeof(struct addrinfo));
     char* node = addr;
