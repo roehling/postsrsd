@@ -24,23 +24,23 @@
 #include <string.h>
 #include <unistd.h>
 
-static int parse_original_sender(cfg_t* cfg, cfg_opt_t* opt, const char* value,
-                          void* result)
+static int parse_original_envelope(cfg_t* cfg, cfg_opt_t* opt, const char* value,
+                                 void* result)
 {
-    if (strcasecmp(value, "hash"))
-        *(int*)result = SRS_MODE_HASH;
-    else if (strcasecmp(value, "token"))
-        *(int*)result = SRS_MODE_TOKEN;
+    if (strcasecmp(value, "embedded"))
+        *(int*)result = SRS_ENVELOPE_EMBEDDED;
+    else if (strcasecmp(value, "database"))
+        *(int*)result = SRS_ENVELOPE_DATABASE;
     else
     {
-        cfg_error(cfg, "option '%s' must be either 'hash' or 'token'",
+        cfg_error(cfg, "option '%s' must be either 'embedded' or 'database'",
                   cfg_opt_name(opt));
         return -1;
     }
     return 0;
 }
 
-static int validate_srs_separator(cfg_t* cfg, cfg_opt_t* opt)
+static int validate_separator(cfg_t* cfg, cfg_opt_t* opt)
 {
     const char* value = cfg_opt_getstr(opt);
     if (strlen(value) != 1 || !strpbrk(value, "=+-"))
@@ -55,27 +55,27 @@ static int validate_srs_separator(cfg_t* cfg, cfg_opt_t* opt)
 cfg_t* config_from_commandline(int argc, char* const* argv)
 {
     static cfg_opt_t opts[] = {
-        CFG_STR("rewrite-domain", NULL, CFGF_NODEFAULT),
+        CFG_STR("srs-domain", NULL, CFGF_NODEFAULT),
         CFG_STR_LIST("domains", "{}", CFGF_NONE),
         CFG_STR("domains-file", NULL, CFGF_NODEFAULT),
-        CFG_INT_CB("original-sender", SRS_MODE_HASH, CFGF_NONE, parse_original_sender),
+        CFG_INT_CB("original-envelope", SRS_ENVELOPE_EMBEDDED, CFGF_NONE,
+                   parse_original_envelope),
         CFG_STR("separator", "=", CFGF_NONE),
         CFG_INT("hash-length", 4, CFGF_NONE),
         CFG_INT("hash-minimum", 4, CFGF_NONE),
         CFG_BOOL("always-rewrite", cfg_false, CFGF_NONE),
         CFG_STR("socketmap", "unix:/var/spool/postfix/srs", CFGF_NONE),
-        CFG_STR("milter", "unix:/var/spool/postfix/srs_milter", CFGF_NONE),
+        CFG_STR("milter", NULL, CFGF_NODEFAULT),
         CFG_STR("secrets-file", DEFAULT_SECRETS_FILE, CFGF_NONE),
-        CFG_STR_LIST("secrets", "{}", CFGF_NONE),
-        CFG_STR("senders-database", DEFAULT_SENDERS_DATABASE, CFGF_NONE),
+        CFG_STR("envelope-database", DEFAULT_ENVELOPE_DATABASE, CFGF_NONE),
         CFG_STR("pid-file", NULL, CFGF_NODEFAULT),
-        CFG_STR("unprivileged-user", NULL, CFGF_NODEFAULT),
-        CFG_STR("chroot-dir", NULL, CFGF_NODEFAULT),
+        CFG_STR("unprivileged-user", DEFAULT_POSTSRSD_USER, CFGF_NONE),
+        CFG_STR("chroot-dir", DEFAULT_CHROOT_DIR, CFGF_NONE),
         CFG_BOOL("daemonize", cfg_false, CFGF_NONE),
         CFG_END(),
     };
     cfg_t* cfg = cfg_init(opts, CFGF_NONE);
-    cfg_set_validate_func(cfg, "separator", validate_srs_separator);
+    cfg_set_validate_func(cfg, "separator", validate_separator);
     int opt;
     char* config_file = NULL;
     char* pid_file = NULL;

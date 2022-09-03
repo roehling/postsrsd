@@ -1,7 +1,7 @@
 /* Copyright 2004 Shevek <srs@anarres.org>
  * Copyright 2012-2022 Timo Röhling <timo@gaussglocke.de>
  * SPDX-License-Identifier: GPL-2.0-only OR BSD-3-Clause
- * 
+ *
  * This file has been copied from libsrs2. Original copyright follows:
  */
 
@@ -18,8 +18,6 @@
  * information.
  */
 
-#undef USE_OPENSSL
-
 #include <postsrsd_build_config.h>
 #include <stdarg.h>
 #include <string.h> /* memcpy, strcpy, memset */
@@ -27,15 +25,8 @@
 #    include <alloca.h>
 #endif
 
-#ifdef USE_OPENSSL
-#    include <openssl/hmac.h>
-#endif
-
+#include "sha1.h"
 #include "srs2.h"
-
-#ifndef EVP_MAX_MD_SIZE
-#    define EVP_MAX_MD_SIZE (16 + 20) /* The SSLv3 md5+sha1 type */
-#endif
 
 #ifndef HAVE_STRCASECMP
 #    ifdef HAVE__STRICMP

@@ -24,6 +24,9 @@
 #ifdef HAVE_SYS_FILE_H
 #    include <sys/file.h>
 #endif
+#ifdef HAVE_SYS_STAT_H
+#    include <sys/stat.h>
+#endif
 #include <unistd.h>
 
 static char pwd[500];
@@ -47,12 +50,40 @@ void teardown_fs()
 START_TEST(util_file_exists)
 {
     ck_assert(!file_exists("testfile"));
+    ck_assert(!file_exists("testdir"));
+
+    ck_assert_int_eq(mkdir("testdir", 0755), 0);
     FILE* f = fopen("testfile", "w");
     fwrite("Test", 4, 1, f);
     fclose(f);
+
     ck_assert(file_exists("testfile"));
-    unlink("testfile");
+    ck_assert(!file_exists("testdir"));
+
+    ck_assert_int_eq(unlink("testfile"), 0);
+    ck_assert_int_eq(rmdir("testdir"), 0);
+
     ck_assert(!file_exists("testfile"));
+}
+END_TEST
+
+START_TEST(util_directory_exists)
+{
+    ck_assert(!directory_exists("testfile"));
+    ck_assert(!directory_exists("testdir"));
+
+    ck_assert_int_eq(mkdir("testdir", 0755), 0);
+    FILE* f = fopen("testfile", "w");
+    fwrite("Test", 4, 1, f);
+    fclose(f);
+
+    ck_assert(directory_exists("testdir"));
+    ck_assert(!directory_exists("testfile"));
+
+    ck_assert_int_eq(unlink("testfile"), 0);
+    ck_assert_int_eq(rmdir("testdir"), 0);
+
+    ck_assert(!directory_exists("testdir"));
 }
 END_TEST
 
@@ -87,17 +118,22 @@ START_TEST(util_domain_set)
     ck_assert(!domain_set_contains(D, ".example.com"));
     ck_assert(!domain_set_contains(D, "exam.com"));
     domain_set_add(D, "example.com");
+    domain_set_add(D, "www.example.com");
     ck_assert(domain_set_contains(D, "example.com"));
+    ck_assert(domain_set_contains(D, "EXAMPLE.COM"));
+    ck_assert(domain_set_contains(D, "www.example.com"));
     ck_assert(!domain_set_contains(D, ".example.com"));
-    ck_assert(!domain_set_contains(D, "www.example.com"));
+    ck_assert(!domain_set_contains(D, "mail.example.com"));
     ck_assert(!domain_set_contains(D, "exam.com"));
     domain_set_add(D, ".example.com");
     ck_assert(domain_set_contains(D, "example.com"));
     ck_assert(domain_set_contains(D, ".example.com"));
-    ck_assert(!domain_set_contains(D, "www.example.com"));
+    ck_assert(domain_set_contains(D, "www.example.com"));
+    ck_assert(domain_set_contains(D, "mail.example.com"));
     ck_assert(!domain_set_contains(D, "exam.com"));
-    domain_set_add(D, "my-example.com");
-    ck_assert(domain_set_contains(D, "my-example.com"));
+    domain_set_add(D, ".my-0815-examples.com");
+    ck_assert(!domain_set_contains(D, "my-0815-examples.com"));
+    ck_assert(domain_set_contains(D, "another.one.of.my-0815-examples.com"));
     domain_set_add(D, "invalid$domain.net");
     ck_assert(!domain_set_contains(D, "invalid$domain.net"));
     domain_set_destroy(D);
@@ -113,6 +149,7 @@ static Suite* util_suite()
     TCase* tc_fs = tcase_create("fs");
     tcase_add_unchecked_fixture(tc_fs, setup_fs, teardown_fs);
     tcase_add_test(tc_fs, util_file_exists);
+    tcase_add_test(tc_fs, util_directory_exists);
     tcase_add_test(tc_fs, util_dotlock);
     suite_add_tcase(s, tc_fs);
     return s;

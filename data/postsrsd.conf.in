@@ -1,21 +1,90 @@
-## PostSRSd example configuration file
+# PostSRSd example configuration file
 
-## Your local domains which need not be rewritten.
-# domains = { example.com, example.org, example.net }
+# Local domains
+# Your local domains need not be rewritten, so PostSRSd has to know about them.
+#
+# Example:
+#     domains = { "example.com", "example.org", "example.net" }
+#
+domains = {}
 
-## You can also store the domains in a text file, one domain name per line.
-# domains-file = "@CMAKE_INSTALL_FULL_SYSCONFDIR@/@PROJECT_NAME@.domains"
+# Local domains (file storage)
+# Instead of listing your local domains directly, you can also write them to a
+# file and have PostSRSd read it. This is particularly useful if you have a large
+# number of domains for which you need to act as mail forwarder.
+#
+# Example:
+#     domains-file = "@CMAKE_INSTALL_FULL_SYSCONFDIR@/@PROJECT_NAME@.domains"
+#
+#domains-file =
 
-## An arbitrary domain under your control, which is used to create the ephemeral
-## envelope addresses. By default, the first configured local domain will be
-## used, either from "domains" or "domains-file".
-# rewrite-domain = srs.example.com
+# Dedicated SRS rewrite domain.
+# The local domain which is used to create the ephemeral SRS envelope
+# addresses. It is recommended that you use a dedicated mail domain for SRS if
+# you serve multiple unrelated domains (e.g. for your customers), to prevent
+# privacy issues. If unset, the first configured local domain is used.
+#
+# Example:
+#     srs-domain = "srs.example.com"
+#
+#srs-domain =
 
-# original-sender = embed
-# senders-database = "sqlite:@CMAKE_INSTALL_FULL_LOCALSTATEDIR@/cache/@PROJECT_NAME@/senders.db"
+# Socketmap lookup table for Postfix integration.
+# Traditionally, PostSRSd interacts with Postfix through the canonicalization
+# lookup tables of the cleanup daemon. If you use a unix socket, be aware that
+# most Postfix instances will jail their cleanup daemon in a /var/spool/postfix
+# chroot, so no other path will be visible to them.
+#
+# Examples:
+#     socketmap = inet:localhost:10003
+#     socketmap = unix:/var/spool/postfix/srs
+#
+socketmap = unix:/var/spool/postfix/srs
+
+# Original envelope sender handling.
+# When the envelope sender is rewritten, the original address can either be
+# embedded in the rewritten address, or stored in a local database. Embedding
+# makes PostSRSd work fully stateless, but the full sender address needs to
+# fit into the localpart of the embedded address, effectively limiting the
+# length of forwardable sender addresses to 51 octets. Storing the sender
+# address in a database circumvents this problem, but makes PostSRSd
+# vulnerable to an attacker sending vast amounts of emails with fake sender
+# addresses, all of which need to be stored in the database.
+#
+# If you are unsure which option suits your use-case best, the vast majority of
+# mail addresses will be relatively short, so you should pick "embedded".
+#
+# Examples:
+#     original-envelope = embedded
+#     original-envelope = database
+#
+original-envelope = embedded
+
+# Database for envelope sender storage.
+# If you decide to store envelope senders in a database, this database will be
+# used. The option is ignored if original-envelope is set to "embedded".
+#
+# Example:
+#     envelope-database = "sqlite:@CMAKE_INSTALL_FULL_LOCALSTATEDIR@/lib/@PROJECT_NAME@/senders.db"
+#
+envelope-database = "sqlite:@CMAKE_INSTALL_FULL_LOCALSTATEDIR@/lib/@PROJECT_NAME@/senders.db"
+
+# Secret keys for signing and verifying SRS addresses.
+# Rewritten addresses are tagged with a truncated HMAC-SHA1 signature, to
+# prevent tampering and forged envelope addresses. You can have more than
+# one signing secret; each line of the secrets file is considered one secret
+# key. If an incoming signature matches any key, it is accepted. Outgoing
+# signatures will always be generated with the first configured secret.
+#
+# For security reasons, you should also make sure that the file is owned and
+# only accessible by root (chmod 600).
+# 
+# Example:
+#     secrets-file = "@CMAKE_INSTALL_FULL_SYSCONFDIR@/@PROJECT_NAME@.secret"
+#
+secrets-file = "@CMAKE_INSTALL_FULL_SYSCONFDIR@/@PROJECT_NAME@.secret"
+
 # separator = "="
 # hash-length = 4
 # hash-minimum = 4
 # always-rewrite = off
-# secrets = { "topsecret", "oldsecret" }
-# secrets-file = "@CMAKE_INSTALL_FULL_SYSCONFDIR@/@PROJECT_NAME@.secret"

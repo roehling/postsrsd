@@ -2,7 +2,7 @@
  * Copyright 2004 Shevek <srs@anarres.org>
  * Copyright 2012-2022 Timo Röhling <timo@gaussglocke.de>
  * SPDX-License-Identifier: GPL-2.0-only OR BSD-3-Clause
- * 
+ *
  * This file has been copied from libsrs2. Original copyright follows:
  */
 
@@ -18,11 +18,11 @@
 
 /* This code is in the public domain */
 
-/* Useful defines & typedefs */
+#include "sha1.h"
 
-#include "srs2.h"
+#include "postsrsd_build_config.h"
 
-#include <string.h>    /* memcpy, strcpy, memset */
+#include <string.h> /* memcpy, strcpy, memset */
 
 #ifdef SIZEOF_UNSIGNED_LONG
 #    if SIZEOF_UNSIGNED_LONG < 4
@@ -375,7 +375,7 @@ static void sha_final(unsigned char digest[20], SHA_INFO* sha_info)
     sha_final(digeststr, &ctx);
 */
 
-static void sha_digest(char* out, char* data, unsigned len)
+void sha_digest(char* out, char* data, unsigned len)
 {
     SHA_INFO ctx;
     sha_init(&ctx);

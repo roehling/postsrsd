@@ -20,9 +20,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-char* netstring_encode(const char* data, size_t length, char* buffer, size_t bufsize, size_t* encoded_length);
-char* netstring_decode(const char* netstring, char* buffer, size_t bufsize, size_t* decoded_length);
-char* netstring_read(FILE* f, char* buffer, size_t bufsize, size_t* decoded_length);
+char* netstring_encode(const char* data, size_t length, char* buffer,
+                       size_t bufsize, size_t* encoded_length);
+char* netstring_decode(const char* netstring, char* buffer, size_t bufsize,
+                       size_t* decoded_length);
+char* netstring_read(FILE* f, char* buffer, size_t bufsize,
+                     size_t* decoded_length);
 int netstring_write(FILE* f, const char* data, size_t length);
 
 #endif

@@ -88,16 +88,20 @@ void release_lock(const char* path, int fd)
 #endif
 }
 
+/* The domain set is implemented as a common prefix tree */
 struct domain_set
 {
+    /* Child nodes for letters A-Z, numbers 0-9, and dash ("-"),
+       in that order */
     struct domain_set* c[37];
+    /* Child node for subdomain components, effectively (".") */
     struct domain_set* s;
+    /* Membership; is the string up to this point a set member? */
     int m;
 };
 
-#define DOMAIN_SET_ADD      1
-#define DOMAIN_SET_CONTAINS 0
-#define DOMAIN_SET_REMOVE   -1
+#define DOMAIN_SET_ADD           1
+#define DOMAIN_SET_PARTIAL_MATCH 2
 
 struct domain_set* domain_set_create()
 {
@@ -119,7 +123,7 @@ void domain_set_destroy(struct domain_set* D)
     free(D);
 }
 
-int walk_domain_set(struct domain_set* D, char* domain, int flag)
+static int walk_domain_set(struct domain_set* D, char* domain, int flags)
 {
     char* dot = strrchr(domain, '.');
     char* subdomain = domain;
@@ -143,7 +147,7 @@ int walk_domain_set(struct domain_set* D, char* domain, int flag)
             return 0;
         if (D->c[ch] == NULL)
         {
-            if (flag != DOMAIN_SET_ADD)
+            if (!(flags & DOMAIN_SET_ADD))
                 return 0;
             D->c[ch] = domain_set_create();
         }
@@ -153,17 +157,17 @@ int walk_domain_set(struct domain_set* D, char* domain, int flag)
     {
         if (D->s == NULL)
         {
-            if (flag != DOMAIN_SET_ADD)
+            if (!(flags & DOMAIN_SET_ADD))
                 return 0;
             D->s = domain_set_create();
         }
-        return walk_domain_set(D->s, domain, flag);
+        if (D->s->m && (flags & DOMAIN_SET_PARTIAL_MATCH))
+            return 1;
+        return walk_domain_set(D->s, domain, flags);
     }
     int result = D->m;
-    if (flag == DOMAIN_SET_ADD)
+    if (flags == DOMAIN_SET_ADD)
         D->m = 1;
-    if (flag == DOMAIN_SET_REMOVE)
-        D->m = 0;
     return result;
 }
 
@@ -180,5 +184,5 @@ int domain_set_contains(struct domain_set* D, const char* domain)
     char buffer[1024];
     strncpy(buffer, domain, sizeof(buffer) - 1);
     buffer[sizeof(buffer) - 1] = 0;
-    return walk_domain_set(D, buffer, DOMAIN_SET_CONTAINS);
+    return walk_domain_set(D, buffer, DOMAIN_SET_PARTIAL_MATCH);
 }

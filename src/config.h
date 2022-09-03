@@ -17,8 +17,15 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#define SRS_MODE_HASH  0
-#define SRS_MODE_TOKEN 1
+#define SRS_ENVELOPE_EMBEDDED 0
+#define SRS_ENVELOPE_DATABASE 1
+
+#define DEBUG_CONFIG_STR(cfg, key)                          \
+    do                                                      \
+    {                                                       \
+        const char* value = cfg_getstr(cfg, key);           \
+        printf("%s = %s\n", key, value ? value : "<NULL>"); \
+    } while (0)
 
 #include <confuse.h>
 

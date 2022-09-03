@@ -25,5 +25,6 @@ int main(int argc, char** argv)
     cfg_t* cfg = config_from_commandline(argc, argv);
     if (!cfg)
         return EXIT_FAILURE;
+    DEBUG_CONFIG_STR(cfg, "srs-domain");
     return EXIT_SUCCESS;
 }

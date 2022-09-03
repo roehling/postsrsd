@@ -17,12 +17,8 @@
 cmake_minimum_required(VERSION 3.14...3.24)
 project(postsrsd VERSION 2.0.0 LANGUAGES C)
 
-option(GENERATE_SRS_SECRET "Generate and install a postsrsd.secret" ON)
-option(WITH_MILTER "Enable SRS rewrite via Milter (requires libmilter)" ON)
-option(WITH_REDIS "Enable Redis-based storage for opaque SRS tokens (requires hiredis)" ON)
-option(DEVELOPER_BUILD "Add strict compiler options for development only" ON)
-
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
 include(utils)
 include(CTest)
 include(FetchContent)
@@ -32,6 +28,12 @@ include(CheckTypeSize)
 include(CheckSymbolExists)
 include(TestBigEndian)
 
+option(GENERATE_SRS_SECRET "Generate and install a postsrsd.secret" ON)
+option(WITH_MILTER "Enable SRS rewrite via Milter (requires libmilter)" ON)
+option(WITH_REDIS "Enable Redis-based storage for opaque SRS tokens (requires hiredis)" ON)
+option(DEVELOPER_BUILD "Add strict compiler options for development only" ON)
+
+set(POSTSRSD_USER "nobody" CACHE STRING "The default unprivileged user as which PostSRSd will run")
 find_systemd_unit_destination(DETECTED_SYSTEMD_UNITDIR)
 set(SYSTEMD_UNITDIR "${DETECTED_SYSTEMD_UNITDIR}" CACHE PATH "Install destination for systemd service unit")
 
@@ -218,7 +220,7 @@ install(
     TARGETS postsrsd RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR})
 install(
     FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.conf"
-    DESTINATION "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}"
+    DESTINATION "${CMAKE_INSTALL_DATADIR}/doc/${PROJECT_NAME}"
 )
 install(
     FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.service"
