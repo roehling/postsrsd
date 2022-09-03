@@ -22,6 +22,9 @@
 struct domain_set;
 
 void set_string(char** var, char* value);
+char* b32h_encode(const char* data, size_t length, char* buffer,
+                  size_t bufsize);
+
 int file_exists(const char* filename);
 int directory_exists(const char* dirname);
 

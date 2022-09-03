@@ -18,6 +18,7 @@
 
 #include "postsrsd_build_config.h"
 
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #ifdef HAVE_SYS_FILE_H
@@ -35,6 +36,41 @@ void set_string(char** var, char* value)
 {
     free(*var);
     *var = value;
+}
+
+char* b32h_encode(const char* data, size_t length, char* buffer, size_t bufsize)
+{
+    static const char B32H_CHARS[32] = "0123456789ABCDEFGHIJKLMNOPQRSTUV";
+    if (data == NULL)
+        return NULL;
+    if ((bufsize <= 8 * length / 5) || (length % 5))
+        return NULL;
+    char* out = buffer;
+    size_t j = 0;
+    for (size_t i = 0; i < length; i += 5)
+    {
+        uint64_t tmp = ((uint64_t)data[i] << 32) | ((uint64_t)data[i + 1] << 24)
+                       | ((uint64_t)data[i + 2] << 16)
+                       | ((uint64_t)data[i + 3] << 8) | (uint64_t)data[i + 4];
+        out[j + 7] = B32H_CHARS[tmp & 0x1F];
+        tmp >>= 5;
+        out[j + 6] = B32H_CHARS[tmp & 0x1F];
+        tmp >>= 5;
+        out[j + 5] = B32H_CHARS[tmp & 0x1F];
+        tmp >>= 5;
+        out[j + 4] = B32H_CHARS[tmp & 0x1F];
+        tmp >>= 5;
+        out[j + 3] = B32H_CHARS[tmp & 0x1F];
+        tmp >>= 5;
+        out[j + 2] = B32H_CHARS[tmp & 0x1F];
+        tmp >>= 5;
+        out[j + 1] = B32H_CHARS[tmp & 0x1F];
+        tmp >>= 5;
+        out[j] = B32H_CHARS[tmp & 0x1F];
+        j += 8;
+    }
+    out[j] = 0;
+    return buffer;
 }
 
 int file_exists(const char* filename)

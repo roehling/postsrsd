@@ -15,9 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "common.h"
-#include "util.h"
-
 #include "postsrsd_build_config.h"
+#include "util.h"
 
 #include <check.h>
 #include <stdio.h>
@@ -97,10 +96,33 @@ START_TEST(util_set_string)
 }
 END_TEST
 
+START_TEST(util_b32h_encode)
+{
+    char buffer[41];
+    char* b32h;
+
+    b32h = b32h_encode("", 0, buffer, sizeof(buffer));
+    ck_assert_ptr_nonnull(b32h);
+    ck_assert_str_eq(b32h, "");
+
+    b32h = b32h_encode("-PostSRSd-", 10, buffer, sizeof(buffer));
+    ck_assert_ptr_nonnull(b32h);
+    ck_assert_str_eq(b32h, "5L86USRKAD956P1D");
+
+    ck_assert_ptr_null(
+        b32h_encode("LengthNotDivisibleByFive", 24, buffer, sizeof(buffer)));
+    ck_assert_ptr_null(b32h_encode("BufferTooSmall!", 15, buffer, 24));
+
+    b32h = b32h_encode("BuffLargeEnough", 15, buffer, 25);
+    ck_assert_ptr_nonnull(b32h);
+    ck_assert_str_eq(b32h, "89QMCPICC5P6EPA5DPNNAPR8");
+}
+END_TEST
+
 START_TEST(util_dotlock)
 {
 #if defined(LOCK_EX) && defined(LOCK_NB)
-    for(int i = 0; i < 2; ++i)
+    for (int i = 0; i < 2; ++i)
     {
         int handle = acquire_lock("testfile");
         ck_assert_int_gt(handle, 0);
@@ -145,6 +167,7 @@ ADD_TEST_TO_TEST_CASE(fs, util_file_exists)
 ADD_TEST_TO_TEST_CASE(fs, util_directory_exists)
 ADD_TEST_TO_TEST_CASE(fs, util_dotlock)
 ADD_TEST(util_set_string)
+ADD_TEST(util_b32h_encode)
 ADD_TEST(util_domain_set)
 END_TEST_SUITE()
 TEST_MAIN(util)
