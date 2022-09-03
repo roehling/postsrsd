@@ -24,8 +24,8 @@
 #include <string.h>
 #include <unistd.h>
 
-static int parse_original_envelope(cfg_t* cfg, cfg_opt_t* opt, const char* value,
-                                 void* result)
+static int parse_original_envelope(cfg_t* cfg, cfg_opt_t* opt,
+                                   const char* value, void* result)
 {
     if (strcasecmp(value, "embedded"))
         *(int*)result = SRS_ENVELOPE_EMBEDDED;
