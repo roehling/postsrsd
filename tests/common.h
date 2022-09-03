@@ -19,16 +19,39 @@
 
 #include <stdlib.h>
 
-#define TEST_MAIN(suite) \
-    int main()                                                      \
-    {                                                               \
-        Suite* s = suite ## _suite();                               \
-        SRunner* sr = srunner_create(s);                            \
-                                                                    \
-        srunner_run_all(sr, CK_NORMAL);                             \
-        int number_failed = srunner_ntests_failed(sr);              \
-        srunner_free(sr);                                           \
-        return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;  \
+#define BEGIN_TEST_SUITE(suite)               \
+    static Suite* suite##_suite()             \
+    {                                         \
+        Suite* ts = suite_create(#suite);     \
+        TCase* tcase = tcase_create("tcase"); \
+        suite_add_tcase(ts, tcase);
+
+#define ADD_TEST_CASE(tcase)             \
+    TCase* tcase = tcase_create(#tcase); \
+    suite_add_tcase(ts, tcase);
+
+#define ADD_TEST_CASE_WITH_UNCHECKED_FIXTURE(tcase, setup, teardown) \
+    ADD_TEST_CASE(tcase)                                             \
+    tcase_add_checked_fixture(tcase, setup, teardown);
+
+#define ADD_TEST_TO_TEST_CASE(tcase, testfunc) tcase_add_test(tcase, testfunc);
+
+#define ADD_TEST(testfunc) ADD_TEST_TO_TEST_CASE(tcase, testfunc)
+
+#define END_TEST_SUITE() \
+    return ts;           \
+    }
+
+#define TEST_MAIN(suite)                                           \
+    int main()                                                     \
+    {                                                              \
+        Suite* s = suite##_suite();                                \
+        SRunner* sr = srunner_create(s);                           \
+                                                                   \
+        srunner_run_all(sr, CK_NORMAL);                            \
+        int number_failed = srunner_ntests_failed(sr);             \
+        srunner_free(sr);                                          \
+        return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE; \
     }
 
 #endif

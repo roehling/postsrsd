@@ -139,20 +139,12 @@ START_TEST(util_domain_set)
     domain_set_destroy(D);
 }
 
-static Suite* util_suite()
-{
-    Suite* s = suite_create("util");
-    TCase* tc = tcase_create("test");
-    tcase_add_test(tc, util_set_string);
-    tcase_add_test(tc, util_domain_set);
-    suite_add_tcase(s, tc);
-    TCase* tc_fs = tcase_create("fs");
-    tcase_add_unchecked_fixture(tc_fs, setup_fs, teardown_fs);
-    tcase_add_test(tc_fs, util_file_exists);
-    tcase_add_test(tc_fs, util_directory_exists);
-    tcase_add_test(tc_fs, util_dotlock);
-    suite_add_tcase(s, tc_fs);
-    return s;
-}
-
+BEGIN_TEST_SUITE(util)
+ADD_TEST_CASE_WITH_UNCHECKED_FIXTURE(fs, setup_fs, teardown_fs)
+ADD_TEST_TO_TEST_CASE(fs, util_file_exists)
+ADD_TEST_TO_TEST_CASE(fs, util_directory_exists)
+ADD_TEST_TO_TEST_CASE(fs, util_dotlock)
+ADD_TEST(util_set_string)
+ADD_TEST(util_domain_set)
+END_TEST_SUITE()
 TEST_MAIN(util)

@@ -143,15 +143,9 @@ START_TEST(netstring_io_test)
 }
 END_TEST
 
-static Suite* netstring_suite()
-{
-    Suite* s = suite_create("netstring");
-    TCase* tc = tcase_create("test");
-    tcase_add_test(tc, netstring_encode_test);
-    tcase_add_test(tc, netstring_decode_test);
-    tcase_add_test(tc, netstring_io_test);
-    suite_add_tcase(s, tc);
-    return s;
-}
-
+BEGIN_TEST_SUITE(netstring)
+ADD_TEST(netstring_encode_test)
+ADD_TEST(netstring_decode_test)
+ADD_TEST(netstring_io_test)
+END_TEST_SUITE()
 TEST_MAIN(netstring)
