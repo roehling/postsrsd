@@ -109,13 +109,31 @@ START_TEST(util_b32h_encode)
     ck_assert_ptr_nonnull(b32h);
     ck_assert_str_eq(b32h, "5L86USRKAD956P1D");
 
-    ck_assert_ptr_null(
-        b32h_encode("LengthNotDivisibleByFive", 24, buffer, sizeof(buffer)));
     ck_assert_ptr_null(b32h_encode("BufferTooSmall!", 15, buffer, 24));
 
     b32h = b32h_encode("BuffLargeEnough", 15, buffer, 25);
     ck_assert_ptr_nonnull(b32h);
     ck_assert_str_eq(b32h, "89QMCPICC5P6EPA5DPNNAPR8");
+
+    b32h = b32h_encode("a", 1, buffer, sizeof(buffer));
+    ck_assert_ptr_nonnull(b32h);
+    ck_assert_str_eq(b32h, "C4======");
+
+    b32h = b32h_encode("ab", 2, buffer, sizeof(buffer));
+    ck_assert_ptr_nonnull(b32h);
+    ck_assert_str_eq(b32h, "C5H0====");
+
+    b32h = b32h_encode("abc", 3, buffer, sizeof(buffer));
+    ck_assert_ptr_nonnull(b32h);
+    ck_assert_str_eq(b32h, "C5H66===");
+
+    b32h = b32h_encode("abcd", 4, buffer, sizeof(buffer));
+    ck_assert_ptr_nonnull(b32h);
+    ck_assert_str_eq(b32h, "C5H66P0=");
+
+    b32h = b32h_encode("abcde", 5, buffer, sizeof(buffer));
+    ck_assert_ptr_nonnull(b32h);
+    ck_assert_str_eq(b32h, "C5H66P35");
 }
 END_TEST
 
