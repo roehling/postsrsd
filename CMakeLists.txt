@@ -32,6 +32,7 @@ option(GENERATE_SRS_SECRET "Generate and install a postsrsd.secret" ON)
 option(WITH_MILTER "Enable SRS rewrite via Milter (requires libmilter)" ON)
 option(WITH_REDIS "Enable Redis-based storage for opaque SRS tokens (requires hiredis)" ON)
 option(DEVELOPER_BUILD "Add strict compiler options for development only" ON)
+option(TESTS_WITH_ASAN "Run test suite with AddressSanitizer" ON)
 
 set(POSTSRSD_USER "nobody" CACHE STRING "The default unprivileged user as which PostSRSd will run")
 find_systemd_unit_destination(DETECTED_SYSTEMD_UNITDIR)
