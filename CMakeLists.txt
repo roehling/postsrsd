@@ -29,9 +29,10 @@ include(CheckSymbolExists)
 include(TestBigEndian)
 
 option(GENERATE_SRS_SECRET "Generate and install a postsrsd.secret" ON)
-option(WITH_MILTER "Enable SRS rewrite via Milter (requires libmilter)" ON)
-option(WITH_REDIS "Enable Redis-based storage for opaque SRS tokens (requires hiredis)" ON)
 option(DEVELOPER_BUILD "Add strict compiler options for development only" ON)
+option(WITH_MILTER "Enable SRS rewrite via Milter (requires libmilter)" ON)
+option(WITH_SQLITE "Enable sqlite-based storage for opaque SRS tokens (requires sqlite3)" ON)
+option(WITH_REDIS "Enable Redis-based storage for opaque SRS tokens (requires hiredis)" ON)
 option(TESTS_WITH_ASAN "Run test suite with AddressSanitizer" ON)
 
 set(POSTSRSD_USER "nobody" CACHE STRING "The default unprivileged user as which PostSRSd will run")
@@ -113,7 +114,7 @@ if(WITH_REDIS)
     elseif(TARGET hiredis)
         set(HIREDIS_TARGET hiredis)
     else()
-        set(WITH_REDIS OFF)
+        message(FATAL_ERROR "Cannot link against hiredis: no suitable CMake target found")
     endif()
 endif()
 
@@ -157,20 +158,22 @@ if(WITH_MILTER)
     endif()
 endif()
 
-FetchContent_MakeAvailable(sqlite3)
-if (IS_DIRECTORY "${sqlite3_SOURCE_DIR}")
-    add_library(sqlite3 STATIC
-        "${sqlite3_SOURCE_DIR}/sqlite3.c"
-    )
-    target_include_directories(sqlite3 PUBLIC "${sqlite3_SOURCE_DIR}")
-    target_compile_definitions(sqlite3 PRIVATE
-        SQLITE_DQS=0
-        SQLITE_THREADSAFE=0
-        SQLITE_DEFAULT_MEMSTATUS=0
-        SQLITE_OMIT_PROGRESS_CALLBACK
-    )
-    add_library(sqlite3::sqlite3 ALIAS sqlite3)
-    target_link_libraries(sqlite3 PUBLIC ${CMAKE_DL_LIBS})
+if(WITH_SQLITE)
+    FetchContent_MakeAvailable(sqlite3)
+    if (IS_DIRECTORY "${sqlite3_SOURCE_DIR}")
+        add_library(sqlite3 STATIC
+            "${sqlite3_SOURCE_DIR}/sqlite3.c"
+        )
+        target_include_directories(sqlite3 PUBLIC "${sqlite3_SOURCE_DIR}")
+        target_compile_definitions(sqlite3 PRIVATE
+            SQLITE_DQS=0
+            SQLITE_THREADSAFE=0
+            SQLITE_DEFAULT_MEMSTATUS=0
+            SQLITE_OMIT_PROGRESS_CALLBACK
+        )
+        add_library(sqlite3::sqlite3 ALIAS sqlite3)
+        target_link_libraries(sqlite3 PUBLIC ${CMAKE_DL_LIBS})
+    endif()
 endif()
 
 configure_file(
@@ -199,7 +202,7 @@ target_include_directories(postsrsd PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 target_compile_features(postsrsd PRIVATE c_std_99)
 target_link_libraries(postsrsd PRIVATE
     Confuse::Confuse
-    sqlite3::sqlite3
+    $<$<BOOL:WITH_SQLITE>:sqlite3::sqlite3>
     $<$<BOOL:WITH_REDIS>:${HIREDIS_TARGET}>
     $<$<BOOL:WITH_MILTER>:LibMilter::LibMilter>
     ${LIBSOCKET}

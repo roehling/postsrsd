@@ -28,6 +28,7 @@
 
 #cmakedefine WITH_MILTER 1
 #cmakedefine WITH_REDIS 1
+#cmakedefine WITH_SQLITE 1
 
 #cmakedefine HAVE_BIG_ENDIAN 1
 #cmakedefine HAVE_STRCASECMP 1
