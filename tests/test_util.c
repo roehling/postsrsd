@@ -176,6 +176,10 @@ START_TEST(util_domain_set)
     ck_assert(domain_set_contains(D, "another.one.of.my-0815-examples.com"));
     domain_set_add(D, "invalid$domain.net");
     ck_assert(!domain_set_contains(D, "invalid$domain.net"));
+    domain_set_add(
+        D, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-0123456789.");
+    ck_assert(domain_set_contains(
+        D, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-0123456789."));
     domain_set_destroy(D);
 }
 

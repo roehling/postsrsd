@@ -72,11 +72,14 @@ char* b32h_encode(const char* data, size_t length, char* buffer, size_t bufsize)
     {
         uint64_t tmp = data[i];
         tmp <<= 8;
-        if (i + 1 < length) tmp |= data[i + 1];
+        if (i + 1 < length)
+            tmp |= data[i + 1];
         tmp <<= 8;
-        if (i + 2 < length) tmp |= data[i + 2];
+        if (i + 2 < length)
+            tmp |= data[i + 2];
         tmp <<= 8;
-        if (i + 3 < length) tmp |= data[i + 3];
+        if (i + 3 < length)
+            tmp |= data[i + 3];
         out[j + 7] = '=';
         tmp <<= 3;
         out[j + 6] = i + 3 < length ? B32H_CHARS[tmp & 0x1F] : '=';
@@ -99,19 +102,19 @@ char* b32h_encode(const char* data, size_t length, char* buffer, size_t bufsize)
     return buffer;
 }
 
-int file_exists(const char* filename)
+bool file_exists(const char* filename)
 {
     struct stat st;
     if (stat(filename, &st) < 0)
-        return 0;
+        return false;
     return S_ISREG(st.st_mode);
 }
 
-int directory_exists(const char* dirname)
+bool directory_exists(const char* dirname)
 {
     struct stat st;
     if (stat(dirname, &st) < 0)
-        return 0;
+        return false;
     return S_ISDIR(st.st_mode);
 }
 
@@ -153,13 +156,13 @@ void release_lock(const char* path, int fd)
 /* The domain set is implemented as a common prefix tree */
 struct domain_set
 {
+    /* Membership; is the string up to this point a set member? */
+    bool m;
+    /* Child node for subdomain components, effectively (".") */
+    struct domain_set* s;
     /* Child nodes for letters A-Z, numbers 0-9, and dash ("-"),
        in that order */
     struct domain_set* c[37];
-    /* Child node for subdomain components, effectively (".") */
-    struct domain_set* s;
-    /* Membership; is the string up to this point a set member? */
-    int m;
 };
 
 #define DOMAIN_SET_ADD           1
@@ -171,7 +174,7 @@ struct domain_set* domain_set_create()
     for (unsigned i = 0; i < sizeof(D->c) / sizeof(D->c[0]); ++i)
         D->c[i] = NULL;
     D->s = NULL;
-    D->m = 0;
+    D->m = false;
     return D;
 }
 
@@ -185,7 +188,7 @@ void domain_set_destroy(struct domain_set* D)
     free(D);
 }
 
-static int walk_domain_set(struct domain_set* D, char* domain, int flags)
+static bool walk_domain_set(struct domain_set* D, char* domain, int flags)
 {
     char* dot = strrchr(domain, '.');
     char* subdomain = domain;
@@ -227,13 +230,13 @@ static int walk_domain_set(struct domain_set* D, char* domain, int flags)
             return 1;
         return walk_domain_set(D->s, domain, flags);
     }
-    int result = D->m;
+    bool result = D->m;
     if (flags == DOMAIN_SET_ADD)
-        D->m = 1;
+        D->m = true;
     return result;
 }
 
-int domain_set_add(struct domain_set* D, const char* domain)
+bool domain_set_add(struct domain_set* D, const char* domain)
 {
     char buffer[1024];
     strncpy(buffer, domain, sizeof(buffer) - 1);
@@ -241,7 +244,7 @@ int domain_set_add(struct domain_set* D, const char* domain)
     return !walk_domain_set(D, buffer, DOMAIN_SET_ADD);
 }
 
-int domain_set_contains(struct domain_set* D, const char* domain)
+bool domain_set_contains(struct domain_set* D, const char* domain)
 {
     char buffer[1024];
     strncpy(buffer, domain, sizeof(buffer) - 1);
