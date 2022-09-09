@@ -41,6 +41,16 @@ domains = {}
 #
 socketmap = unix:/var/spool/postfix/srs
 
+# Milter endpoint for MTA integration.
+# PostSRSd can act as a milter to rewrite envelope addresses if it has been
+# built with milter support.
+#
+# Examples:
+#     milter = inet:localhost:9997
+#     milter = unix:/var/spool/postfix/srs_multer
+#
+#milter =
+
 # Original envelope sender handling.
 # When the envelope sender is rewritten, the original address can either be
 # embedded in the rewritten address, or stored in a local database. Embedding
@@ -62,12 +72,14 @@ original-envelope = embedded
 
 # Database for envelope sender storage.
 # If you decide to store envelope senders in a database, this database will be
-# used. The option is ignored if original-envelope is set to "embedded".
+# used. The option is ignored if original-envelope is set to "embedded". Also
+# note that PostSRSd needs to be built with SQLite or Redis support for this.
 #
-# Example:
+# Examples:
 #     envelope-database = "sqlite:@CMAKE_INSTALL_FULL_LOCALSTATEDIR@/lib/@PROJECT_NAME@/senders.db"
+#     envelope-database = "redis:localhost:6379"
 #
-envelope-database = "sqlite:@CMAKE_INSTALL_FULL_LOCALSTATEDIR@/lib/@PROJECT_NAME@/senders.db"
+#envelope-database = "sqlite:@CMAKE_INSTALL_FULL_LOCALSTATEDIR@/lib/@PROJECT_NAME@/senders.db"
 
 # Secret keys for signing and verifying SRS addresses.
 # Rewritten addresses are tagged with a truncated HMAC-SHA1 signature, to
@@ -84,7 +96,39 @@ envelope-database = "sqlite:@CMAKE_INSTALL_FULL_LOCALSTATEDIR@/lib/@PROJECT_NAME
 #
 secrets-file = "@CMAKE_INSTALL_FULL_SYSCONFDIR@/@PROJECT_NAME@.secret"
 
-# separator = "="
-# hash-length = 4
-# hash-minimum = 4
-# always-rewrite = off
+# SRS tag separator
+# This is the character following the initial SRS0 or SRS1 tag of a generated
+# sender address. Valid separators are "=", "+", and "-". Unless you have a
+# very good reason, you should leave this setting at its default.
+#
+separator = "="
+
+# SRS hash signature length
+# Any SRS address will be signed with a truncated hash to prevent tampering and
+# ensure that only legitimate email bounces will be returned to sender. The
+# default length provides adequate security without taking up too much valuable
+# space. Unless you know what you are doing, you should leave this setting at
+# its default.
+#
+# WARNING: You can break your mail server (or worse, turn it into a spam relay)
+# if you mess up this setting.
+#
+hash-length = 4
+
+# SRS minimum acceptable hash signature length
+# This is the mininum signature length that PostSRSd considers valid. It is a
+# separate setting because if you decide to increase the hash length, you may
+# want to keep accepting the shorter hashes for a 24 hour grace period. Again,
+# Unless you know what you are doing, you should leave this setting at its
+# default.
+#
+# WARNING: You can break your mail server (or worse, turn it into a spam relay)
+# if you mess up this setting.
+#
+hash-minimum = 4
+
+# Always rewrite sender addresses
+# You can force PostSRSd to rewrite any sender address, even if it has been
+# rewritten already. You probably do not want to do this, though.
+#
+always-rewrite = off
