@@ -37,4 +37,6 @@ bool domain_set_add(struct domain_set* D, const char* domain);
 bool domain_set_contains(struct domain_set* D, const char* domain);
 void domain_set_destroy(struct domain_set* D);
 
+char* endpoint_for_milter(const char* s);
+
 #endif

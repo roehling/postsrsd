@@ -251,3 +251,40 @@ bool domain_set_contains(struct domain_set* D, const char* domain)
     buffer[sizeof(buffer) - 1] = 0;
     return walk_domain_set(D, buffer, DOMAIN_SET_PARTIAL_MATCH);
 }
+
+static char* swap_host_port(const char* s, size_t prefix_len)
+{
+    char* port = strchr(s + prefix_len, ':');
+    if (!port)
+        return NULL;
+    if (!*(port + 1))
+        return NULL;
+    ptrdiff_t host_len = (port - s) - prefix_len;
+    if (host_len == 0)
+        return NULL;
+    char* result = strdup(s);
+    strcpy(result + prefix_len, port + 1);
+    if (host_len > 1 || s[prefix_len] != '*')
+    {
+        strcat(result, "@");
+        strncat(result, s + prefix_len, host_len);
+    }
+    return result;
+}
+
+char* endpoint_for_milter(const char* s)
+{
+    if (!s)
+        return NULL;
+    if (strncasecmp(s, "unix:", 5) == 0 || strncasecmp(s, "local:", 6) == 0)
+        return strdup(s);
+    if (strncasecmp(s, "inet:", 5) == 0)
+    {
+        return swap_host_port(s, 5);
+    }
+    if (strncasecmp(s, "inet6:", 6) == 0)
+    {
+        return swap_host_port(s, 6);
+    }
+    return NULL;
+}
