@@ -32,6 +32,9 @@
 #ifdef HAVE_SYS_SOCKET_H
 #    include <sys/socket.h>
 #endif
+#ifdef HAVE_SYS_STAT_H
+#    include <sys/stat.h>
+#endif
 #ifdef HAVE_SYS_UN_H
 #    include <sys/un.h>
 #endif
@@ -66,6 +69,7 @@ static int create_unix_socket(const char* path)
     }
     if (acquire_lock(path) > 0)
         unlink(path);
+    mode_t old_mask = umask(0);
     int sock = socket(AF_UNIX, SOCK_STREAM, 0);
     if (sock < 0)
         goto fail;
@@ -76,14 +80,14 @@ static int create_unix_socket(const char* path)
         goto fail;
     if (listen(sock, POSTSRSD_SOCKET_LISTEN_QUEUE) < 0)
         goto fail;
-#    ifdef HAVE_FCNTL_H
     if ((flags = fcntl(sock, F_GETFL, 0)) < 0)
         goto fail;
     if (fcntl(sock, F_SETFL, flags | O_NONBLOCK) < 0)
         goto fail;
-#    endif
+    umask(old_mask);
     return sock;
 fail:
+    umask(old_mask);
     fprintf(stderr, "postsrsd: %s\n", strerror(errno));
     if (sock >= 0)
         close(sock);
@@ -171,12 +175,10 @@ static int create_inet_sockets(char* addr, int family, int max_fds, int* fds)
             goto fail;
         if (listen(sock, POSTSRSD_SOCKET_LISTEN_QUEUE) < 0)
             goto fail;
-#    ifdef HAVE_FCNTL_H
         if ((flags = fcntl(sock, F_GETFL, 0)) < 0)
             goto fail;
         if (fcntl(sock, F_SETFL, flags | O_NONBLOCK) < 0)
             goto fail;
-#    endif
         *fds++ = sock;
         max_fds--;
         count++;
