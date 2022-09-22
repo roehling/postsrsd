@@ -187,6 +187,7 @@ endif()
 
 add_executable(postsrsd
     src/config.c
+    src/database.c
     src/endpoint.c
     src/main.c
     src/netstring.c
