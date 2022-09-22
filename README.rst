@@ -51,9 +51,9 @@ PostSRSd has a few external dependencies:
   enable it with ``-DWITH_SQLITE=ON`` as additional argument for ``cmake``.
 - hiredis_ is an optional alternative to store envelope senders in Redis;
   enable it with ``-DWITH_REDIS=ON``.
-- libMilter_ is optional if you wish to configure PostSRSd as milter;
+- libMilter_ is needed only if you wish to configure PostSRSd as milter;
   enable it with ``-DWITH_MILTER=ON``.
-- check_ is optional if you want to build and run the unit test suite;
+- check_ is needed if you want to build and run the unit test suite;
   otherwise disable it with ``-DBUILD_TESTING=OFF``.
 
 PostSRSd relies on the FetchContent_ module of CMake for its dependency
