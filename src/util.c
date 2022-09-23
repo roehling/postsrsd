@@ -18,7 +18,9 @@
 
 #include "postsrsd_build_config.h"
 
+#include <stdarg.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #ifdef HAVE_SYS_FILE_H
@@ -287,4 +289,65 @@ char* endpoint_for_milter(const char* s)
         return swap_host_port(s, 6);
     }
     return NULL;
+}
+
+enum priority
+{
+    LogDebug,
+    LogInfo,
+    LogWarn,
+    LogError,
+};
+
+static const char* priority_labels[] = {"debug: ", "", "warn: ", "error: "};
+
+static void vlog(enum priority prio, const char* fmt, va_list ap)
+{
+    char buffer[256];
+    snprintf(buffer, sizeof(buffer), "postsrsd: %s", priority_labels[prio]);
+    char* text = buffer;
+    while (*text)
+        text++;
+    vsnprintf(text, sizeof(buffer) - (text - buffer), fmt, ap);
+    buffer[255] = 0;
+    fprintf(stderr, "%s\n", buffer);
+}
+
+void log_info(const char* fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    vlog(LogInfo, fmt, ap);
+    va_end(ap);
+}
+
+void log_warn(const char* fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    vlog(LogWarn, fmt, ap);
+    va_end(ap);
+}
+
+void log_error(const char* fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    vlog(LogError, fmt, ap);
+    va_end(ap);
+}
+
+void log_perror(int err)
+{
+    char buffer[256];
+    log_error("%s", strerror_r(err, buffer, sizeof(buffer)));
+}
+
+void log_fatal(const char* fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    vlog(LogError, fmt, ap);
+    va_end(ap);
+    exit(1);
 }

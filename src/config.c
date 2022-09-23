@@ -114,13 +114,11 @@ cfg_t* config_from_commandline(int argc, char* const* argv)
         switch (cfg_parse(cfg, config_file))
         {
             case CFG_FILE_ERROR:
-                fprintf(stderr, "postsrsd: cannot read '%s': %s\n", config_file,
-                        strerror(errno));
+                log_error("cannot read '%s': %s", config_file, strerror(errno));
                 ok = 0;
                 break;
             case CFG_PARSE_ERROR:
-                fprintf(stderr, "postsrsd: malformed configuration file '%s'\n",
-                        config_file);
+                log_error("malformed configuration file '%s'", config_file);
                 ok = 0;
                 break;
             default:

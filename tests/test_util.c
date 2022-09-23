@@ -171,9 +171,9 @@ START_TEST(util_domain_set)
     ck_assert(domain_set_contains(D, "www.example.com"));
     ck_assert(domain_set_contains(D, "mail.example.com"));
     ck_assert(!domain_set_contains(D, "exam.com"));
-    domain_set_add(D, ".my-0815-examples.com");
-    ck_assert(!domain_set_contains(D, "my-0815-examples.com"));
-    ck_assert(domain_set_contains(D, "another.one.of.my-0815-examples.com"));
+    domain_set_add(D, ".my-examples.com");
+    ck_assert(!domain_set_contains(D, "my-examples.com"));
+    ck_assert(domain_set_contains(D, "another.one.of.my-examples.com"));
     domain_set_add(D, "invalid$domain.net");
     ck_assert(!domain_set_contains(D, "invalid$domain.net"));
     domain_set_add(

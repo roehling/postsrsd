@@ -17,8 +17,8 @@
 #include "database.h"
 
 #include "postsrsd_build_config.h"
+#include "util.h"
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #ifdef WITH_SQLITE
@@ -53,8 +53,7 @@ static char* db_sqlite_read(struct db_conn* conn, const char* key)
                                &conn->read_stmt, NULL)
             != SQLITE_OK)
         {
-            fprintf(stderr,
-                    "postsrsd: failed to prepare sqlite read statement\n");
+            log_error("failed to prepare sqlite read statement");
             return NULL;
         }
     }
@@ -80,8 +79,7 @@ static void db_sqlite_write(struct db_conn* conn, const char* key,
                                &conn->write_stmt, NULL)
             != SQLITE_OK)
         {
-            fprintf(stderr,
-                    "postsrsd: failed to prepare sqlite write statement\n");
+            log_error("failed to prepare sqlite write statement");
             return;
         }
     }
@@ -102,8 +100,7 @@ static void db_sqlite_expire(struct db_conn* conn)
                                &conn->expire_stmt, NULL)
             != SQLITE_OK)
         {
-            fprintf(stderr,
-                    "postsrsd: failed to prepare sqlite expire statement\n");
+            log_error("failed to prepare sqlite expire statement");
             return;
         }
     }
@@ -144,7 +141,7 @@ static int db_sqlite_connect(struct db_conn* conn, const char* uri,
         {
             if (err != NULL)
             {
-                fprintf(stderr, "postsrd: sqlite error: %s\n", err);
+                log_error("%s", err);
                 sqlite3_free(err);
             }
             sqlite3_close(handle);
@@ -171,21 +168,19 @@ struct db_conn* database_connect(const char* uri, bool create_if_not_exist)
         struct db_conn* conn = (struct db_conn*)malloc(sizeof(struct db_conn));
         if (conn == NULL)
         {
-            fprintf(
-                stderr,
-                "postsrsd: failed to allocate database connection handle\n");
+            log_error("failed to allocated database connection handle");
             return NULL;
         }
         if (!db_sqlite_connect(conn, uri + 7, create_if_not_exist))
         {
-            fprintf(stderr, "postsrsd: failed to connect to '%s'\n", uri);
+            log_error("failed to connect to '%s'", uri);
             free(conn);
             return NULL;
         }
         return conn;
     }
 #endif
-    fprintf(stderr, "postsrsd: unsupported database '%s'\n", uri);
+    log_error("unsupported database '%s'", uri);
     return NULL;
 }
 

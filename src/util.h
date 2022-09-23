@@ -39,4 +39,11 @@ void domain_set_destroy(struct domain_set* D);
 
 char* endpoint_for_milter(const char* s);
 
+void log_debug(const char* fmt, ...);
+void log_info(const char* fmt, ...);
+void log_warn(const char* fmt, ...);
+void log_error(const char* fmt, ...);
+void log_perror(int errno);
+void log_fatal(const char* fmt, ...) __attribute__((noreturn));
+
 #endif

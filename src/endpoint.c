@@ -20,7 +20,6 @@
 #include "util.h"
 
 #include <errno.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #ifdef HAVE_FCNTL_H
@@ -64,7 +63,7 @@ static int create_unix_socket(const char* path)
     int flags;
     if (path == NULL || *path == 0)
     {
-        fprintf(stderr, "postsrsd: expected file path for unix socket\n");
+        log_error("expected file path for unix socket");
         return -1;
     }
     if (acquire_lock(path) > 0)
@@ -88,7 +87,7 @@ static int create_unix_socket(const char* path)
     return sock;
 fail:
     umask(old_mask);
-    fprintf(stderr, "postsrsd: %s\n", strerror(errno));
+    log_perror(errno);
     if (sock >= 0)
         close(sock);
     return -1;
@@ -110,8 +109,7 @@ static int create_inet_sockets(char* addr, int family, int max_fds, int* fds)
         {
             if (*addr == 0)
             {
-                fprintf(stderr,
-                        "postsrsd: expected closing ']' in socket address\n");
+                log_error("expected closing ']' in socket address");
                 return -1;
             }
             ++addr;
@@ -119,8 +117,7 @@ static int create_inet_sockets(char* addr, int family, int max_fds, int* fds)
         *addr++ = 0;
         if (*addr != ':')
         {
-            fprintf(stderr,
-                    "postsrsd: expected ':' separator in socket address\n");
+            log_error("expected ':' separator in socket address");
             return -1;
         }
         service = ++addr;
@@ -141,7 +138,7 @@ static int create_inet_sockets(char* addr, int family, int max_fds, int* fds)
     }
     if (service == NULL || *service == 0)
     {
-        fprintf(stderr, "postsrsd: expected port number in socket address\n");
+        log_error("expected portnumber in socket address");
         return -1;
     }
     hints.ai_family = family;
@@ -158,7 +155,7 @@ static int create_inet_sockets(char* addr, int family, int max_fds, int* fds)
     int err = getaddrinfo(node, service, &hints, &ai);
     if (err != 0)
     {
-        fprintf(stderr, "postsrsd: %s\n", gai_strerror(err));
+        log_error("%s", gai_strerror(err));
         return -1;
     }
     int sock = -1, count = 0, flags;
@@ -185,7 +182,7 @@ static int create_inet_sockets(char* addr, int family, int max_fds, int* fds)
         continue;
 fail:
         err = errno;
-        fprintf(stderr, "postsrsd: %s\n", strerror(err));
+        log_perror(err);
         if (sock >= 0)
             close(sock);
     }
@@ -215,7 +212,7 @@ int endpoint_create(const char* s, int max_fds, int* fds)
         int fd = create_unix_socket(path);
         if (fd < 0)
         {
-            fprintf(stderr, "postsrsd: failed to create endpoint '%s'\n", s);
+            log_error("failed to create endpoint '%s'", s);
             return -1;
         }
         *fds = fd;
@@ -245,11 +242,11 @@ int endpoint_create(const char* s, int max_fds, int* fds)
         free(addr);
         if (ret < 0)
         {
-            fprintf(stderr, "postsrsd: failed to create endpoint '%s'\n", s);
+            log_error("failed to create endpoint '%s'", s);
         }
         return ret;
     }
 #endif
-    fprintf(stderr, "postsrsd: unsupported endpoint '%s'\n", s);
+    log_error("unsupported endpoint '%s'", s);
     return -1;
 }
