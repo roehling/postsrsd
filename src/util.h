@@ -38,6 +38,7 @@ bool domain_set_contains(struct domain_set* D, const char* domain);
 void domain_set_destroy(struct domain_set* D);
 
 char* endpoint_for_milter(const char* s);
+char* endpoint_for_redis(const char* s, int* port);
 
 void log_debug(const char* fmt, ...);
 void log_info(const char* fmt, ...);

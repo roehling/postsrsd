@@ -23,7 +23,8 @@ struct db_conn;
 
 struct db_conn* database_connect(const char* uri, bool create_if_not_exist);
 char* database_read(struct db_conn* conn, const char* key);
-void database_write(struct db_conn* conn, const char* key, const char* value, unsigned lifetime);
+bool database_write(struct db_conn* conn, const char* key, const char* value,
+                    unsigned lifetime);
 void database_expire(struct db_conn* conn);
 void database_disconnect(struct db_conn* conn);
 

@@ -20,6 +20,12 @@
 #include <check.h>
 #include <stdlib.h>
 
+START_TEST(invalid_database)
+{
+    ck_assert_ptr_null(database_connect("invalid:", true));
+}
+END_TEST
+
 START_TEST(database_key_value)
 {
     struct db_conn* conn = database_connect("sqlite::memory:", true);
@@ -48,6 +54,7 @@ START_TEST(database_expiry)
 END_TEST
 
 BEGIN_TEST_SUITE(database)
+ADD_TEST(invalid_database)
 ADD_TEST(database_key_value)
 ADD_TEST(database_expiry)
 END_TEST_SUITE()

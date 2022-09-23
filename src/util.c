@@ -291,6 +291,27 @@ char* endpoint_for_milter(const char* s)
     return NULL;
 }
 
+char* endpoint_for_redis(const char* s, int* port)
+{
+    if (!s)
+        return NULL;
+    char* colon = strchr(s, ':');
+    char* slash = strchr(s, '/');
+    if (slash || !colon)
+    {
+        /* Treat this as unix socket path */
+        *port = -1;
+        return strdup(s);
+    }
+    if (colon == s)
+        return NULL;
+    char* end;
+    *port = strtol(colon + 1, &end, 10);
+    if (*end != 0 || *port <= 0)
+        return NULL;
+    return strndup(s, colon - s);
+}
+
 enum priority
 {
     LogDebug,

@@ -31,5 +31,8 @@ add_postsrsd_test(test_sha1 ../src/sha1.c)
 add_postsrsd_test(test_util ../src/util.c)
 if(WITH_SQLITE)
     add_postsrsd_test(test_database ../src/database.c ../src/util.c)
-    target_link_libraries(test_database_executable PRIVATE sqlite3::sqlite3)
+    target_link_libraries(test_database_executable PRIVATE
+        sqlite3::sqlite3
+        $<$<BOOL:WITH_REDIS>:${HIREDIS_TARGET}>
+    )
 endif()
