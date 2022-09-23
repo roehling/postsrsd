@@ -41,6 +41,16 @@ domains = {}
 #
 socketmap = unix:/var/spool/postfix/srs
 
+# Socketmap connection keep-alive timeout.
+# After PostSRSd has served a socketmap request, it will keep the connection
+# open for a while longer, in case Postfix has additional queries. PostSRSd
+# will close the connection after the configured time (in seconds) has expired.
+#
+# Examples:
+#     keep-alive = 30
+#
+keep-alive = 30
+
 # Milter endpoint for MTA integration.
 # PostSRSd can act as a milter to rewrite envelope addresses if it has been
 # built with milter support.
@@ -132,3 +142,13 @@ hash-minimum = 4
 # rewritten already. You probably do not want to do this, though.
 #
 always-rewrite = off
+
+# Execute PostSRSd as unprivileged user
+# If you set this highly recommended option, PostSRSd will drop root
+# privileges and switch to the configured user before it enters the main loop
+# to handle untrusted input.
+#
+# Example:
+#     unprivileged-user = "@POSTSRSD_USER@"
+#
+unprivileged-user = "@POSTSRSD_USER@"

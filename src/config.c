@@ -65,6 +65,7 @@ cfg_t* config_from_commandline(int argc, char* const* argv)
         CFG_INT("hash-minimum", 4, CFGF_NONE),
         CFG_BOOL("always-rewrite", cfg_false, CFGF_NONE),
         CFG_STR("socketmap", "unix:/var/spool/postfix/srs", CFGF_NONE),
+        CFG_INT("keep-alive", 30, CFGF_NONE),
         CFG_STR("milter", NULL, CFGF_NODEFAULT),
         CFG_STR("secrets-file", DEFAULT_SECRETS_FILE, CFGF_NONE),
         CFG_STR("envelope-database", DEFAULT_ENVELOPE_DATABASE, CFGF_NONE),

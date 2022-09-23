@@ -1,6 +1,7 @@
 # PostSRSd systemd service file
 [Unit]
 Description=Sender Rewriting Scheme daemon for Postfix
+Before=postfix.service
 After=network.target
 
 [Service]
