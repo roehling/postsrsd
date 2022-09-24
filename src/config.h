@@ -20,15 +20,13 @@
 #define SRS_ENVELOPE_EMBEDDED 0
 #define SRS_ENVELOPE_DATABASE 1
 
-#define DEBUG_CONFIG_STR(cfg, key)                          \
-    do                                                      \
-    {                                                       \
-        const char* value = cfg_getstr(cfg, key);           \
-        printf("%s = %s\n", key, value ? value : "<NULL>"); \
-    } while (0)
+#include "srs2.h"
+#include "util.h"
 
 #include <confuse.h>
 
 cfg_t* config_from_commandline(int argc, char* const* argv);
-
+srs_t* srs_from_config(cfg_t* cfg);
+bool srs_domains_from_config(cfg_t* cfg, char** srs_domain,
+                             struct domain_set** other_domains);
 #endif

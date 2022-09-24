@@ -21,6 +21,7 @@
 #include "util.h"
 
 #include <errno.h>
+#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -52,6 +53,40 @@ static int validate_separator(cfg_t* cfg, cfg_opt_t* opt)
     return 0;
 }
 
+static bool is_valid_domain_name(const char* s)
+{
+    char prev = 0;
+    if (!s)
+        return false;
+    if (!*s)
+        return false;
+    while (*s)
+    {
+        if (*s == '.' && prev == '.')
+            return false;
+        if (!isalnum(*s) && *s != '-')
+            return false;
+        prev = *s++;
+    }
+    return prev != '.';
+}
+
+static int validate_domain_names(cfg_t* cfg, cfg_opt_t* opt)
+{
+    unsigned ndomains = cfg_opt_size(opt);
+    for (unsigned i = 0; i < ndomains; ++i)
+    {
+        const char* domain = cfg_opt_getnstr(opt, i);
+        if (!is_valid_domain_name(domain))
+        {
+            cfg_error(cfg, "option '%s' has invalid domain name '%s'",
+                      cfg_opt_name(opt), domain);
+            return -1;
+        }
+    }
+    return 0;
+}
+
 cfg_t* config_from_commandline(int argc, char* const* argv)
 {
     static cfg_opt_t opts[] = {
@@ -77,6 +112,8 @@ cfg_t* config_from_commandline(int argc, char* const* argv)
     };
     cfg_t* cfg = cfg_init(opts, CFGF_NONE);
     cfg_set_validate_func(cfg, "separator", validate_separator);
+    cfg_set_validate_func(cfg, "srs-domain", validate_domain_names);
+    cfg_set_validate_func(cfg, "domains", validate_domain_names);
     int opt;
     char* config_file = NULL;
     char* pid_file = NULL;
@@ -147,4 +184,101 @@ cfg_t* config_from_commandline(int argc, char* const* argv)
         return cfg;
     cfg_free(cfg);
     return NULL;
+}
+
+srs_t* srs_from_config(cfg_t* cfg)
+{
+    srs_t* srs = srs_new();
+    srs_set_alwaysrewrite(srs, cfg_getbool(cfg, "always-rewrite"));
+    srs_set_hashlength(srs, cfg_getint(cfg, "hash-length"));
+    srs_set_hashmin(srs, cfg_getint(cfg, "hash-minimum"));
+    srs_set_separator(srs, cfg_getstr(cfg, "separator")[0]);
+    char* secrets_file = cfg_getstr(cfg, "secrets-file");
+    if (secrets_file && secrets_file[0])
+    {
+        FILE* f = fopen(secrets_file, "r");
+        if (f)
+        {
+            char buffer[1024];
+            char* secret;
+            while ((secret = fgets(buffer, sizeof(buffer), f)) != NULL)
+            {
+                secret = strtok(secret, "\r\n");
+                if (secret && secret[0])
+                    srs_add_secret(srs, secret);
+            }
+            fclose(f);
+        }
+        else
+        {
+            log_error("cannot read secrets from %s", secrets_file);
+            srs_free(srs);
+            return NULL;
+        }
+    }
+    return srs;
+}
+
+bool srs_domains_from_config(cfg_t* cfg, char** srs_domain,
+                             struct domain_set** local_domains)
+{
+    *srs_domain = NULL;
+    *local_domains = domain_set_create();
+    char* domain;
+    domain = cfg_getstr(cfg, "srs-domain");
+    if (domain && domain[0])
+        *srs_domain = strdup(domain[0] == '.' ? domain + 1 : domain);
+    unsigned ndomains = cfg_size(cfg, "domains");
+    for (unsigned i = 0; i < ndomains; ++i)
+    {
+        domain = cfg_getnstr(cfg, "domains", i);
+        if (domain && domain[0])
+        {
+            domain_set_add(*local_domains, domain);
+            if (*srs_domain == NULL)
+                *srs_domain = strdup(domain[0] == '.' ? domain + 1 : domain);
+        }
+    }
+    char* domains_file = cfg_getstr(cfg, "domains-file");
+    if (domains_file && domains_file[0])
+    {
+        FILE* f = fopen(domains_file, "r");
+        if (f)
+        {
+            char buffer[1024];
+            while ((domain = fgets(buffer, sizeof(buffer), f)) != NULL)
+            {
+                domain = strtok(domain, "\r\n");
+                if (domain && domain[0])
+                {
+                    if (is_valid_domain_name(domain))
+                    {
+                        domain_set_add(*local_domains, domain);
+                        if (*srs_domain == NULL)
+                            *srs_domain =
+                                strdup(domain[0] == '.' ? domain + 1 : domain);
+                    }
+                    else
+                    {
+                        log_error("invalid domain name '%s' in domains file",
+                                  domain);
+                        goto fail;
+                    }
+                }
+            }
+            fclose(f);
+        }
+        else
+        {
+            log_error("cannot read local domains from %s", domains_file);
+            goto fail;
+        }
+    }
+    return true;
+fail:
+    domain_set_destroy(*local_domains);
+    *local_domains = NULL;
+    free(*srs_domain);
+    *srs_domain = NULL;
+    return false;
 }
