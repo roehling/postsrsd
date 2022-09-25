@@ -31,14 +31,17 @@
 #cmakedefine WITH_SQLITE 1
 
 #cmakedefine HAVE_BIG_ENDIAN 1
+#cmakedefine HAVE_CLOSE_RANGE 1
 #cmakedefine HAVE_STRCASECMP 1
 #cmakedefine HAVE__STRICMP 1
 #cmakedefine HAVE_STRNCASECMP 1
 #cmakedefine HAVE__STRNICMP 1
 
 #cmakedefine HAVE_ALLOCA_H 1
+#cmakedefine HAVE_ERRNO_H 1
 #cmakedefine HAVE_FCNTL_H 1
 #cmakedefine HAVE_NETDB_H 1
+#cmakedefine HAVE_PWD_H 1
 #cmakedefine HAVE_SYS_FILE_H 1
 #cmakedefine HAVE_SYS_INOTIFY_H 1
 #cmakedefine HAVE_SYS_SOCKET_H 1

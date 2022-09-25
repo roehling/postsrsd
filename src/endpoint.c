@@ -19,9 +19,11 @@
 #include "postsrsd_build_config.h"
 #include "util.h"
 
-#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef HAVE_ERRNO_H
+#    include <errno.h>
+#endif
 #ifdef HAVE_FCNTL_H
 #    include <fcntl.h>
 #endif
@@ -87,7 +89,7 @@ static int create_unix_socket(const char* path)
     return sock;
 fail:
     umask(old_mask);
-    log_perror(errno);
+    log_perror(errno, NULL);
     if (sock >= 0)
         close(sock);
     return -1;
@@ -182,7 +184,7 @@ static int create_inet_sockets(char* addr, int family, int max_fds, int* fds)
         continue;
 fail:
         err = errno;
-        log_perror(err);
+        log_perror(err, NULL);
         if (sock >= 0)
             close(sock);
     }

@@ -255,6 +255,11 @@ static bool db_redis_connect(struct db_conn* conn, const char* hostname,
 
 struct db_conn* database_connect(const char* uri, bool create_if_not_exist)
 {
+    if (!uri || !*uri)
+    {
+        log_error("not database uri configured");
+        return NULL;
+    }
 #ifdef WITH_SQLITE
     if (strncmp(uri, "sqlite:", 7) == 0)
     {

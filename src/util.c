@@ -358,10 +358,13 @@ void log_error(const char* fmt, ...)
     va_end(ap);
 }
 
-void log_perror(int err)
+void log_perror(int err, const char* prefix)
 {
     char buffer[256];
-    log_error("%s", strerror_r(err, buffer, sizeof(buffer)));
+    if (prefix)
+        log_error("%s: %s", prefix, strerror_r(err, buffer, sizeof(buffer)));
+    else
+        log_error("%s", strerror_r(err, buffer, sizeof(buffer)));
 }
 
 void log_fatal(const char* fmt, ...)
