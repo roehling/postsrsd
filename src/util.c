@@ -168,11 +168,11 @@ struct domain_set
 };
 
 #define DOMAIN_SET_ADD           1
-#define DOMAIN_SET_PARTIAL_MATCH 2
+#define DOMAIN_SET_PARENTS_MATCH 2
 
-struct domain_set* domain_set_create()
+domain_set_t* domain_set_create()
 {
-    struct domain_set* D = malloc(sizeof(struct domain_set));
+    domain_set_t* D = malloc(sizeof(struct domain_set));
     for (unsigned i = 0; i < sizeof(D->c) / sizeof(D->c[0]); ++i)
         D->c[i] = NULL;
     D->s = NULL;
@@ -180,7 +180,7 @@ struct domain_set* domain_set_create()
     return D;
 }
 
-void domain_set_destroy(struct domain_set* D)
+void domain_set_destroy(domain_set_t* D)
 {
     for (unsigned i = 0; i < sizeof(D->c) / sizeof(D->c[0]); ++i)
         if (D->c[i])
@@ -190,7 +190,7 @@ void domain_set_destroy(struct domain_set* D)
     free(D);
 }
 
-static bool walk_domain_set(struct domain_set* D, char* domain, int flags)
+static bool walk_domain_set(domain_set_t* D, char* domain, int flags)
 {
     char* dot = strrchr(domain, '.');
     char* subdomain = domain;
@@ -228,7 +228,7 @@ static bool walk_domain_set(struct domain_set* D, char* domain, int flags)
                 return 0;
             D->s = domain_set_create();
         }
-        if (D->s->m && (flags & DOMAIN_SET_PARTIAL_MATCH))
+        if (D->s->m && (flags & DOMAIN_SET_PARENTS_MATCH))
             return 1;
         return walk_domain_set(D->s, domain, flags);
     }
@@ -238,7 +238,7 @@ static bool walk_domain_set(struct domain_set* D, char* domain, int flags)
     return result;
 }
 
-bool domain_set_add(struct domain_set* D, const char* domain)
+bool domain_set_add(domain_set_t* D, const char* domain)
 {
     char buffer[1024];
     strncpy(buffer, domain, sizeof(buffer) - 1);
@@ -246,12 +246,12 @@ bool domain_set_add(struct domain_set* D, const char* domain)
     return !walk_domain_set(D, buffer, DOMAIN_SET_ADD);
 }
 
-bool domain_set_contains(struct domain_set* D, const char* domain)
+bool domain_set_contains(domain_set_t* D, const char* domain)
 {
     char buffer[1024];
     strncpy(buffer, domain, sizeof(buffer) - 1);
     buffer[sizeof(buffer) - 1] = 0;
-    return walk_domain_set(D, buffer, DOMAIN_SET_PARTIAL_MATCH);
+    return walk_domain_set(D, buffer, DOMAIN_SET_PARENTS_MATCH);
 }
 
 static char* swap_host_port(const char* s, size_t prefix_len)

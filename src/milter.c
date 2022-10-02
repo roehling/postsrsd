@@ -14,19 +14,28 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef DATABASE_H
-#define DATABASE_H
+#include "milter.h"
 
-#include <stdbool.h>
+#include "postsrsd_build_config.h"
+#include "util.h"
 
-struct database;
-typedef struct database database_t;
+static bool has_uri = false;
 
-database_t* database_connect(const char* uri, bool create_if_not_exist);
-char* database_read(database_t* db, const char* key);
-bool database_write(database_t* db, const char* key, const char* value,
-                    unsigned lifetime);
-void database_expire(database_t* db);
-void database_disconnect(database_t* db);
-
+bool milter_create(const char* uri)
+{
+#ifdef WITH_MILTER
+    (void)uri;
+    has_uri = true;
+    return true;
+#else
+    (void)uri;
+    log_error("no milter support");
+    return false;
 #endif
+}
+
+void milter_main()
+{
+#ifdef WITH_MILTER
+#endif
+}

@@ -73,7 +73,9 @@ check_include_file(alloca.h HAVE_ALLOCA_H)
 check_include_file(errno.h HAVE_ERRNO_H)
 check_include_file(fcntl.h HAVE_FCNTL_H)
 check_include_file(netdb.h HAVE_NETDB_H)
+check_include_file(poll.h HAVE_POLL_H)
 check_include_file(pwd.h HAVE_PWD_H)
+check_include_file(signal.h HAVE_SIGNAL_H)
 check_include_file(sys/file.h HAVE_SYS_FILE_H)
 check_include_file(sys/inotify.h HAVE_SYS_INOTIFY_H)
 check_include_file(sys/socket.h HAVE_SYS_SOCKET_H)
@@ -81,8 +83,10 @@ check_include_file(sys/stat.h HAVE_SYS_STAT_H)
 check_include_file(sys/time.h HAVE_SYS_TIME_H)
 check_include_file(sys/types.h HAVE_SYS_TYPES_H)
 check_include_file(sys/un.h HAVE_SYS_UN_H)
+check_include_file(sys/wait.h HAVE_SYS_WAIT_H)
 check_include_file(time.h HAVE_TIME_H)
 check_include_file(unistd.h HAVE_UNISTD_H)
+check_include_file(wait.h HAVE_WAIT_H)
 check_symbol_exists(close_range unistd.h HAVE_CLOSE_RANGE)
 check_symbol_exists(strcasecmp string.h HAVE_STRCASECMP)
 check_symbol_exists(_stricmp string.h HAVE__STRICMP)
@@ -192,8 +196,10 @@ add_executable(postsrsd
     src/database.c
     src/endpoint.c
     src/main.c
+    src/milter.c
     src/netstring.c
     src/sha1.c
+    src/srs.c
     src/srs2.c
     src/util.c
 )

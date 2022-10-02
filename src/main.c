@@ -17,6 +17,7 @@
 #include "config.h"
 #include "database.h"
 #include "endpoint.h"
+#include "milter.h"
 #include "postsrsd_build_config.h"
 #include "util.h"
 
@@ -25,11 +26,26 @@
 #ifdef HAVE_ERRNO_H
 #    include <errno.h>
 #endif
+#ifdef HAVE_SYS_SOCKET_H
+#    include <sys/socket.h>
+#endif
 #ifdef HAVE_SYS_TYPES_H
 #    include <sys/types.h>
 #endif
+#ifdef HAVE_SYS_WAIT_H
+#    include <sys/wait.h>
+#endif
+#ifdef HAVE_WAIT_H
+#    include <wait.h>
+#endif
+#ifdef HAVE_SIGNAL_H
+#    include <signal.h>
+#endif
 #ifdef HAVE_PWD_H
 #    include <pwd.h>
+#endif
+#ifdef HAVE_POLL_H
+#    include <poll.h>
 #endif
 #ifdef HAVE_UNISTD_H
 #    include <unistd.h>
@@ -85,12 +101,12 @@ static bool prepare_database(cfg_t* cfg)
 {
     if (cfg_getint(cfg, "original-envelope") == SRS_ENVELOPE_DATABASE)
     {
-        struct db_conn* conn =
+        database_t* db =
             database_connect(cfg_getstr(cfg, "envelope-database"), true);
-        if (!conn)
+        if (!db)
             return false;
-        database_expire(conn);
-        database_disconnect(conn);
+        database_expire(db);
+        database_disconnect(db);
     }
     return true;
 }
@@ -110,6 +126,25 @@ static bool daemonize(cfg_t* cfg)
     return true;
 }
 
+static void handle_socketmap_client(cfg_t* cfg, srs_t* srs, int conn)
+{
+    FILE* fp_read = fdopen(conn, "r");
+    if (fp_read == NULL)
+        return;
+    FILE* fp_write = fdopen(dup(conn), "w");
+    if (fp_write == NULL)
+        return;
+    database_t* db = NULL;
+    if (cfg_getint(cfg, "original-envelope") == SRS_ENVELOPE_DATABASE)
+    {
+        db = database_connect(cfg_getstr(cfg, "envelope-database"), false);
+        if (!conn)
+            return;
+    }
+    (void)srs;
+    (void)db;
+}
+
 int main(int argc, char** argv)
 {
     cfg_t* cfg = NULL;
@@ -119,6 +154,7 @@ int main(int argc, char** argv)
     FILE* pf = NULL;
     int socketmaps[4] = {-1, -1, -1, -1};
     int num_sockets = 0;
+    int milter_pid = 0;
     int exit_code = EXIT_FAILURE;
 #ifdef HAVE_CLOSE_RANGE
     close_range(3, ~0U, 0);
@@ -142,6 +178,16 @@ int main(int argc, char** argv)
         if (num_sockets < 0)
             goto shutdown;
     }
+    const char* milter_endpoint = cfg_getstr(cfg, "milter");
+    if (milter_endpoint && *milter_endpoint)
+    {
+        if (!milter_create(milter_endpoint))
+            goto shutdown;
+    }
+    else
+    {
+        milter_endpoint = NULL;
+    }
     const char* pid_file = cfg_getstr(cfg, "pid-file");
     if (pid_file && *pid_file)
     {
@@ -164,8 +210,61 @@ int main(int argc, char** argv)
         fclose(pf);
         pf = NULL;
     }
-    for (;;)
+    exit_code = EXIT_SUCCESS;
+    if (num_sockets > 0)
     {
+        if (milter_endpoint && *milter_endpoint)
+        {
+            milter_pid = fork();
+            if (milter_pid == 0)
+            {
+                for (unsigned i = 0; i < sizeof(socketmaps) / sizeof(int); ++i)
+                {
+                    if (socketmaps[i] >= 0)
+                        close(socketmaps[i]);
+                    socketmaps[i] = -1;
+                }
+                milter_main();
+                goto shutdown;
+            }
+        }
+        struct pollfd fds[sizeof(socketmaps) / sizeof(int)];
+        for (unsigned i = 0; i < (unsigned)num_sockets; ++i)
+        {
+            fds[i].fd = socketmaps[i];
+            fds[i].events = POLLIN;
+        }
+        for (;;)
+        {
+            if (poll(fds, num_sockets, 1000) < 0)
+            {
+                if (errno == EINTR)
+                    continue;
+                log_perror(errno, "poll");
+                goto shutdown;
+            }
+            for (unsigned i = 0; i < (unsigned)num_sockets; ++i)
+            {
+                if (fds[i].revents)
+                {
+                    int conn = accept(fds[i].fd, NULL, NULL);
+                    if (conn < 0)
+                        continue;
+                    if (fork() == 0)
+                    {
+                        for (unsigned j = 0; j < (unsigned)num_sockets; ++j)
+                            close(socketmaps[j]);
+                        handle_socketmap_client(cfg, srs, conn);
+                        exit(EXIT_SUCCESS);
+                    }
+                }
+            }
+            waitpid(-1, NULL, WNOHANG);
+        }
+    }
+    else if (milter_endpoint && *milter_endpoint)
+    {
+        milter_main();
     }
 shutdown:
     for (unsigned i = 0; i < sizeof(socketmaps) / sizeof(int); ++i)
@@ -180,5 +279,10 @@ shutdown:
         srs_free(srs);
     if (cfg)
         cfg_free(cfg);
+    if (milter_pid > 0)
+    {
+        kill(milter_pid, SIGTERM);
+        waitpid(milter_pid, NULL, 0);
+    }
     return exit_code;
 }

@@ -14,19 +14,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef DATABASE_H
-#define DATABASE_H
+#ifndef MILTER_H
+#define MILTER_H
 
 #include <stdbool.h>
 
-struct database;
-typedef struct database database_t;
-
-database_t* database_connect(const char* uri, bool create_if_not_exist);
-char* database_read(database_t* db, const char* key);
-bool database_write(database_t* db, const char* key, const char* value,
-                    unsigned lifetime);
-void database_expire(database_t* db);
-void database_disconnect(database_t* db);
+bool milter_create(const char* uri);
+void milter_main();
 
 #endif

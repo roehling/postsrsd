@@ -28,28 +28,28 @@ END_TEST
 
 START_TEST(database_key_value)
 {
-    struct db_conn* conn = database_connect("sqlite::memory:", true);
-    ck_assert_ptr_nonnull(conn);
-    ck_assert_ptr_null(database_read(conn, "mykey"));
-    database_write(conn, "mykey", "myvalue", 1);
-    char* value = database_read(conn, "mykey");
+    database_t* db = database_connect("sqlite::memory:", true);
+    ck_assert_ptr_nonnull(db);
+    ck_assert_ptr_null(database_read(db, "mykey"));
+    database_write(db, "mykey", "myvalue", 1);
+    char* value = database_read(db, "mykey");
     ck_assert_str_eq(value, "myvalue");
     free(value);
-    database_disconnect(conn);
+    database_disconnect(db);
 }
 END_TEST
 
 START_TEST(database_expiry)
 {
-    struct db_conn* conn = database_connect("sqlite::memory:", true);
-    ck_assert_ptr_nonnull(conn);
-    database_write(conn, "mykey", "myvalue", 0);
-    char* value = database_read(conn, "mykey");
+    database_t* db = database_connect("sqlite::memory:", true);
+    ck_assert_ptr_nonnull(db);
+    database_write(db, "mykey", "myvalue", 0);
+    char* value = database_read(db, "mykey");
     ck_assert_str_eq(value, "myvalue");
     free(value);
-    database_expire(conn);
-    ck_assert_ptr_null(database_read(conn, "mykey"));
-    database_disconnect(conn);
+    database_expire(db);
+    ck_assert_ptr_null(database_read(db, "mykey"));
+    database_disconnect(db);
 }
 END_TEST
 

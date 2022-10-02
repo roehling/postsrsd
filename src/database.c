@@ -34,12 +34,12 @@
 #    include <time.h>
 #endif
 
-struct db_conn
+struct database
 {
-    char* (*read)(struct db_conn*, const char*);
-    bool (*write)(struct db_conn*, const char*, const char*, unsigned);
-    void (*expire)(struct db_conn*);
-    void (*disconnect)(struct db_conn*);
+    char* (*read)(database_t*, const char*);
+    bool (*write)(database_t*, const char*, const char*, unsigned);
+    void (*expire)(database_t*);
+    void (*disconnect)(database_t*);
     void* handle;
 #ifdef WITH_SQLITE
     sqlite3_stmt *read_stmt, *write_stmt, *expire_stmt;
@@ -47,13 +47,13 @@ struct db_conn
 };
 
 #ifdef WITH_SQLITE
-static char* db_sqlite_read(struct db_conn* conn, const char* key)
+static char* db_sqlite_read(database_t* db, const char* key)
 {
-    if (conn->read_stmt == NULL)
+    if (db->read_stmt == NULL)
     {
-        sqlite3* handle = (sqlite3*)conn->handle;
+        sqlite3* handle = (sqlite3*)db->handle;
         if (sqlite3_prepare_v2(handle, "SELECT v FROM kv WHERE k = ?", -1,
-                               &conn->read_stmt, NULL)
+                               &db->read_stmt, NULL)
             != SQLITE_OK)
         {
             log_error("failed to prepare sqlite read statement");
@@ -61,31 +61,31 @@ static char* db_sqlite_read(struct db_conn* conn, const char* key)
         }
     }
     char* value = NULL;
-    sqlite3_bind_text(conn->read_stmt, 1, key, -1, SQLITE_STATIC);
-    int result = sqlite3_step(conn->read_stmt);
+    sqlite3_bind_text(db->read_stmt, 1, key, -1, SQLITE_STATIC);
+    int result = sqlite3_step(db->read_stmt);
     if (result == SQLITE_ERROR)
     {
-        sqlite3* handle = (sqlite3*)conn->handle;
+        sqlite3* handle = (sqlite3*)db->handle;
         log_warn("sqlite read error: %s", sqlite3_errmsg(handle));
     }
     if (result == SQLITE_ROW)
     {
-        value = strdup((const char*)sqlite3_column_text(conn->read_stmt, 0));
+        value = strdup((const char*)sqlite3_column_text(db->read_stmt, 0));
     }
-    sqlite3_reset(conn->read_stmt);
-    sqlite3_clear_bindings(conn->read_stmt);
+    sqlite3_reset(db->read_stmt);
+    sqlite3_clear_bindings(db->read_stmt);
     return value;
 }
 
-static bool db_sqlite_write(struct db_conn* conn, const char* key,
-                            const char* value, unsigned lifetime)
+static bool db_sqlite_write(database_t* db, const char* key, const char* value,
+                            unsigned lifetime)
 {
-    if (conn->write_stmt == NULL)
+    if (db->write_stmt == NULL)
     {
-        sqlite3* handle = (sqlite3*)conn->handle;
+        sqlite3* handle = (sqlite3*)db->handle;
         if (sqlite3_prepare_v2(handle,
                                "INSERT INTO kv (k, v, lt) VALUES (?, ?, ?)", -1,
-                               &conn->write_stmt, NULL)
+                               &db->write_stmt, NULL)
             != SQLITE_OK)
         {
             log_error("failed to prepare sqlite write statement");
@@ -93,48 +93,48 @@ static bool db_sqlite_write(struct db_conn* conn, const char* key,
         }
     }
     bool success = true;
-    sqlite3_bind_text(conn->write_stmt, 1, key, -1, SQLITE_STATIC);
-    sqlite3_bind_text(conn->write_stmt, 2, value, -1, SQLITE_STATIC);
-    sqlite3_bind_int64(conn->write_stmt, 3, time(NULL) + lifetime);
-    if (sqlite3_step(conn->write_stmt) == SQLITE_ERROR)
+    sqlite3_bind_text(db->write_stmt, 1, key, -1, SQLITE_STATIC);
+    sqlite3_bind_text(db->write_stmt, 2, value, -1, SQLITE_STATIC);
+    sqlite3_bind_int64(db->write_stmt, 3, time(NULL) + lifetime);
+    if (sqlite3_step(db->write_stmt) == SQLITE_ERROR)
     {
-        sqlite3* handle = (sqlite3*)conn->handle;
+        sqlite3* handle = (sqlite3*)db->handle;
         log_warn("sqlite write error: %s", sqlite3_errmsg(handle));
         success = false;
     }
-    sqlite3_reset(conn->write_stmt);
-    sqlite3_clear_bindings(conn->write_stmt);
+    sqlite3_reset(db->write_stmt);
+    sqlite3_clear_bindings(db->write_stmt);
     return success;
 }
 
-static void db_sqlite_expire(struct db_conn* conn)
+static void db_sqlite_expire(database_t* db)
 {
-    if (conn->expire_stmt == NULL)
+    if (db->expire_stmt == NULL)
     {
-        sqlite3* handle = (sqlite3*)conn->handle;
+        sqlite3* handle = (sqlite3*)db->handle;
         if (sqlite3_prepare_v2(handle, "DELETE FROM kv WHERE lt <= ?", -1,
-                               &conn->expire_stmt, NULL)
+                               &db->expire_stmt, NULL)
             != SQLITE_OK)
         {
             log_error("failed to prepare sqlite expire statement");
             return;
         }
     }
-    sqlite3_bind_int64(conn->expire_stmt, 1, time(NULL));
-    sqlite3_step(conn->expire_stmt);
-    sqlite3_reset(conn->expire_stmt);
+    sqlite3_bind_int64(db->expire_stmt, 1, time(NULL));
+    sqlite3_step(db->expire_stmt);
+    sqlite3_reset(db->expire_stmt);
 }
 
-static void db_sqlite_disconnect(struct db_conn* conn)
+static void db_sqlite_disconnect(database_t* db)
 {
-    sqlite3* handle = (sqlite3*)conn->handle;
-    sqlite3_finalize(conn->expire_stmt);
-    sqlite3_finalize(conn->read_stmt);
-    sqlite3_finalize(conn->write_stmt);
+    sqlite3* handle = (sqlite3*)db->handle;
+    sqlite3_finalize(db->expire_stmt);
+    sqlite3_finalize(db->read_stmt);
+    sqlite3_finalize(db->write_stmt);
     sqlite3_close(handle);
 }
 
-static bool db_sqlite_connect(struct db_conn* conn, const char* uri,
+static bool db_sqlite_connect(database_t* db, const char* uri,
                               bool create_if_not_exist)
 {
     sqlite3* handle;
@@ -164,24 +164,24 @@ static bool db_sqlite_connect(struct db_conn* conn, const char* uri,
             return false;
         }
     }
-    conn->handle = handle;
-    conn->read = db_sqlite_read;
-    conn->write = db_sqlite_write;
-    conn->expire = db_sqlite_expire;
-    conn->disconnect = db_sqlite_disconnect;
-    conn->read_stmt = NULL;
-    conn->write_stmt = NULL;
-    conn->expire_stmt = NULL;
+    db->handle = handle;
+    db->read = db_sqlite_read;
+    db->write = db_sqlite_write;
+    db->expire = db_sqlite_expire;
+    db->disconnect = db_sqlite_disconnect;
+    db->read_stmt = NULL;
+    db->write_stmt = NULL;
+    db->expire_stmt = NULL;
     return true;
 }
 #endif
 
 #ifdef WITH_REDIS
-static char* db_redis_read(struct db_conn* conn, const char* key)
+static char* db_redis_read(database_t* db, const char* key)
 {
     char buffer[128];
     snprintf(buffer, sizeof(buffer), "PostSRSd/%s", key);
-    redisContext* handle = (redisContext*)conn->handle;
+    redisContext* handle = (redisContext*)db->handle;
     redisReply* reply = redisCommand(handle, "GET %s", buffer);
     char* value = NULL;
     if (reply->type == REDIS_REPLY_ERROR)
@@ -196,12 +196,12 @@ static char* db_redis_read(struct db_conn* conn, const char* key)
     return value;
 }
 
-static bool db_redis_write(struct db_conn* conn, const char* key,
-                           const char* value, unsigned lifetime)
+static bool db_redis_write(database_t* db, const char* key, const char* value,
+                           unsigned lifetime)
 {
     char buffer[128];
     snprintf(buffer, sizeof(buffer), "PostSRSd/%s", key);
-    redisContext* handle = (redisContext*)conn->handle;
+    redisContext* handle = (redisContext*)db->handle;
     bool success = true;
     redisReply* reply =
         redisCommand(handle, "SETEX %s %u %s", buffer, lifetime, value);
@@ -214,14 +214,13 @@ static bool db_redis_write(struct db_conn* conn, const char* key,
     return success;
 }
 
-static void db_redis_disconnect(struct db_conn* conn)
+static void db_redis_disconnect(database_t* db)
 {
-    redisContext* handle = (redisContext*)conn->handle;
+    redisContext* handle = (redisContext*)db->handle;
     redisFree(handle);
 }
 
-static bool db_redis_connect(struct db_conn* conn, const char* hostname,
-                             int port)
+static bool db_redis_connect(database_t* db, const char* hostname, int port)
 {
     redisContext* handle;
     if (port > 0)
@@ -244,16 +243,16 @@ static bool db_redis_connect(struct db_conn* conn, const char* hostname,
         return false;
     }
     redisEnableKeepAlive(handle);
-    conn->handle = handle;
-    conn->read = db_redis_read;
-    conn->write = db_redis_write;
-    conn->expire = NULL;
-    conn->disconnect = db_redis_disconnect;
+    db->handle = handle;
+    db->read = db_redis_read;
+    db->write = db_redis_write;
+    db->expire = NULL;
+    db->disconnect = db_redis_disconnect;
     return true;
 }
 #endif
 
-struct db_conn* database_connect(const char* uri, bool create_if_not_exist)
+database_t* database_connect(const char* uri, bool create_if_not_exist)
 {
     if (!uri || !*uri)
     {
@@ -263,26 +262,26 @@ struct db_conn* database_connect(const char* uri, bool create_if_not_exist)
 #ifdef WITH_SQLITE
     if (strncmp(uri, "sqlite:", 7) == 0)
     {
-        struct db_conn* conn = (struct db_conn*)malloc(sizeof(struct db_conn));
-        if (conn == NULL)
+        database_t* db = (database_t*)malloc(sizeof(struct database));
+        if (db == NULL)
         {
             log_error("failed to allocate database connection handle");
             return NULL;
         }
-        if (!db_sqlite_connect(conn, uri + 7, create_if_not_exist))
+        if (!db_sqlite_connect(db, uri + 7, create_if_not_exist))
         {
             log_error("failed to connect to '%s'", uri);
-            free(conn);
+            free(db);
             return NULL;
         }
-        return conn;
+        return db;
     }
 #endif
 #ifdef WITH_REDIS
     if (strncmp(uri, "redis:", 6) == 0)
     {
-        struct db_conn* conn = (struct db_conn*)malloc(sizeof(struct db_conn));
-        if (conn == NULL)
+        database_t* db = (database_t*)malloc(sizeof(struct database));
+        if (db == NULL)
         {
             log_error("failed to allocate database connection handle");
             return NULL;
@@ -292,48 +291,48 @@ struct db_conn* database_connect(const char* uri, bool create_if_not_exist)
         if (hostname == NULL)
         {
             log_error("invalid database uri '%s'", uri);
-            free(conn);
+            free(db);
             return NULL;
         }
-        if (!db_redis_connect(conn, hostname, port))
+        if (!db_redis_connect(db, hostname, port))
         {
             log_error("failed to connect to '%s'", uri);
             free(hostname);
-            free(conn);
+            free(db);
             return NULL;
         }
         free(hostname);
-        return conn;
+        return db;
     }
 #endif
     log_error("unsupported database '%s'", uri);
     return NULL;
 }
 
-char* database_read(struct db_conn* conn, const char* key)
+char* database_read(database_t* db, const char* key)
 {
-    if (conn && key)
-        return conn->read(conn, key);
+    if (db && key)
+        return db->read(db, key);
     return NULL;
 }
 
-bool database_write(struct db_conn* conn, const char* key, const char* value,
+bool database_write(database_t* db, const char* key, const char* value,
                     unsigned lifetime)
 {
-    if (conn && key && value)
-        return conn->write(conn, key, value, lifetime);
+    if (db && key && value)
+        return db->write(db, key, value, lifetime);
     return false;
 }
 
-void database_expire(struct db_conn* conn)
+void database_expire(database_t* db)
 {
-    if (conn && conn->expire)
-        conn->expire(conn);
+    if (db && db->expire)
+        db->expire(db);
 }
 
-void database_disconnect(struct db_conn* conn)
+void database_disconnect(database_t* db)
 {
-    if (conn)
-        conn->disconnect(conn);
-    free(conn);
+    if (db)
+        db->disconnect(db);
+    free(db);
 }
