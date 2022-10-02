@@ -1,4 +1,9 @@
 # PostSRSd example configuration file
+# Copyright 2022 Timo Röhling
+# SPDX-License-Identifier: FSFUL
+#
+# The copyright holder gives unlimited permission to copy, distribute and modify
+# this file.
 
 # Local domains
 # Your local domains need not be rewritten, so PostSRSd has to know about them.

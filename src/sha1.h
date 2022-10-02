@@ -2,7 +2,7 @@
  * Copyright Gisle Ass, Peter C. Gutmann, Bruce Schneier
  * Copyright 2004 Shevek <srs@anarres.org>
  * Copyright 2012-2022 Timo Röhling <timo@gaussglocke.de>
- * SPDX-License-Identifier: GPL-2.0-only OR BSD-3-Clause
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 #ifndef SHA1_H
 #define SHA1_H
