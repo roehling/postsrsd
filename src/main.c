@@ -18,11 +18,14 @@
 #include "database.h"
 #include "endpoint.h"
 #include "milter.h"
+#include "netstring.h"
 #include "postsrsd_build_config.h"
+#include "srs.h"
 #include "util.h"
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #ifdef HAVE_ERRNO_H
 #    include <errno.h>
 #endif
@@ -50,6 +53,8 @@
 #ifdef HAVE_UNISTD_H
 #    include <unistd.h>
 #endif
+
+static volatile sig_atomic_t timeout = 0;
 
 static bool drop_privileges(cfg_t* cfg)
 {
@@ -92,9 +97,10 @@ static bool drop_privileges(cfg_t* cfg)
         if (setuid(target_uid) < 0)
         {
             log_perror(errno, "cannot drop privileges: setuid");
+            return false;
         }
     }
-    return false;
+    return true;
 }
 
 static bool prepare_database(cfg_t* cfg)
@@ -126,7 +132,14 @@ static bool daemonize(cfg_t* cfg)
     return true;
 }
 
-static void handle_socketmap_client(cfg_t* cfg, srs_t* srs, int conn)
+static void on_sigalrm(int signum)
+{
+    timeout = signum;
+}
+
+static void handle_socketmap_client(cfg_t* cfg, srs_t* srs,
+                                    const char* srs_domain,
+                                    domain_set_t* local_domains, int conn)
 {
     FILE* fp_read = fdopen(conn, "r");
     if (fp_read == NULL)
@@ -138,18 +151,65 @@ static void handle_socketmap_client(cfg_t* cfg, srs_t* srs, int conn)
     if (cfg_getint(cfg, "original-envelope") == SRS_ENVELOPE_DATABASE)
     {
         db = database_connect(cfg_getstr(cfg, "envelope-database"), false);
-        if (!conn)
+        if (!db)
             return;
     }
-    (void)srs;
-    (void)db;
+    signal(SIGALRM, on_sigalrm);
+    for (;;)
+    {
+        char buffer[1024];
+        size_t len;
+        char* ptr;
+        bool error;
+        alarm(cfg_getint(cfg, "keep-alive"));
+        char* request = netstring_read(fp_read, buffer, sizeof(buffer), &len);
+        if (!request || timeout)
+            break;
+        alarm(0);
+        char* query_type = strtok_r(request, " ", &ptr);
+        if (!query_type)
+            break;
+        char* addr = strtok_r(NULL, " ", &ptr);
+        if (!addr)
+            break;
+        char* rewritten = NULL;
+        if (strcmp(query_type, "forward") == 0)
+        {
+            rewritten = postsrsd_forward(addr, srs_domain, srs, db,
+                                         local_domains, &error);
+        }
+        else if (strcmp(query_type, "reverse") == 0)
+        {
+            rewritten = postsrsd_reverse(addr, srs, db, &error);
+        }
+        if (rewritten)
+        {
+            strcpy(buffer, "OK ");
+            strncat(buffer, rewritten, sizeof(buffer) - 4);
+            free(rewritten);
+            netstring_write(fp_write, buffer, strlen(buffer));
+        }
+        else
+        {
+            if (error)
+            {
+                netstring_write(fp_write, "PERM ", 5);
+            }
+            else
+            {
+                netstring_write(fp_write, "NOTFOUND ", 9);
+            }
+        }
+        fflush(fp_write);
+    }
+    database_disconnect(db);
 }
 
 int main(int argc, char** argv)
 {
     cfg_t* cfg = NULL;
     srs_t* srs = NULL;
-    struct domain_set* local_domains = NULL;
+    domain_set_t* local_domains = NULL;
     char* srs_domain = NULL;
     FILE* pf = NULL;
     int socketmaps[4] = {-1, -1, -1, -1};
@@ -210,6 +270,7 @@ int main(int argc, char** argv)
         fclose(pf);
         pf = NULL;
     }
+    signal(SIGALRM, SIG_IGN);
     exit_code = EXIT_SUCCESS;
     if (num_sockets > 0)
     {
@@ -254,7 +315,8 @@ int main(int argc, char** argv)
                     {
                         for (unsigned j = 0; j < (unsigned)num_sockets; ++j)
                             close(socketmaps[j]);
-                        handle_socketmap_client(cfg, srs, conn);
+                        handle_socketmap_client(cfg, srs, srs_domain,
+                                                local_domains, conn);
                         exit(EXIT_SUCCESS);
                     }
                 }

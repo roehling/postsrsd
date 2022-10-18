@@ -26,7 +26,8 @@ bool milter_create(const char* uri)
 #ifdef WITH_MILTER
     (void)uri;
     has_uri = true;
-    return true;
+    log_error("milter support not implemented yet");
+    return false;
 #else
     (void)uri;
     log_error("no milter support");

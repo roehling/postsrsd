@@ -21,11 +21,12 @@
 #include "srs2.h"
 #include "util.h"
 
-char* postsrsd_forward(char* buffer, size_t bufsize, const char* addr,
-                       const char* domain, srs_t* srs, database_t* db,
-                       domain_set_t* local_domains);
-char* postsrsd_reverse(char* buffer, size_t bufsize, const char* addr,
-                       const char* domain, srs_t* srs, database_t* db,
-                       domain_set_t* local_domains);
+#include <stdbool.h>
+
+char* postsrsd_forward(const char* addr, const char* domain, srs_t* srs,
+                       database_t* db, domain_set_t* local_domains,
+                       bool* error);
+char* postsrsd_reverse(const char* addr, srs_t* srs, database_t* db,
+                       bool* error);
 
 #endif

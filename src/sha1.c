@@ -259,7 +259,7 @@ static void sha_init(SHA_INFO* sha_info)
 
 /* update the SHA digest */
 
-static void sha_update(SHA_INFO* sha_info, sha_byte* buffer, int count)
+static void sha_update(SHA_INFO* sha_info, const sha_byte* buffer, int count)
 {
     int i;
     ULONG clo;
@@ -375,11 +375,11 @@ static void sha_final(unsigned char digest[20], SHA_INFO* sha_info)
     sha_final(digeststr, &ctx);
 */
 
-void sha_digest(char* out, char* data, unsigned len)
+void sha_digest(char* out, const char* data, unsigned len)
 {
     SHA_INFO ctx;
     sha_init(&ctx);
-    sha_update(&ctx, (sha_byte*)data, len);
+    sha_update(&ctx, (const sha_byte*)data, len);
     sha_final((sha_byte*)out, &ctx);
 }
 

@@ -205,7 +205,7 @@ add_executable(postsrsd
 )
 
 target_compile_definitions(postsrsd PRIVATE
-    _GNU_SOURCE _FILE_OFFSET_BITS=64
+    _GNU_SOURCE _POSIX_C_SOURCE _FILE_OFFSET_BITS=64
 )
 target_include_directories(postsrsd PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 target_compile_features(postsrsd PRIVATE c_std_99)

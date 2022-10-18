@@ -28,7 +28,7 @@ typedef struct _srs_hmac_ctx_t
     char opad[SHA_BLOCKSIZE + 1];
 } srs_hmac_ctx_t;
 
-void sha_digest(char* out, char* data, unsigned len);
+void sha_digest(char* out, const char* data, unsigned len);
 void srs_hmac_init(srs_hmac_ctx_t* ctx, char* secret, unsigned len);
 void srs_hmac_update(srs_hmac_ctx_t* ctx, char* data, unsigned len);
 void srs_hmac_fini(srs_hmac_ctx_t* ctx, char* out);
