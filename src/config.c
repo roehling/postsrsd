@@ -53,6 +53,17 @@ static int validate_separator(cfg_t* cfg, cfg_opt_t* opt)
     return 0;
 }
 
+static int validate_uint(cfg_t* cfg, cfg_opt_t* opt)
+{
+    int value = cfg_opt_getnint(opt, cfg_opt_size(opt) - 1);
+    if (value < 0)
+    {
+        cfg_error(cfg, "option '%s' must be non-negative", cfg_opt_name(opt));
+        return -1;
+    }
+    return 0;
+}
+
 static bool is_valid_domain_name(const char* s)
 {
     char prev = 0;
@@ -114,6 +125,7 @@ cfg_t* config_from_commandline(int argc, char* const* argv)
     cfg_set_validate_func(cfg, "separator", validate_separator);
     cfg_set_validate_func(cfg, "srs-domain", validate_domain_names);
     cfg_set_validate_func(cfg, "domains", validate_domain_names);
+    cfg_set_validate_func(cfg, "keep-alive", validate_uint);
     int opt;
     char* config_file = NULL;
     char* pid_file = NULL;

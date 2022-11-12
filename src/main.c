@@ -155,13 +155,14 @@ static void handle_socketmap_client(cfg_t* cfg, srs_t* srs,
             return;
     }
     signal(SIGALRM, on_sigalrm);
+    int keep_alive = cfg_getint(cfg, "keep-alive");
     for (;;)
     {
         char buffer[1024];
         size_t len;
         char* ptr;
         bool error;
-        alarm(cfg_getint(cfg, "keep-alive"));
+        alarm(keep_alive);
         char* request = netstring_read(fp_read, buffer, sizeof(buffer), &len);
         if (!request || timeout)
             break;

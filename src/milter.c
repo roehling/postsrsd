@@ -19,17 +19,17 @@
 #include "postsrsd_build_config.h"
 #include "util.h"
 
+#ifdef WITH_MILTER
 static bool has_uri = false;
+#endif
 
 bool milter_create(const char* uri)
 {
 #ifdef WITH_MILTER
-    (void)uri;
     has_uri = true;
     log_error("milter support not implemented yet");
     return false;
 #else
-    (void)uri;
     log_error("no milter support");
     return false;
 #endif

@@ -97,7 +97,6 @@ char* b32h_encode(const char* data, size_t length, char* buffer, size_t bufsize)
         out[j + 1] = B32H_CHARS[tmp & 0x1F];
         tmp >>= 5;
         out[j] = B32H_CHARS[tmp & 0x1F];
-        tmp >>= 5;
         j += 8;
     }
     out[j] = 0;

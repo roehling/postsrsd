@@ -30,16 +30,14 @@ include(TestBigEndian)
 
 option(GENERATE_SRS_SECRET "Generate and install a postsrsd.secret" ON)
 option(DEVELOPER_BUILD "Add strict compiler options for development only" ON)
-option(WITH_MILTER "Enable SRS rewrite via Milter (requires libmilter)" ON)
-option(WITH_SQLITE "Enable sqlite-based storage for opaque SRS tokens (requires sqlite3)" ON)
-option(WITH_REDIS "Enable Redis-based storage for opaque SRS tokens (requires hiredis)" ON)
+option(WITH_MILTER "Enable SRS rewrite via Milter (requires libmilter)" OFF)
+option(WITH_SQLITE "Enable sqlite-based storage for opaque SRS tokens (requires sqlite3)" OFF)
+option(WITH_REDIS "Enable Redis-based storage for opaque SRS tokens (requires hiredis)" OFF)
 option(TESTS_WITH_ASAN "Run test suite with AddressSanitizer" ON)
 
 set(POSTSRSD_USER "nobody" CACHE STRING "The default unprivileged user as which PostSRSd will run")
 find_systemd_unit_destination(DETECTED_SYSTEMD_UNITDIR)
 set(SYSTEMD_UNITDIR "${DETECTED_SYSTEMD_UNITDIR}" CACHE PATH "Install destination for systemd service unit")
-
-set(FETCHCONTENT_TRY_FIND_PACKAGE_MODE ALWAYS)
 
 FetchContent_Declare(Confuse
     URL https://github.com/libconfuse/libconfuse/releases/download/v3.3/confuse-3.3.tar.gz
@@ -188,7 +186,7 @@ configure_file(
 )
 
 if(DEVELOPER_BUILD AND CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
-    add_compile_options(-Wall -Wextra -Werror)
+    add_compile_options(-Wall -Wextra -Werror -Wno-error=unused-parameter)
 endif()
 
 add_executable(postsrsd
@@ -211,9 +209,9 @@ target_include_directories(postsrsd PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 target_compile_features(postsrsd PRIVATE c_std_99)
 target_link_libraries(postsrsd PRIVATE
     Confuse::Confuse
-    $<$<BOOL:WITH_SQLITE>:sqlite3::sqlite3>
-    $<$<BOOL:WITH_REDIS>:${HIREDIS_TARGET}>
-    $<$<BOOL:WITH_MILTER>:LibMilter::LibMilter>
+    $<$<BOOL:${WITH_SQLITE}>:sqlite3::sqlite3>
+    $<$<BOOL:${WITH_REDIS}>:${HIREDIS_TARGET}>
+    $<$<BOOL:${WITH_MILTER}>:LibMilter::LibMilter>
     ${LIBSOCKET}
     ${LIBNSL}
 )
