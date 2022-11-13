@@ -20,23 +20,108 @@
 #include "util.h"
 
 #ifdef WITH_MILTER
-static bool has_uri = false;
+#    include <libmilter/mfapi.h>
+#    ifdef HAVE_UNISTD_H
+#        include <unistd.h>
+#    endif
+#    include <string.h>
+
+static char* milter_uri = NULL;
+static char* milter_path = NULL;
+static int milter_lock = -1;
+
+static cfg_t* g_cfg = NULL;
+static srs_t* g_srs = NULL;
+static domain_set_t* g_local_domains = NULL;
+static const char* g_srs_domain = NULL;
 #endif
 
 bool milter_create(const char* uri)
 {
 #ifdef WITH_MILTER
-    has_uri = true;
-    log_error("milter support not implemented yet");
-    return false;
+    milter_uri = endpoint_for_milter(uri);
+    if (milter_uri == NULL)
+    {
+        log_error("invalid milter endpoint: %s", uri);
+        return false;
+    }
+    return true;
 #else
     log_error("no milter support");
     return false;
 #endif
 }
 
-void milter_main()
+#ifdef WITH_MILTER
+static sfsistat on_connect(SMFICTX* ctx, char*, _SOCK_ADDR*)
+{
+    return SMFIS_CONTINUE;
+}
+
+static sfsistat on_envfrom(SMFICTX* ctx, char**)
+{
+    return SMFIS_CONTINUE;
+}
+
+static sfsistat on_envrcpt(SMFICTX* ctx, char**)
+{
+    return SMFIS_CONTINUE;
+}
+
+static sfsistat on_eom(SMFICTX* ctx)
+{
+    return SMFIS_CONTINUE;
+}
+
+static sfsistat on_close(SMFICTX* ctx)
+{
+    return SMFIS_CONTINUE;
+}
+
+static struct smfiDesc smfilter = {
+    "PostSRSd", SMFI_VERSION, SMFIF_CHGFROM | SMFIF_ADDRCPT | SMFIF_DELRCPT,
+    on_connect, NULL,               /* helo */
+    on_envfrom, on_envrcpt,   NULL, /* header */
+    NULL,                           /* eoh */
+    NULL,                           /* body */
+    on_eom,     NULL,               /* abort */
+    on_close,   NULL,               /* unknown */
+    NULL,                           /* data */
+    NULL,                           /* negotiate */
+};
+#endif
+
+void milter_main(cfg_t* cfg, srs_t* srs, const char* srs_domain,
+                 domain_set_t* local_domains)
 {
 #ifdef WITH_MILTER
+    if (strncasecmp(milter_uri, "unix:", 5) == 0)
+        milter_path = milter_uri + 5;
+    else if (strncasecmp(milter_uri, "local:", 6) == 0)
+        milter_path = milter_uri + 6;
+    if (milter_path)
+        milter_lock = acquire_lock(milter_path);
+    if (milter_lock > 0)
+        unlink(milter_path);
+    if (smfi_setconn(milter_uri) == MI_FAILURE)
+    {
+        log_error("cannot start milter: smfi_setconn failed");
+        goto done;
+    }
+    if (smfi_register(smfilter) == MI_FAILURE)
+    {
+        log_error("cannot start milter: failed to register callbacks");
+        goto done;
+    }
+    g_cfg = cfg;
+    g_srs = srs;
+    g_srs_domain = srs_domain;
+    g_local_domains = local_domains;
+    smfi_main(NULL);
+done:
+    if (milter_path && milter_lock > 0)
+    {
+        release_lock(milter_path, milter_lock);
+    }
 #endif
 }

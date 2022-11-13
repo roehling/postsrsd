@@ -286,7 +286,7 @@ int main(int argc, char** argv)
                         close(socketmaps[i]);
                     socketmaps[i] = -1;
                 }
-                milter_main();
+                milter_main(cfg, srs, srs_domain, local_domains);
                 goto shutdown;
             }
         }
@@ -327,7 +327,7 @@ int main(int argc, char** argv)
     }
     else if (milter_endpoint && *milter_endpoint)
     {
-        milter_main();
+        milter_main(cfg, srs, srs_domain, local_domains);
     }
 shutdown:
     for (unsigned i = 0; i < sizeof(socketmaps) / sizeof(int); ++i)

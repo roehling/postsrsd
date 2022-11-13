@@ -30,7 +30,7 @@ include(TestBigEndian)
 
 option(GENERATE_SRS_SECRET "Generate and install a postsrsd.secret" ON)
 option(DEVELOPER_BUILD "Add strict compiler options for development only" ON)
-option(WITH_MILTER "Enable SRS rewrite via Milter (requires libmilter)" OFF)
+option(WITH_MILTER "Enable SRS rewrite via Milter (requires libmilter)" ON)
 option(WITH_SQLITE "Enable sqlite-based storage for opaque SRS tokens (requires sqlite3)" OFF)
 option(WITH_REDIS "Enable Redis-based storage for opaque SRS tokens (requires hiredis)" OFF)
 option(TESTS_WITH_ASAN "Run test suite with AddressSanitizer" ON)
@@ -147,7 +147,7 @@ if(WITH_MILTER)
             )
             target_compile_definitions(milter PRIVATE
                 NOT_SENDMAIL=1
-                sm_printf=snprintf
+                sm_snprintf=snprintf
             )
             target_include_directories(milter
                 PRIVATE "${libmilter_SOURCE_DIR}/smapp"

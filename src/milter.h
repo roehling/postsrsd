@@ -17,9 +17,14 @@
 #ifndef MILTER_H
 #define MILTER_H
 
+#include "config.h"
+#include "srs2.h"
+#include "util.h"
+
 #include <stdbool.h>
 
 bool milter_create(const char* uri);
-void milter_main();
+void milter_main(cfg_t* cfg, srs_t* srs, const char* srs_domain,
+                 domain_set_t* local_domains);
 
 #endif
