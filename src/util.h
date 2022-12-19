@@ -20,12 +20,20 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#define MAYBE_UNUSED(x) (void)(x)
+
 struct domain_set;
 typedef struct domain_set domain_set_t;
+struct list;
+typedef struct list list_t;
+typedef void(*list_deleter_t)(void*);
 
 void set_string(char** var, char* value);
 char* b32h_encode(const char* data, size_t length, char* buffer,
                   size_t bufsize);
+
+char** argvdup(char** argv);
+void freeargv(char** argv);
 
 bool file_exists(const char* filename);
 bool directory_exists(const char* dirname);
@@ -37,6 +45,13 @@ domain_set_t* domain_set_create();
 bool domain_set_add(domain_set_t* D, const char* domain);
 bool domain_set_contains(domain_set_t* D, const char* domain);
 void domain_set_destroy(domain_set_t* D);
+
+list_t* list_create();
+void* list_get(list_t* L, size_t i);
+bool list_append(list_t* L, void* data);
+size_t list_size(list_t* L);
+void list_clear(list_t* L, list_deleter_t deleter);
+void list_destroy(list_t* L, list_deleter_t deleter);
 
 char* endpoint_for_milter(const char* s);
 char* endpoint_for_redis(const char* s, int* port);

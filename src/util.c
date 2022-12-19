@@ -40,6 +40,46 @@ void set_string(char** var, char* value)
     *var = value;
 }
 
+char** argvdup(char** argv)
+{
+    if (!argv)
+        return NULL;
+    size_t num = 0;
+    while (argv[num] != NULL)
+        num++;
+    char** result = malloc((num + 1) * sizeof(char*));
+    if (!result)
+        return NULL;
+    for (size_t i = 0; i < num; ++i)
+    {
+        result[i] = strdup(argv[i]);
+        if (!result[i])
+        {
+            for (size_t j = 0; j < i; ++j)
+            {
+                free(result[j]);
+            }
+            free(result);
+            return NULL;
+        }
+    }
+    result[num] = NULL;
+    return result;
+}
+
+void freeargv(char** argv)
+{
+    if (!argv)
+        return;
+    size_t i = 0;
+    while (argv[i])
+    {
+        free(argv[i]);
+        i++;
+    }
+    free(argv);
+}
+
 char* b32h_encode(const char* data, size_t length, char* buffer, size_t bufsize)
 {
     static const char B32H_CHARS[32] = "0123456789ABCDEFGHIJKLMNOPQRSTUV";
@@ -251,6 +291,80 @@ bool domain_set_contains(domain_set_t* D, const char* domain)
     strncpy(buffer, domain, sizeof(buffer) - 1);
     buffer[sizeof(buffer) - 1] = 0;
     return walk_domain_set(D, buffer, DOMAIN_SET_PARENTS_MATCH);
+}
+
+struct list
+{
+    size_t capacity;
+    size_t size;
+    void** entries;
+};
+
+list_t* list_create()
+{
+    list_t* L = malloc(sizeof(list_t));
+    if (L)
+    {
+        L->capacity = 0;
+        L->size = 0;
+        L->entries = NULL;
+    }
+    return L;
+}
+
+void* list_get(list_t* L, size_t i)
+{
+    if (i < L->size)
+        return L->entries[i];
+    return NULL;
+}
+
+bool list_append(list_t* L, void* entry)
+{
+    if (L->size >= L->capacity)
+    {
+        if (L->capacity == 0)
+        {
+            L->entries = malloc(4 * sizeof(void*));
+            if (!L->entries) return false;
+            L->capacity = 4;
+        }
+        else
+        {
+            void** new_entries = realloc(L->entries, 2 * L->capacity * sizeof(void*));
+            if (!new_entries) return false;
+            L->entries = new_entries;
+            L->capacity *= 2;
+        }
+    }
+    L->entries[L->size++] = entry;
+    return true;
+}
+
+size_t list_size(list_t* L)
+{
+    return L->size;
+}
+
+void list_clear(list_t* L, list_deleter_t deleter)
+{
+    if (deleter)
+    {
+        for (size_t i = 0; i < L->size; ++i)
+        {
+            deleter(L->entries[i]);
+        }
+    }
+    L->size = 0;
+}
+
+void list_destroy(list_t* L, list_deleter_t deleter)
+{
+    if (!L)
+        return;
+    list_clear(L, deleter);
+    free(L->entries);
+    free(L);
 }
 
 static char* swap_host_port(const char* s, size_t prefix_len)

@@ -96,6 +96,64 @@ START_TEST(util_set_string)
 }
 END_TEST
 
+START_TEST(util_argvdup)
+{
+    const char* tokens[5] = {"one", "two", "three", "four", "five"};
+    char* argv[5];
+    ck_assert_ptr_null(argvdup(NULL));
+    for (size_t num = 0; num < 5; ++num)
+    {
+        for (size_t i = 0; i < num; ++i)
+        {
+            argv[i] = strdup(tokens[i]);
+        }
+        argv[num] = NULL;
+        char** result = argvdup(argv);
+        ck_assert_ptr_ne(argv, result);
+        for (size_t i = 0; i < num; ++i)
+        {
+            ck_assert_ptr_ne(argv[i], result[i]);
+            ck_assert_str_eq(argv[i], result[i]);
+            free(argv[i]);
+        }
+        ck_assert_ptr_null(result[num]);
+        freeargv(result);
+    }
+    freeargv(NULL);
+}
+END_TEST
+
+START_TEST(util_list)
+{
+    list_t* L = list_create();
+    ck_assert_uint_eq(list_size(L), 0);
+    ck_assert_ptr_null(list_get(L, 0));
+    ck_assert_uint_eq(list_append(L, strdup("0")), true);
+    ck_assert_uint_eq(list_size(L), 1);
+    ck_assert_str_eq((char*)list_get(L, 0), "0");
+    ck_assert_ptr_null(list_get(L, 1));
+    ck_assert_uint_eq(list_append(L, strdup("1")), true);
+    ck_assert_uint_eq(list_append(L, strdup("2")), true);
+    ck_assert_uint_eq(list_append(L, strdup("3")), true);
+    ck_assert_uint_eq(list_append(L, strdup("4")), true);
+    ck_assert_uint_eq(list_append(L, strdup("5")), true);
+    ck_assert_uint_eq(list_size(L), 6);
+    ck_assert_str_eq((char*)list_get(L, 0), "0");
+    ck_assert_str_eq((char*)list_get(L, 1), "1");
+    ck_assert_str_eq((char*)list_get(L, 2), "2");
+    ck_assert_str_eq((char*)list_get(L, 3), "3");
+    ck_assert_str_eq((char*)list_get(L, 4), "4");
+    ck_assert_str_eq((char*)list_get(L, 5), "5");
+    ck_assert_ptr_null(list_get(L, 6));
+    list_clear(L, free);
+    ck_assert_uint_eq(list_size(L), 0);
+    ck_assert_uint_eq(list_append(L, strdup("a")), true);
+    ck_assert_str_eq((char*)list_get(L, 0), "a");
+    list_destroy(L, free);
+    list_destroy(NULL, free);
+}
+END_TEST
+
 START_TEST(util_b32h_encode)
 {
     char buffer[41];
@@ -188,7 +246,8 @@ START_TEST(util_endpoint_for_milter)
     char* ep;
     ck_assert_ptr_null(endpoint_for_milter(NULL));
     ck_assert_ptr_null(endpoint_for_milter("invalid"));
-    ck_assert_ptr_null(endpoint_for_milter("https://this.is.not.a.valid.endpoint.net"));
+    ck_assert_ptr_null(
+        endpoint_for_milter("https://this.is.not.a.valid.endpoint.net"));
     ck_assert_ptr_null(endpoint_for_milter("inet:host.but.no.port"));
     ck_assert_ptr_null(endpoint_for_milter("inet:1234"));
     ck_assert_ptr_null(endpoint_for_milter("inet:localhost:"));
@@ -220,6 +279,8 @@ ADD_TEST_TO_TEST_CASE(fs, util_file_exists)
 ADD_TEST_TO_TEST_CASE(fs, util_directory_exists)
 ADD_TEST_TO_TEST_CASE(fs, util_dotlock)
 ADD_TEST(util_set_string)
+ADD_TEST(util_argvdup);
+ADD_TEST(util_list);
 ADD_TEST(util_b32h_encode)
 ADD_TEST(util_domain_set)
 ADD_TEST(util_endpoint_for_milter)

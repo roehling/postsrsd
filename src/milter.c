@@ -16,7 +16,9 @@
  */
 #include "milter.h"
 
+#include "database.h"
 #include "postsrsd_build_config.h"
+#include "srs.h"
 #include "util.h"
 
 #ifdef WITH_MILTER
@@ -34,6 +36,13 @@ static cfg_t* g_cfg = NULL;
 static srs_t* g_srs = NULL;
 static domain_set_t* g_local_domains = NULL;
 static const char* g_srs_domain = NULL;
+
+struct privdata
+{
+    char* envfrom;
+    list_t* envrcpt;
+};
+typedef struct privdata privdata_t;
 #endif
 
 bool milter_create(const char* uri)
@@ -53,42 +62,129 @@ bool milter_create(const char* uri)
 }
 
 #ifdef WITH_MILTER
-static sfsistat on_connect(SMFICTX* ctx, char*, _SOCK_ADDR*)
+static sfsistat on_connect(SMFICTX* ctx, char* hostname, _SOCK_ADDR* hostaddr)
 {
+    MAYBE_UNUSED(hostname);
+    MAYBE_UNUSED(hostaddr);
+    privdata_t* priv = malloc(sizeof(privdata_t));
+    if (priv == NULL)
+        return SMFIS_TEMPFAIL;
+    priv->envfrom = NULL;
+    priv->envrcpt = list_create();
+    if (priv->envrcpt == NULL)
+        return SMFIS_TEMPFAIL;
+    smfi_setpriv(ctx, priv);
     return SMFIS_CONTINUE;
 }
 
-static sfsistat on_envfrom(SMFICTX* ctx, char**)
+static sfsistat on_envfrom(SMFICTX* ctx, char** argv)
 {
+    privdata_t* priv = smfi_getpriv(ctx);
+    char* from = strdup(argv[0]);
+    if (!from)
+        return SMFIS_TEMPFAIL;
+    priv->envfrom = from;
     return SMFIS_CONTINUE;
 }
 
-static sfsistat on_envrcpt(SMFICTX* ctx, char**)
+static sfsistat on_envrcpt(SMFICTX* ctx, char** argv)
 {
+    privdata_t* priv = smfi_getpriv(ctx);
+    char* rcpt = strdup(argv[0]);
+    if (!rcpt)
+        return SMFIS_TEMPFAIL;
+    if (!list_append(priv->envrcpt, rcpt))
+    {
+        free(rcpt);
+        return SMFIS_TEMPFAIL;
+    }
     return SMFIS_CONTINUE;
 }
 
 static sfsistat on_eom(SMFICTX* ctx)
 {
+    database_t* db = NULL;
+    if (cfg_getint(g_cfg, "original-envelope") == SRS_ENVELOPE_DATABASE)
+    {
+        db = database_connect(cfg_getstr(g_cfg, "envelope-database"), false);
+        if (!db)
+            return SMFIS_TEMPFAIL;
+    }
+    privdata_t* priv = smfi_getpriv(ctx);
+    size_t rcpt_size = list_size(priv->envrcpt);
+    bool error = false;
+    for (size_t i = 0; i < rcpt_size; ++i)
+    {
+        char* rcpt = (char*)list_get(priv->envrcpt, i);
+        char* rewritten = postsrsd_reverse(rcpt, g_srs, db, &error, NULL);
+        if (error)
+            return SMFIS_TEMPFAIL;
+        if (rewritten)
+        {
+            if (smfi_delrcpt(ctx, rcpt) != MI_SUCCESS)
+            {
+                free(rewritten);
+                return SMFIS_TEMPFAIL;
+            }
+            if (smfi_addrcpt(ctx, rewritten)
+                != MI_SUCCESS)  // TODO maybe add ESMTP arguments?
+            {
+                free(rewritten);
+                return SMFIS_TEMPFAIL;
+            }
+            free(rewritten);
+        }
+    }
+    // TODO check if mail is actually forwarded
+    if (true)
+    {
+        char* rewritten = postsrsd_forward(priv->envfrom, g_srs_domain, g_srs,
+                                           db, g_local_domains, &error, NULL);
+        if (error)
+            return SMFIS_TEMPFAIL;
+        if (rewritten)
+        {
+            if (smfi_chgfrom(ctx, rewritten,
+                             NULL)
+                != MI_SUCCESS)  // TODO maybe add ESMTP arguments?
+            {
+                free(rewritten);
+                return SMFIS_TEMPFAIL;
+            }
+            free(rewritten);
+        }
+    }
     return SMFIS_CONTINUE;
 }
 
 static sfsistat on_close(SMFICTX* ctx)
 {
+    privdata_t* priv = smfi_getpriv(ctx);
+    smfi_setpriv(ctx, NULL);
+    free(priv->envfrom);
+    list_destroy(priv->envrcpt, free);
+    free(priv);
     return SMFIS_CONTINUE;
 }
 
+/* clang-format off */
 static struct smfiDesc smfilter = {
     "PostSRSd", SMFI_VERSION, SMFIF_CHGFROM | SMFIF_ADDRCPT | SMFIF_DELRCPT,
-    on_connect, NULL,               /* helo */
-    on_envfrom, on_envrcpt,   NULL, /* header */
-    NULL,                           /* eoh */
-    NULL,                           /* body */
-    on_eom,     NULL,               /* abort */
-    on_close,   NULL,               /* unknown */
-    NULL,                           /* data */
-    NULL,                           /* negotiate */
+    on_connect,
+    NULL /* helo */,
+    on_envfrom,
+    on_envrcpt,
+    NULL /* header */,
+    NULL /* eoh */,
+    NULL /* body */,
+    on_eom,
+    NULL /* abort */,
+    on_close,
+    NULL /* unknown */,
+    NULL /* data */,
+    NULL /* negotiate */,
 };
+/* clang-format on */
 #endif
 
 void milter_main(cfg_t* cfg, srs_t* srs, const char* srs_domain,

@@ -197,6 +197,7 @@ fail:
 
 int endpoint_create(const char* s, int max_fds, int* fds)
 {
+    MAYBE_UNUSED(fds);
     if (max_fds < 1)
         return 0;
 #ifdef HAVE_UNIX_SOCKETS

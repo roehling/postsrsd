@@ -254,6 +254,7 @@ static bool db_redis_connect(database_t* db, const char* hostname, int port)
 
 database_t* database_connect(const char* uri, bool create_if_not_exist)
 {
+    MAYBE_UNUSED(create_if_not_exist);
     if (!uri || !*uri)
     {
         log_error("not database uri configured");

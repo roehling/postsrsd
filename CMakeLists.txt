@@ -171,7 +171,7 @@ if(WITH_SQLITE)
         target_include_directories(sqlite3 PUBLIC "${sqlite3_SOURCE_DIR}")
         target_compile_definitions(sqlite3 PRIVATE
             SQLITE_DQS=0
-            SQLITE_THREADSAFE=0
+            SQLITE_THREADSAFE=$<IF:$<BOOL:${WITH_MILTER}>,2,0>
             SQLITE_DEFAULT_MEMSTATUS=0
             SQLITE_OMIT_PROGRESS_CALLBACK
         )
@@ -186,7 +186,7 @@ configure_file(
 )
 
 if(DEVELOPER_BUILD AND CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
-    add_compile_options(-Wall -Wextra -Werror -Wno-error=unused-parameter)
+    add_compile_options(-Wall -Wextra -Werror)
 endif()
 
 add_executable(postsrsd
