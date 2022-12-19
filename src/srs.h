@@ -24,9 +24,9 @@
 #include <stdbool.h>
 
 char* postsrsd_forward(const char* addr, const char* domain, srs_t* srs,
-                       database_t* db, domain_set_t* local_domains,
-                       bool* error);
+                       database_t* db, domain_set_t* local_domains, bool* error,
+                       const char** info);
 char* postsrsd_reverse(const char* addr, srs_t* srs, database_t* db,
-                       bool* error);
+                       bool* error, const char** info);
 
 #endif

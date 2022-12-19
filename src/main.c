@@ -169,18 +169,26 @@ static void handle_socketmap_client(cfg_t* cfg, srs_t* srs,
         alarm(0);
         char* query_type = strtok_r(request, " ", &addr);
         if (!query_type)
+        {
+            netstring_write(fp_write, "PERM Invalid query.", 19);
+            fflush(fp_write);
             break;
-        if (!addr || !*addr)
-            break;
+        }
         char* rewritten = NULL;
+        const char* info = NULL;
         if (strcmp(query_type, "forward") == 0)
         {
             rewritten = postsrsd_forward(addr, srs_domain, srs, db,
-                                         local_domains, &error);
+                                         local_domains, &error, &info);
         }
         else if (strcmp(query_type, "reverse") == 0)
         {
-            rewritten = postsrsd_reverse(addr, srs, db, &error);
+            rewritten = postsrsd_reverse(addr, srs, db, &error, &info);
+        }
+        else
+        {
+            error = true;
+            info = "Invalid map.";
         }
         if (rewritten)
         {
@@ -193,12 +201,15 @@ static void handle_socketmap_client(cfg_t* cfg, srs_t* srs,
         {
             if (error)
             {
-                netstring_write(fp_write, "PERM ", 5);
+                strcpy(buffer, "PERM ");
             }
             else
             {
-                netstring_write(fp_write, "NOTFOUND ", 9);
+                strcpy(buffer, "NOTFOUND ");
             }
+            if (info)
+                strncat(buffer, info, sizeof(buffer) - 10);
+            netstring_write(fp_write, buffer, strlen(buffer));
         }
         fflush(fp_write);
     }
