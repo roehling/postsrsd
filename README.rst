@@ -78,10 +78,49 @@ discovery process.
 Configuration
 -------------
 
+PostSRSd itself is configured by ``postsrsd.conf`` (see the example_ for a
+detailed documentation of all options). Usually, this file will be installed to
+``/usr/local/etc`` or ``/etc``. The most important configuration options are
+``domains`` (or ``domains-file``), so PostSRSd knows about your local domains,
+and ``secrets-file`` with a secret passphrase for authentication. The other
+options often work out of the box.
+
+For integration with Postfix, the recommended mechanism is via the ``canonical``
+lookup table of the ``cleanup`` daemon. Add the following snippet to your
+``/etc/postfix/main.cf``::
+
+    sender_canonical_maps = socketmap:unix:srs:forward
+    sender_canonical_classes = envelope_sender
+    recipient_canonical_maps = socketmap:unix:srs:reverse
+    recipient_canonical_classes = envelope_recipient, header_recipient
+
+Note that ``srs`` is the path to the unix socket relative to ``/var/spool/postfix``,
+so you wil have to change this if you change the socketmap configuration of PostSRSd.
+If you prefer a TCP connection, e.g. ``inet:localhost:10003``, you need to use this
+as map endpoint, e.g. ``socketmap:inet:localhost:10003:forward``.
+
+Also note that the ``socketmap`` mechanism requires at least Postfix 2.10 and is
+NOT backwards compatible with the deprecated ``tcp`` mechanism that was used
+in PostSRSd 1.x.
+
+.. _example: data/postsrsd.conf.in
+
 
 Migrating from version 1.x
 --------------------------
 
+Most configuration options can no longer be configured with command line arguments,
+so you will have to set them in ``postsrsd.conf``. PostSRSd 1.x used shell variables
+in ``/etc/default/postsrsd``. If you migrate your settings, you should set
+
+- ``srs_domain`` to the value you configured in ``SRS_DOMAIN``
+- ``domains`` to the list of values from ``SRS_EXCLUDE_DOMAINS``
+- ``secret-file`` to the file name in ``SRS_SECRET``
+- ``unprivileged-user`` to the user name in ``RUN_AS``
+- ``chroot`` to the directory in ``CHROOT``
+
+As the new ``socketmap`` mechanism is no longer compatible with the old ``tcp``
+mechanism, you will have to update your Postfix configuration as detailed above.
 
 Frequently Asked Questions
 --------------------------
