@@ -42,13 +42,14 @@ char* netstring_decode(const char* netstring, char* buffer, size_t bufsize,
     size_t length;
     if (sscanf(netstring, "%5zu%n", &length, &i) < 1)
         return NULL;
-    if (i < 0 || length > bufsize)
+    if (i < 0 || length >= bufsize)
         return NULL;
     if (netstring[i] != ':' || netstring[length + i + 1] != ',')
         return NULL;
     strncpy(buffer, &netstring[i + 1], length);
     if (decoded_length)
         *decoded_length = length;
+    buffer[length] = 0;
     return buffer;
 }
 
@@ -60,7 +61,7 @@ char* netstring_read(FILE* f, char* buffer, size_t bufsize,
         return NULL;
     if (fgetc(f) != ':')
         return NULL;
-    if (length > bufsize)
+    if (length >= bufsize)
         return NULL;
     if (fread(buffer, 1, length, f) != length)
         return NULL;
@@ -68,6 +69,7 @@ char* netstring_read(FILE* f, char* buffer, size_t bufsize,
         return NULL;
     if (decoded_length)
         *decoded_length = length;
+    buffer[length] = 0;
     return buffer;
 }
 

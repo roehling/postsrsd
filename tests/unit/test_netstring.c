@@ -54,7 +54,7 @@ END_TEST
 
 START_TEST(netstring_decode_test)
 {
-    char buffer[16];
+    char buffer[17];
     char* result;
     size_t length;
 

@@ -75,7 +75,7 @@ static bool is_valid_domain_name(const char* s)
     {
         if (*s == '.' && prev == '.')
             return false;
-        if (!isalnum(*s) && *s != '-')
+        if (!isalnum(*s) && *s != '-' && *s != '.')
             return false;
         prev = *s++;
     }

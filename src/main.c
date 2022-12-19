@@ -60,7 +60,7 @@ static bool drop_privileges(cfg_t* cfg)
 {
     int target_uid = 0;
     int target_gid = 0;
-    const char* user = cfg_getstr(cfg, "user");
+    const char* user = cfg_getstr(cfg, "unprivileged-user");
     const char* chroot_dir = cfg_getstr(cfg, "chroot-dir");
     if (user && *user)
     {
@@ -160,18 +160,17 @@ static void handle_socketmap_client(cfg_t* cfg, srs_t* srs,
     {
         char buffer[1024];
         size_t len;
-        char* ptr;
+        char* addr;
         bool error;
         alarm(keep_alive);
         char* request = netstring_read(fp_read, buffer, sizeof(buffer), &len);
         if (!request || timeout)
             break;
         alarm(0);
-        char* query_type = strtok_r(request, " ", &ptr);
+        char* query_type = strtok_r(request, " ", &addr);
         if (!query_type)
             break;
-        char* addr = strtok_r(NULL, " ", &ptr);
-        if (!addr)
+        if (!addr || !*addr)
             break;
         char* rewritten = NULL;
         if (strcmp(query_type, "forward") == 0)

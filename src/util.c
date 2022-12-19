@@ -331,6 +331,7 @@ static void vlog(enum priority prio, const char* fmt, va_list ap)
     vsnprintf(text, sizeof(buffer) - (text - buffer), fmt, ap);
     buffer[255] = 0;
     fprintf(stderr, "%s\n", buffer);
+    fflush(stderr);
 }
 
 void log_info(const char* fmt, ...)

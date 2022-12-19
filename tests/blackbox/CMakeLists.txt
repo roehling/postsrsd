@@ -14,3 +14,18 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+find_program(BATS_EXECUTABLE NAMES bats)
+find_program(FAKETIME_EXECUTABLE NAMES faketime)
+
+if(BATS_EXECUTABLE AND FAKETIME_EXECUTABLE)
+    set(POSTSRSD_EXECUTABLE "${CMAKE_BINARY_DIR}/postsrsd")
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/test_socketmap.bats.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/test_socketmap.bats"
+        @ONLY
+    )
+    add_test(
+        NAME test_socketmap
+        COMMAND "${BATS_EXECUTABLE}" "${CMAKE_CURRENT_BINARY_DIR}/test_socketmap.bats"
+    )
+endif()
