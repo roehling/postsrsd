@@ -36,7 +36,7 @@ jobs:
         run: |
           cd _build
           sudo make install
-          sed -e 's/#srs-domain.*/srs-domain = "example.com"/' /usr/share/doc/postsrsd/postsrsd.conf | sudo tee /etc/postsrsd.conf
+          sed -e 's/^#srs-domain.*/srs-domain = "example.com"/' /usr/share/doc/postsrsd/postsrsd.conf | sudo tee /etc/postsrsd.conf
           sudo systemctl enable postsrsd
           sudo systemctl start postsrsd
           sudo journalctl --no-pager -u postsrsd

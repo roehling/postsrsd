@@ -11,7 +11,7 @@ Before=postfix.service
 After=network.target
 
 [Service]
-ExecStart=@CMAKE_INSTALL_FULL_SBINDIR@/postsrsd -c @CMAKE_INSTALL_FULL_SYSCONFDIR@/@PROJECT_NAME@.conf
+ExecStart=@CMAKE_INSTALL_FULL_SBINDIR@/postsrsd -C @CMAKE_INSTALL_FULL_SYSCONFDIR@/@PROJECT_NAME@.conf
 
 [Install]
 WantedBy=multi-user.target
