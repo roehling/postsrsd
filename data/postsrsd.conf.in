@@ -62,7 +62,7 @@ keep-alive = 30
 #
 # Examples:
 #     milter = inet:localhost:9997
-#     milter = unix:/var/spool/postfix/srs_multer
+#     milter = unix:/var/spool/postfix/srs_milter
 #
 #milter =
 
