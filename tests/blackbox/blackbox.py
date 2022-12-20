@@ -89,76 +89,95 @@ if __name__ == "__main__":
         sys.argv[2],
         "2020-01-01 00:01:00 UTC",
         [
+            # No rewrite for local domain
             ("forward test@example.com", "NOTFOUND Need not rewrite local domain."),
             (
                 "forward test@otherdomain.com",
                 "OK SRS0=vmyz=2W=otherdomain.com=test@example.com",
             ),
+            # No rerwite for mail address without domain
             ("forward foo", "NOTFOUND No domain."),
+            # No rewrite for SRS address which is already in the local domain
             (
                 "forward SRS0=XjO9=2V=otherdomain.com=test@example.com",
                 "NOTFOUND Need not rewrite local domain.",
             ),
+            # Convert foreign SRS0 address to SRS1 address
             (
                 "forward SRS0=opaque+string@otherdomain.com",
                 "OK SRS1=chaI=otherdomain.com==opaque+string@example.com",
             ),
+            # Change domain part of foreign SRS1 address
             (
                 "forward SRS1=X=thirddomain.com==opaque+string@otherdomain.com",
                 "OK SRS1=JIBX=thirddomain.com==opaque+string@example.com",
             ),
+            # Recover original mail address from valid SRS0 address
             (
                 "reverse SRS0=XjO9=2V=otherdomain.com=test@example.com",
                 "OK test@otherdomain.com",
             ),
+            # Recover original SRS0 address from valid SRS1 address
             (
                 "reverse SRS1=JIBX=thirddomain.com==opaque+string@example.com",
                 "OK SRS0=opaque+string@thirddomain.com",
             ),
+            # Do not rewrite mail address which is not an SRS address
             (
                 "reverse test@example.com",
                 "NOTFOUND Not an SRS address.",
             ),
+            # Reject valid SRS0 address with time stamp older than 6 months
             (
                 "reverse SRS0=te87=T7=otherdomain.com=test@example.com",
                 "NOTFOUND Time stamp out of date.",
             ),
+            # Reject valid SRS0 address with time stamp 6 month in the future
             (
                 "reverse SRS0=VcIb=7N=otherdomain.com=test@example.com",
                 "NOTFOUND Time stamp out of date.",
             ),
+            # Reject SRS0 address with invalid hash
             (
                 "reverse SRS0=FAKE=2V=otherdomain.com=test@example.com",
                 "NOTFOUND Hash invalid in SRS address.",
             ),
+            # Recover mail address from all-lowercase SRS0 address
             (
                 "reverse srs0=xjo9=2v=otherdomain.com=test@example.com",
                 "OK test@otherdomain.com",
             ),
+            # Recover mail address from all-uppcase SRS0 address
             (
                 "reverse SRS0=XJO9=2V=OTHERDOMAIN.COM=TEST@EXAMPLE.COM",
                 "OK TEST@OTHERDOMAIN.COM",
             ),
+            # Reject SRS0 address without authenticating hash
             (
                 "reverse SRS0=@example.com",
                 "NOTFOUND No hash in SRS0 address.",
             ),
+            # Reject SRS0 address without time stamp
             (
                 "reverse SRS0=XjO9@example.com",
                 "NOTFOUND No timestamp in SRS0 address.",
             ),
+            # Reject SRS0 address without original domain
             (
                 "reverse SRS0=XjO9=2V@example.com",
                 "NOTFOUND No host in SRS0 address.",
             ),
+            # Reject SRS0 address without original localpart
             (
                 "reverse SRS0=XjO9=2V=otherdomain.com@example.com",
                 "NOTFOUND No user in SRS0 address.",
             ),
+            # Reject invalid socketmap
             (
                 "test@example.com",
                 "PERM Invalid map.",
             ),
+            # Reject empty query (this must be last as it will close the connection)
             (
                 "",
                 "PERM Invalid query.",
