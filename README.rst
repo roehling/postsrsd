@@ -36,8 +36,8 @@ will be much less of a maintenance burden.
 Building from source
 ~~~~~~~~~~~~~~~~~~~~
 
-Fetch the latest source tarball or clone the repository from Github_,
-unpack it and run::
+Fetch the latest source tarball or clone the repository from Github_, unpack it
+and run::
 
     cd path/to/source
     mkdir _build && cd _build
@@ -79,32 +79,48 @@ Configuration
 -------------
 
 PostSRSd itself is configured by ``postsrsd.conf`` (see the example_ for a
-detailed documentation of all options). Usually, this file will be installed to
-``/usr/local/etc`` or ``/etc``. The most important configuration options are
+detailed documentation of all options). Usually, PostSRSd will look for this
+file in ``/usr/local/etc`` or ``/etc``, depending on your
+``CMAKE_INSTALL_PREFIX``. The most important configuration options are
 ``domains`` (or ``domains-file``), so PostSRSd knows about your local domains,
 and ``secrets-file`` with a secret passphrase for authentication. The other
-options often work out of the box.
+options often work out of the box. You can also find the example file installed
+in ``/usr/local/share/postsrsd`` or ``/usr/share/postsrsd``. Feel free to use
+it as base for your own configuration.
 
-For integration with Postfix, the recommended mechanism is via the ``canonical``
-lookup table of the ``cleanup`` daemon. Add the following snippet to your
-``/etc/postfix/main.cf``::
+For integration with Postfix, the recommended mechanism is via the
+``canonical`` lookup table of the ``cleanup`` daemon. Add the following snippet
+to your ``/etc/postfix/main.cf``::
 
     sender_canonical_maps = socketmap:unix:srs:forward
     sender_canonical_classes = envelope_sender
     recipient_canonical_maps = socketmap:unix:srs:reverse
     recipient_canonical_classes = envelope_recipient, header_recipient
 
-Note that ``srs`` is the path to the unix socket relative to ``/var/spool/postfix``,
-so you wil have to change this if you change the socketmap configuration of PostSRSd.
-If you prefer a TCP connection, e.g. ``inet:localhost:10003``, you need to use this
-as map endpoint, e.g. ``socketmap:inet:localhost:10003:forward``.
+Note that ``srs`` is the path to the unix socket relative to
+``/var/spool/postfix``, so you will have to change this if you change the
+``socketmap`` configuration of PostSRSd. If you prefer a TCP connection, e.g.
+``inet:localhost:10003``, you need to use this as map endpoint, e.g.
+``socketmap:inet:localhost:10003:forward``.
 
-Also note that the ``socketmap`` mechanism requires at least Postfix 2.10 and is
-NOT backwards compatible with the deprecated ``tcp`` mechanism that was used
+Also note that the ``socketmap`` mechanism requires at least Postfix 2.10 and
+is NOT backwards compatible with the deprecated ``tcp`` mechanism that was used
 in PostSRSd 1.x.
 
 .. _example: data/postsrsd.conf.in
 
+Experimental Milter Support
+---------------------------
+
+PostSRSd 2.0 has added optional support for the Milter protocol. If you enabled
+it at compile time, you can set the ``milter`` option in ``postsrsd.conf`` and
+add the corresponding line to your ``etc/postfix/main.cf``::
+
+    smtpd_milters = unix:srs_milter
+
+Note that the Milter code is less tested and should be considered experimental
+for now and not ready for production. Feel free to report bugs or open pull
+requests if you try it out, though.
 
 Migrating from version 1.x
 --------------------------
