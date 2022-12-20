@@ -43,6 +43,6 @@ jobs:
           sudo systemctl --no-pager status postsrsd
       - name: Test Postfix integration
         run: |
-          postmap -q test@otherdomain.com socketmap:/var/spool/postfix:forward | tee /tmp/srs-alias.txt
-          postmap -q `cat /tmp/srs-alias.txt` socketmap:/var/spool/postfix:reverse
+          postmap -q test@otherdomain.com socketmap:unix:/var/spool/postfix/srs:forward | tee /tmp/srs-alias.txt
+          postmap -q "$(cat /tmp/srs-alias.txt)" socketmap:unix:/var/spool/postfix/srs:reverse
 
