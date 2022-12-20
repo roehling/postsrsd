@@ -58,9 +58,8 @@ def execute_queries(faketime, postsrsd, when, use_database, queries):
                 f'original-envelope = {"database" if use_database else "embedded"}\n'
                 f'socketmap = unix:{tmpdir / "postsrsd.sock"}\n'
                 f'secrets-file = {tmpdir / "postsrsd.secret"}\n'
+                f'envelope-database = sqlite:{tmpdir / "postsrsd.db"}\n'
             )
-            if use_database:
-                f.write(f'envelope-database = sqlite:{tmpdir / "postsrsd.db"}\n')
         with open(tmpdir / "postsrsd.secret", "w") as f:
             f.write("tops3cr3t\n")
         proc = subprocess.Popen(
