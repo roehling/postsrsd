@@ -21,15 +21,29 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y cmake faketime
+          sudo apt-get install -y cmake faketime postfix
       - name: Build PostSRSd
         run: |
           mkdir _build
           cd _build
-          cmake .. -DDEVELOPER_BUILD=ON -DWITH_MILTER=ON -DWITH_SQLITE=ON
+          cmake .. -DDEVELOPER_BUILD=ON -DWITH_MILTER=ON -DWITH_SQLITE=ON -DCMAKE_INSTALL_PREFIX=/usr
           make VERBOSE=ON
       - name: Run tests
         run: |
           cd _build
           ctest --output-on-error
+      - name: Install and start PostSRSd daemon
+        run: |
+          cd _build
+          sudo make install
+          echo tops3cr3t | sudo tee /etc/postsrsd.secret
+          sed -e 's/#srs_domain.*/srs_domain = "example.com"/' /usr/share/doc/postsrsd/postsrsd.conf | sudo tee /etc/postsrsd.conf
+          sudo systemctl enable postsrsd
+          sudo systemctl start postsrsd
+          sudo journalctl --no-pager -u postsrsd
+          sudo systemctl --no-pager status postsrsd
+      - name: Test Postfix integration
+        run: |
+          postmap -q test@otherdomain.com socketmap:/var/spool/postfix:forward | tee /tmp/srs-alias.txt
+          postmap -q `cat /tmp/srs-alias.txt` socketmap:/var/spool/postfix:reverse
 
