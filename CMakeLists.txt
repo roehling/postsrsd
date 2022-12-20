@@ -250,17 +250,17 @@ if(GENERATE_SRS_SECRET)
     endif()
     if(DD AND BASE64_ENCODE AND RANDOM_SOURCE)
         install(CODE "\
-        execute_process(
-            COMMAND ${DD} if=${RANDOM_SOURCE} bs=18 count=1
-            COMMAND ${BASE64_ENCODE}
-            OUTPUT_FILE \"${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.secret\"
-            ERROR_QUIET
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-        )
         if(NOT EXISTS \"\$ENV{DESTDIR}${CMAKE_INSTALL_FULL_SYSCONFDIR}/${PROJECT_NAME}.secret\")
+            execute_process(
+                COMMAND ${DD} if=${RANDOM_SOURCE} bs=18 count=1
+                COMMAND ${BASE64_ENCODE}
+                OUTPUT_FILE \"${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.secret\"
+                ERROR_QUIET
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+            )
             file(INSTALL DESTINATION \"${CMAKE_INSTALL_FULL_SYSCONFDIR}\" FILES \"${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.secret\" RENAME \"${PROJECT_NAME}.secret\" PERMISSIONS OWNER_READ OWNER_WRITE)
-        endif()
-        file(REMOVE \"${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.secret\")")
+            file(REMOVE \"${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.secret\")
+        endif()")
     endif()
 endif()
 
