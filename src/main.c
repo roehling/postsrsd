@@ -81,6 +81,11 @@ static bool drop_privileges(cfg_t* cfg)
     }
     if (chroot_dir && *chroot_dir)
     {
+        if (chdir(chroot_dir) < 0)
+        {
+            log_perror(errno, "cannot drop privileges: failed to chdir to chroot");
+            return false;
+        }
         if (chroot(chroot_dir) < 0)
         {
             log_perror(errno, "cannot drop privileges: chroot");
