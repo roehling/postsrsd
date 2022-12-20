@@ -26,7 +26,7 @@ jobs:
         run: |
           mkdir _build
           cd _build
-          cmake .. -DDEVELOPER_BUILD=ON
+          cmake .. -DDEVELOPER_BUILD=ON -DWITH_MILTER=ON -DWITH_SQLITE=ON
           make VERBOSE=ON
       - name: Run tests
         run: |

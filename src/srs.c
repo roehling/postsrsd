@@ -45,13 +45,23 @@ char* postsrsd_forward(const char* addr, const char* domain, srs_t* srs,
         log_info("<%s> not rewritten: local domain", addr);
         return NULL;
     }
-    char db_alias[35];
+    char db_alias_buf[35];
+    char* db_alias;
     const char* sender = addr;
     if (db)
     {
         char digest[20];
         sha_digest(digest, addr, strlen(addr));
-        b32h_encode(digest, 32, db_alias, sizeof(db_alias));
+        db_alias = b32h_encode(digest, 20, db_alias_buf, sizeof(db_alias_buf));
+        if (!db_alias)
+        {
+            log_warn("<%s> not rewritten: aliasing error", addr);
+            if (error)
+                *error = true;
+            if (info)
+                *info = "Aliasing error.";
+            return NULL;
+        }
         strcat(db_alias, "@1");
         if (!database_write(db, db_alias, addr, srs->maxage * 86400))
         {

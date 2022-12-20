@@ -20,6 +20,6 @@ find_package(Python3)
 if(FAKETIME_EXECUTABLE AND Python3_EXECUTABLE)
     add_test(
         NAME test_socketmap
-        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/blackbox.py" "${FAKETIME_EXECUTABLE}" "$<TARGET_FILE:postsrsd>"
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/blackbox.py" "${FAKETIME_EXECUTABLE}" "$<TARGET_FILE:postsrsd>" "$<BOOL:${WITH_SQLITE}>"
     )
 endif()

@@ -28,9 +28,9 @@
 static int parse_original_envelope(cfg_t* cfg, cfg_opt_t* opt,
                                    const char* value, void* result)
 {
-    if (strcasecmp(value, "embedded"))
+    if (strcasecmp(value, "embedded") == 0)
         *(int*)result = SRS_ENVELOPE_EMBEDDED;
-    else if (strcasecmp(value, "database"))
+    else if (strcasecmp(value, "database") == 0)
         *(int*)result = SRS_ENVELOPE_DATABASE;
     else
     {

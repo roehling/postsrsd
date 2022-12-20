@@ -91,9 +91,9 @@ char* b32h_encode(const char* data, size_t length, char* buffer, size_t bufsize)
     size_t i, j;
     for (i = 0, j = 0; i + 4 < length; i += 5, j += 8)
     {
-        uint64_t tmp = ((uint64_t)data[i] << 32) | ((uint64_t)data[i + 1] << 24)
-                       | ((uint64_t)data[i + 2] << 16)
-                       | ((uint64_t)data[i + 3] << 8) | data[i + 4];
+        uint64_t tmp = (((uint64_t)data[i] & 0xFF) << 32) | (((uint64_t)data[i + 1] & 0xFF) << 24)
+                       | (((uint64_t)data[i + 2] & 0xFF) << 16)
+                       | (((uint64_t)data[i + 3] & 0xFF) << 8) | ((uint64_t)data[i + 4] & 0xFF);
         out[j + 7] = B32H_CHARS[tmp & 0x1F];
         tmp >>= 5;
         out[j + 6] = B32H_CHARS[tmp & 0x1F];
@@ -112,16 +112,16 @@ char* b32h_encode(const char* data, size_t length, char* buffer, size_t bufsize)
     }
     if (i < length)
     {
-        uint64_t tmp = data[i];
+        uint64_t tmp = (uint64_t)data[i];
         tmp <<= 8;
         if (i + 1 < length)
-            tmp |= data[i + 1];
+            tmp |= (uint64_t)data[i + 1];
         tmp <<= 8;
         if (i + 2 < length)
-            tmp |= data[i + 2];
+            tmp |= (uint64_t)data[i + 2];
         tmp <<= 8;
         if (i + 3 < length)
-            tmp |= data[i + 3];
+            tmp |= (uint64_t)data[i + 3];
         out[j + 7] = '=';
         tmp <<= 3;
         out[j + 6] = i + 3 < length ? B32H_CHARS[tmp & 0x1F] : '=';
@@ -326,13 +326,16 @@ bool list_append(list_t* L, void* entry)
         if (L->capacity == 0)
         {
             L->entries = malloc(4 * sizeof(void*));
-            if (!L->entries) return false;
+            if (!L->entries)
+                return false;
             L->capacity = 4;
         }
         else
         {
-            void** new_entries = realloc(L->entries, 2 * L->capacity * sizeof(void*));
-            if (!new_entries) return false;
+            void** new_entries =
+                realloc(L->entries, 2 * L->capacity * sizeof(void*));
+            if (!new_entries)
+                return false;
             L->entries = new_entries;
             L->capacity *= 2;
         }

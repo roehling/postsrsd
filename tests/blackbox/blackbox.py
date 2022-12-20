@@ -46,7 +46,7 @@ def read_netstring(sock):
     return data.decode()
 
 
-def execute_queries(faketime, postsrsd, when, queries):
+def execute_queries(faketime, postsrsd, when, use_database, queries):
     with tempfile.TemporaryDirectory() as tmpdirname:
         tmpdir = pathlib.Path(tmpdirname)
         with open(tmpdir / "postsrsd.conf", "w") as f:
@@ -55,9 +55,12 @@ def execute_queries(faketime, postsrsd, when, queries):
                 "keep-alive = 2\n"
                 'chroot-dir = ""\n'
                 'unprivileged-user = ""\n'
+                f'original-envelope = {"database" if use_database else "embedded"}\n'
                 f'socketmap = unix:{tmpdir / "postsrsd.sock"}\n'
                 f'secrets-file = {tmpdir / "postsrsd.secret"}\n'
             )
+            if use_database:
+                f.write(f'envelope-database = sqlite:{tmpdir / "postsrsd.db"}\n')
         with open(tmpdir / "postsrsd.secret", "w") as f:
             f.write("tops3cr3t\n")
         proc = subprocess.Popen(
@@ -87,10 +90,12 @@ if __name__ == "__main__":
     execute_queries(
         sys.argv[1],
         sys.argv[2],
-        "2020-01-01 00:01:00 UTC",
-        [
+        when="2020-01-01 00:01:00 UTC",
+        use_database=False,
+        queries=[
             # No rewrite for local domain
             ("forward test@example.com", "NOTFOUND Need not rewrite local domain."),
+            # Regular rewrite
             (
                 "forward test@otherdomain.com",
                 "OK SRS0=vmyz=2W=otherdomain.com=test@example.com",
@@ -184,4 +189,28 @@ if __name__ == "__main__":
             ),
         ],
     )
+    if sys.argv[3] == "1":
+        execute_queries(
+            sys.argv[1],
+            sys.argv[2],
+            when="2020-01-01 00:01:00 UTC",
+            use_database=True,
+            queries=[
+                # Regular rewrite
+                (
+                    "forward test@otherdomain.com",
+                    "OK SRS0=bxzH=2W=1=DCJGDE6N24LCRT41A4T0G1UIF0DTKKQJ@example.com",
+                ),
+                # Recover address from alias
+                (
+                    "reverse SRS0=bxzH=2W=1=DCJGDE6N24LCRT41A4T0G1UIF0DTKKQJ@example.com",
+                    "OK test@otherdomain.com",
+                ),
+                # Reject unknown alias
+                (
+                    "reverse SRS0=hdxW=2W=1=VVVVVVUNVVVVVVS1VVVVVVUIVVVTKKQJ@example.com",
+                    "NOTFOUND Unknown alias.",
+                ),
+            ],
+        )
     sys.exit(0)
