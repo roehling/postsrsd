@@ -74,6 +74,11 @@ static bool drop_privileges(cfg_t* cfg)
         }
         target_uid = pwd->pw_uid;
         target_gid = pwd->pw_gid;
+        if (chdir(pwd->pw_dir) < 0)
+        {
+            log_perror(errno,
+                       "cannot chdir to home directory of unprivileged user");
+        }
 #else
         log_error("cannot drop privileges: not supported by system");
         return false;
@@ -83,7 +88,8 @@ static bool drop_privileges(cfg_t* cfg)
     {
         if (chdir(chroot_dir) < 0)
         {
-            log_perror(errno, "cannot drop privileges: failed to chdir to chroot");
+            log_perror(errno,
+                       "cannot drop privileges: failed to chdir to chroot");
             return false;
         }
         if (chroot(chroot_dir) < 0)

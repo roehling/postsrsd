@@ -41,7 +41,7 @@ and run::
 
     cd path/to/source
     mkdir _build && cd _build
-    cmake .. -DCMAKE_BUILD_TYPE=Release
+    cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local
     make -j
     sudo make install
 
@@ -79,14 +79,16 @@ Configuration
 -------------
 
 PostSRSd itself is configured by ``postsrsd.conf`` (see the example_ for a
-detailed documentation of all options). Usually, PostSRSd will look for this
-file in ``/usr/local/etc`` or ``/etc``, depending on your
-``CMAKE_INSTALL_PREFIX``. The most important configuration options are
-``domains`` (or ``domains-file``), so PostSRSd knows about your local domains,
-and ``secrets-file`` with a secret passphrase for authentication. The other
-options often work out of the box. You can also find the example file installed
-in ``/usr/local/share/postsrsd`` or ``/usr/share/postsrsd``. Feel free to use
-it as base for your own configuration.
+detailed documentation of all options). PostSRSd will look for this file in
+``/usr/local/etc``. The most important configuration options are ``domains``
+(or ``domains-file``), so PostSRSd knows about your local domains, and
+``secrets-file`` with a secret passphrase for authentication. The other options
+often work out of the box. You can also find the example configuration
+installed in ``/usr/local/share/postsrsd``. Feel free to use it as base for
+your own configuration.
+
+Postfix Setup
+~~~~~~~~~~~~~
 
 For integration with Postfix, the recommended mechanism is via the
 ``canonical`` lookup table of the ``cleanup`` daemon. Add the following snippet
@@ -110,7 +112,7 @@ in PostSRSd 1.x.
 .. _example: data/postsrsd.conf.in
 
 Experimental Milter Support
----------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 PostSRSd 2.0 has added optional support for the Milter protocol. If you enabled
 it at compile time, you can set the ``milter`` option in ``postsrsd.conf`` and

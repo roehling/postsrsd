@@ -15,8 +15,8 @@ domains = {}
 
 # Local domains (file storage)
 # Instead of listing your local domains directly, you can also write them to a
-# file and have PostSRSd read it. This is particularly useful if you have a large
-# number of domains for which you need to act as mail forwarder.
+# file and have PostSRSd read it. This is particularly useful if you have a
+# large number of domains for which you need to act as mail forwarder.
 #
 # Example:
 #     domains-file = "@CMAKE_INSTALL_FULL_SYSCONFDIR@/@PROJECT_NAME@.domains"
@@ -41,8 +41,8 @@ domains = {}
 # chroot, so no other path will be visible to them.
 #
 # Examples:
-#     socketmap = inet:localhost:10003
 #     socketmap = unix:/var/spool/postfix/srs
+#     socketmap = inet:localhost:10003
 #
 socketmap = unix:/var/spool/postfix/srs
 
@@ -61,20 +61,20 @@ keep-alive = 30
 # built with milter support.
 #
 # Examples:
-#     milter = inet:localhost:9997
 #     milter = unix:/var/spool/postfix/srs_milter
+#     milter = inet:localhost:9997
 #
 #milter =
 
 # Original envelope sender handling.
 # When the envelope sender is rewritten, the original address can either be
 # embedded in the rewritten address, or stored in a local database. Embedding
-# makes PostSRSd work fully stateless, but the full sender address needs to
-# fit into the localpart of the embedded address, effectively limiting the
-# length of forwardable sender addresses to 51 octets. Storing the sender
-# address in a database circumvents this problem, but makes PostSRSd
-# vulnerable to an attacker sending vast amounts of emails with fake sender
-# addresses, all of which need to be stored in the database.
+# makes PostSRSd work fully stateless, but the full sender address needs to fit
+# into the localpart of the embedded address, effectively limiting the length
+# of forwardable sender addresses to 51 octets. Storing the sender address in a
+# database circumvents this problem, but makes PostSRSd vulnerable to an
+# attacker sending vast amounts of emails with fake sender addresses, all of
+# which need to be stored in the database.
 #
 # If you are unsure which option suits your use-case best, the vast majority of
 # mail addresses will be relatively short, so you should pick "embedded".
@@ -90,11 +90,14 @@ original-envelope = embedded
 # used. The option is ignored if original-envelope is set to "embedded". Also
 # note that PostSRSd needs to be built with SQLite or Redis support for this.
 #
+# Also note that you need to put the SQLite database into the chroot directory
+# if you jail PostSRSd; otherwise, the database file will not be accessible.
+#
 # Examples:
-#     envelope-database = "sqlite:@CMAKE_INSTALL_FULL_LOCALSTATEDIR@/lib/@PROJECT_NAME@/senders.db"
+#     envelope-database = "sqlite:./senders.db"
 #     envelope-database = "redis:localhost:6379"
 #
-#envelope-database = "sqlite:@CMAKE_INSTALL_FULL_LOCALSTATEDIR@/lib/@PROJECT_NAME@/senders.db"
+#envelope-database = "sqlite:./senders.db"
 
 # Secret keys for signing and verifying SRS addresses.
 # Rewritten addresses are tagged with a truncated HMAC-SHA1 signature, to
