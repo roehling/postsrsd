@@ -18,7 +18,11 @@
 #include "database.h"
 
 #include <check.h>
+#include <postsrsd_build_config.h>
 #include <stdlib.h>
+#ifdef HAVE_UNISTD_H
+#    include <unistd.h>
+#endif
 
 START_TEST(invalid_database)
 {
@@ -26,7 +30,8 @@ START_TEST(invalid_database)
 }
 END_TEST
 
-START_TEST(database_key_value)
+#ifdef WITH_SQLITE
+START_TEST(database_sqlite_key_value)
 {
     database_t* db = database_connect("sqlite::memory:", true);
     ck_assert_ptr_nonnull(db);
@@ -39,7 +44,7 @@ START_TEST(database_key_value)
 }
 END_TEST
 
-START_TEST(database_expiry)
+START_TEST(database_sqlite_expiry)
 {
     database_t* db = database_connect("sqlite::memory:", true);
     ck_assert_ptr_nonnull(db);
@@ -52,10 +57,48 @@ START_TEST(database_expiry)
     database_disconnect(db);
 }
 END_TEST
+#endif
+
+#ifdef WITH_REDIS
+START_TEST(database_redis_key_value)
+{
+    database_t* db = database_connect("redis:localhost:6379", true);
+    if (db == NULL)
+        return; /* skip test if no redis server is available */
+    database_write(db, "mykey", "myvalue", 1);
+    char* value = database_read(db, "mykey");
+    ck_assert_str_eq(value, "myvalue");
+    free(value);
+    database_disconnect(db);
+}
+END_TEST
+
+START_TEST(database_redis_expiry)
+{
+    database_t* db = database_connect("redis:localhost:6379", true);
+    if (db == NULL)
+        return; /* skip test if no redis server is available */
+    database_write(db, "mykey", "myvalue", 1);
+    char* value = database_read(db, "mykey");
+    ck_assert_str_eq(value, "myvalue");
+    free(value);
+    sleep(2);
+    database_expire(db);
+    ck_assert_ptr_null(database_read(db, "mykey"));
+    database_disconnect(db);
+}
+END_TEST
+#endif
 
 BEGIN_TEST_SUITE(database)
 ADD_TEST(invalid_database)
-ADD_TEST(database_key_value)
-ADD_TEST(database_expiry)
+#ifdef WITH_SQLITE
+ADD_TEST(database_sqlite_key_value)
+ADD_TEST(database_sqlite_expiry)
+#endif
+#ifdef WITH_REDIS
+ADD_TEST(database_redis_key_value)
+ADD_TEST(database_redis_expiry)
+#endif
 END_TEST_SUITE()
 TEST_MAIN(database)
