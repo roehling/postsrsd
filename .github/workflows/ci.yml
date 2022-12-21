@@ -21,12 +21,12 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y cmake faketime postfix
+          sudo apt-get install -y cmake faketime postfix redis
       - name: Build PostSRSd
         run: |
           mkdir _build
           cd _build
-          cmake .. -DDEVELOPER_BUILD=ON -DWITH_MILTER=ON -DWITH_SQLITE=ON -DCMAKE_INSTALL_PREFIX=/usr
+          cmake .. -DDEVELOPER_BUILD=ON -DWITH_MILTER=ON -DWITH_SQLITE=ON -DWITH_REDIS=ON -DCMAKE_INSTALL_PREFIX=/usr
           make VERBOSE=ON
       - name: Run tests
         run: |
