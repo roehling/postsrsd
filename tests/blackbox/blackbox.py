@@ -236,7 +236,7 @@ if __name__ == "__main__":
             b"18446744073709551616:some data...",
             # Invalid netstring terminator
             b"28:forward test@otherdomain.com;",
-        ]
+        ],
     )
     if sys.argv[3] == "1":
         execute_queries(
