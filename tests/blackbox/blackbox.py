@@ -273,6 +273,11 @@ if __name__ == "__main__":
                     "reverse SRS0=bxzH=2W=1=DCJGDE6N24LCRT41A4T0G1UIF0DTKKQJ@example.com",
                     "OK test@otherdomain.com",
                 ),
+                # Recover address from case-munged alias
+                (
+                    "reverse SRS0=bxzH=2W=1=dcjgde6n24lcrt41a4t0g1uif0dtkkqj@example.com",
+                    "OK test@otherdomain.com",
+                ),
                 # Reject unknown alias
                 (
                     "reverse SRS0=hdxW=2W=1=VVVVVVUNVVVVVVS1VVVVVVUIVVVTKKQJ@example.com",

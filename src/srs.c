@@ -19,6 +19,7 @@
 #include "sha1.h"
 #include "util.h"
 
+#include <ctype.h>
 #include <string.h>
 
 char* postsrsd_forward(const char* addr, const char* domain, srs_t* srs,
@@ -118,6 +119,12 @@ char* postsrsd_reverse(const char* addr, srs_t* srs, database_t* db,
     {
         if (db)
         {
+            char* p = buffer;
+            while (*p)
+            {
+                *p = toupper(*p);
+                ++p;
+            }
             char* sender = database_read(db, buffer);
             if (!sender)
             {
