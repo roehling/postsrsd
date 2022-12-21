@@ -121,7 +121,7 @@ char* postsrsd_reverse(const char* addr, srs_t* srs, database_t* db,
             char* sender = database_read(db, buffer);
             if (!sender)
             {
-                log_info("<%s> not rewritten: unknown alias");
+                log_info("<%s> not rewritten: unknown alias", addr);
                 if (info)
                     *info = "Unknown alias.";
                 return NULL;
@@ -131,7 +131,7 @@ char* postsrsd_reverse(const char* addr, srs_t* srs, database_t* db,
         }
         else
         {
-            log_info("<%s> not rewritten: no database for alias");
+            log_info("<%s> not rewritten: no database for alias", addr);
             if (error)
                 *error = true;
             if (info)
