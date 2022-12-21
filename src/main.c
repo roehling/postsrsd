@@ -76,7 +76,8 @@ static bool drop_privileges(cfg_t* cfg)
         target_gid = pwd->pw_gid;
         if (chdir(pwd->pw_dir) < 0)
         {
-            log_warn("cannot chdir to home directory user %s: %s", user, strerror(errno));
+            log_warn("cannot chdir to home directory of user %s: %s", user,
+                     strerror(errno));
         }
 #else
         log_error("cannot drop privileges: not supported by system");
