@@ -48,7 +48,7 @@ char* postsrsd_forward(const char* addr, const char* domain, srs_t* srs,
     char db_alias_buf[35];
     char* db_alias;
     const char* sender = addr;
-    if (db)
+    if (db && !SRS_IS_SRS_ADDRESS(addr))
     {
         char digest[20];
         sha_digest(digest, addr, strlen(addr));
