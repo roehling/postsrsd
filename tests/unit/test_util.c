@@ -193,7 +193,8 @@ START_TEST(util_b32h_encode)
     ck_assert_ptr_nonnull(b32h);
     ck_assert_str_eq(b32h, "C5H66P35");
 
-    b32h = b32h_encode("\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80", 10, buffer, sizeof(buffer));
+    b32h = b32h_encode("\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80", 10, buffer,
+                       sizeof(buffer));
     ck_assert_ptr_nonnull(b32h);
     ck_assert_str_eq(b32h, "G2081040G2081040");
 }

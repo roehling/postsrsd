@@ -91,9 +91,11 @@ char* b32h_encode(const char* data, size_t length, char* buffer, size_t bufsize)
     size_t i, j;
     for (i = 0, j = 0; i + 4 < length; i += 5, j += 8)
     {
-        uint64_t tmp = (((uint64_t)data[i] & 0xFF) << 32) | (((uint64_t)data[i + 1] & 0xFF) << 24)
+        uint64_t tmp = (((uint64_t)data[i] & 0xFF) << 32)
+                       | (((uint64_t)data[i + 1] & 0xFF) << 24)
                        | (((uint64_t)data[i + 2] & 0xFF) << 16)
-                       | (((uint64_t)data[i + 3] & 0xFF) << 8) | ((uint64_t)data[i + 4] & 0xFF);
+                       | (((uint64_t)data[i + 3] & 0xFF) << 8)
+                       | ((uint64_t)data[i + 4] & 0xFF);
         out[j + 7] = B32H_CHARS[tmp & 0x1F];
         tmp >>= 5;
         out[j + 6] = B32H_CHARS[tmp & 0x1F];

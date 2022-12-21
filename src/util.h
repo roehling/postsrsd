@@ -26,7 +26,7 @@ struct domain_set;
 typedef struct domain_set domain_set_t;
 struct list;
 typedef struct list list_t;
-typedef void(*list_deleter_t)(void*);
+typedef void (*list_deleter_t)(void*);
 
 void set_string(char** var, char* value);
 char* b32h_encode(const char* data, size_t length, char* buffer,
