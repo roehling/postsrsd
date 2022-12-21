@@ -174,8 +174,14 @@ static void handle_socketmap_client(cfg_t* cfg, srs_t* srs,
         bool error;
         alarm(keep_alive);
         char* request = netstring_read(fp_read, buffer, sizeof(buffer), &len);
-        if (!request || timeout)
+        if (timeout)
             break;
+        if (!request)
+        {
+            netstring_write(fp_write, "PERM Invalid query.", 19);
+            fflush(fp_write);
+            break;
+        }
         alarm(0);
         char* query_type = strtok_r(request, " ", &addr);
         if (!query_type)

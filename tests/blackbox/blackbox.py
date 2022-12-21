@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+import contextlib
 import os
 import pathlib
 import signal
@@ -46,7 +47,8 @@ def read_netstring(sock):
     return data.decode()
 
 
-def execute_queries(faketime, postsrsd, when, use_database, queries):
+@contextlib.contextmanager
+def postsrsd_instance(faketime, postsrsd, when, use_database):
     with tempfile.TemporaryDirectory() as tmpdirname:
         tmpdir = pathlib.Path(tmpdirname)
         with open(tmpdir / "postsrsd.conf", "w") as f:
@@ -69,8 +71,17 @@ def execute_queries(faketime, postsrsd, when, use_database, queries):
         while not (tmpdir / "postsrsd.sock").exists():
             time.sleep(0.1)
         try:
-            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM, 0)
-            sock.connect(str(tmpdir / "postsrsd.sock").encode())
+            yield str(tmpdir / "postsrsd.sock").encode()
+        finally:
+            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+            proc.wait()
+
+
+def execute_queries(faketime, postsrsd, when, use_database, queries):
+    with postsrsd_instance(faketime, postsrsd, when, use_database) as endpoint:
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM, 0)
+        sock.connect(endpoint)
+        try:
             for nr, query in enumerate(queries, start=1):
                 sys.stderr.write(f"[{nr}] {query[0]}\n")
                 sys.stderr.flush()
@@ -79,10 +90,31 @@ def execute_queries(faketime, postsrsd, when, use_database, queries):
                 if result != query[1]:
                     raise AssertionError(f"Expected: {query[1]!r}, Got: {result!r}")
                 sys.stderr.write(f"[{nr}] OK: {query[1]}\n")
-            sock.close()
         finally:
-            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
-            proc.wait()
+            sock.close()
+
+
+def execute_death_tests(faketime, postsrsd, when, use_database, queries):
+    with postsrsd_instance(faketime, postsrsd, when, use_database) as endpoint:
+        for nr, query in enumerate(queries, start=1):
+            try:
+                sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM, 0)
+                sock.settimeout(0.5)
+                sock.connect(endpoint)
+                sys.stderr.write(f"[{nr}] {query!r}\n")
+                sys.stderr.flush()
+                sock.send(query)
+                result = read_netstring(sock)
+                if result != "PERM Invalid query.":
+                    raise AssertionError(f"Unexpected reply: {result!r}")
+                try:
+                    write_netstring(sock, "forward test@example.com")
+                    result = read_netstring(sock)
+                except TimeoutError:
+                    pass
+                sys.stderr.write(f"[{nr}] OK\n")
+            finally:
+                sock.close()
 
 
 if __name__ == "__main__":
@@ -176,17 +208,35 @@ if __name__ == "__main__":
                 "reverse SRS0=XjO9=2V=otherdomain.com@example.com",
                 "NOTFOUND No user in SRS0 address.",
             ),
+            # Reject Database alias
+            (
+                "reverse SRS0=bxzH=2W=1=DCJGDE6N24LCRT41A4T0G1UIF0DTKKQJ@example.com",
+                "PERM No database for alias.",
+            ),
             # Reject invalid socketmap
             (
                 "test@example.com",
                 "PERM Invalid map.",
             ),
-            # Reject empty query (this must be last as it will close the connection)
-            (
-                "",
-                "PERM Invalid query.",
-            ),
         ],
+    )
+    execute_death_tests(
+        sys.argv[1],
+        sys.argv[2],
+        when="2020-01-01 00:01:00 UTC",
+        use_database=False,
+        queries=[
+            # Empty query
+            b"0:,",
+            # Netstring that exceeds the allowed length
+            (b"2048:" + b"a" * 2048 + b","),
+            # Old-style TCP table query
+            b"get test@example.com\n",
+            # Excessively large netstring length
+            b"18446744073709551616:some data...",
+            # Invalid netstring terminator
+            b"28:forward test@otherdomain.com;",
+        ]
     )
     if sys.argv[3] == "1":
         execute_queries(
@@ -209,6 +259,26 @@ if __name__ == "__main__":
                 (
                     "reverse SRS0=hdxW=2W=1=VVVVVVUNVVVVVVS1VVVVVVUIVVVTKKQJ@example.com",
                     "NOTFOUND Unknown alias.",
+                ),
+                # No rewrite for SRS address which is already in the local domain
+                (
+                    "forward SRS0=XjO9=2V=otherdomain.com=test@example.com",
+                    "NOTFOUND Need not rewrite local domain.",
+                ),
+                # Convert foreign SRS0 address to SRS1 address
+                (
+                    "forward SRS0=opaque+string@otherdomain.com",
+                    "OK SRS1=chaI=otherdomain.com==opaque+string@example.com",
+                ),
+                # Change domain part of foreign SRS1 address
+                (
+                    "forward SRS1=X=thirddomain.com==opaque+string@otherdomain.com",
+                    "OK SRS1=JIBX=thirddomain.com==opaque+string@example.com",
+                ),
+                # Recover original mail address from valid SRS0 address
+                (
+                    "reverse SRS0=XjO9=2V=otherdomain.com=test@example.com",
+                    "OK test@otherdomain.com",
                 ),
             ],
         )
