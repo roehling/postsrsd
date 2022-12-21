@@ -91,7 +91,7 @@ char* postsrsd_forward(const char* addr, const char* domain, srs_t* srs,
 char* postsrsd_reverse(const char* addr, srs_t* srs, database_t* db,
                        bool* error, const char** info)
 {
-    char buffer[128];
+    char buffer[513];
     if (error)
         *error = false;
     if (info)

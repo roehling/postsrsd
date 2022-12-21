@@ -83,13 +83,13 @@ def execute_queries(faketime, postsrsd, when, use_database, queries):
         sock.connect(endpoint)
         try:
             for nr, query in enumerate(queries, start=1):
-                sys.stderr.write(f"[{nr}] {query[0]}\n")
-                sys.stderr.flush()
                 write_netstring(sock, query[0])
                 result = read_netstring(sock)
                 if result != query[1]:
-                    raise AssertionError(f"Expected: {query[1]!r}, Got: {result!r}")
-                sys.stderr.write(f"[{nr}] OK: {query[1]}\n")
+                    raise AssertionError(
+                        f"query[{query[0]}]: FAILED: Expected reply {query[1]!r}, got: {result!r}"
+                    )
+                sys.stderr.write(f"query[{query[0]}]: Passed\n")
         finally:
             sock.close()
 
@@ -101,18 +101,21 @@ def execute_death_tests(faketime, postsrsd, when, use_database, queries):
                 sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM, 0)
                 sock.settimeout(0.5)
                 sock.connect(endpoint)
-                sys.stderr.write(f"[{nr}] {query!r}\n")
-                sys.stderr.flush()
                 sock.send(query)
                 result = read_netstring(sock)
                 if result != "PERM Invalid query.":
-                    raise AssertionError(f"Unexpected reply: {result!r}")
+                    raise AssertionError(
+                        f"death_test[{query}]: FAILED: Expected reply 'PERM Invalid query.', got: {result!r}"
+                    )
                 try:
                     write_netstring(sock, "forward test@example.com")
                     result = read_netstring(sock)
+                    raise AssertionError(
+                        f"death_test[{query}]: FAILED: Expected connection closed, got: {result!r}"
+                    )
                 except TimeoutError:
                     pass
-                sys.stderr.write(f"[{nr}] OK\n")
+                sys.stderr.write(f"death_test[{query}]: Passed\n")
             finally:
                 sock.close()
 
@@ -218,6 +221,21 @@ if __name__ == "__main__":
                 "test@example.com",
                 "PERM Invalid map.",
             ),
+            # Test long address
+            (
+                ("forward test@" + "a" * (512 - 9) + ".net"),
+                ("OK SRS0=G7tR=2W=" + "a" * (512 - 9) + ".net=test@example.com"),
+            ),
+            # Recover long address
+            (
+                ("reverse SRS0=iCvJ=2W=" + "a" * (512 - 34) + ".net=test@example.com"),
+                ("OK test@" + "a" * (512 - 34) + ".net"),
+            ),
+            # Test too long address
+            (
+                ("forward test@" + "a" * (513 - 9) + ".net"),
+                "PERM Too big.",
+            ),
         ],
     )
     execute_death_tests(
@@ -229,7 +247,7 @@ if __name__ == "__main__":
             # Empty query
             b"0:,",
             # Netstring that exceeds the allowed length
-            (b"2048:" + b"a" * 2048 + b","),
+            (b"1024:forward " + b"a" * 1016 + b","),
             # Old-style TCP table query
             b"get test@example.com\n",
             # Excessively large netstring length

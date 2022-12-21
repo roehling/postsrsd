@@ -191,6 +191,12 @@ static void handle_socketmap_client(cfg_t* cfg, srs_t* srs,
             fflush(fp_write);
             break;
         }
+        if (len > 512 + (size_t)(addr - request))
+        {
+            netstring_write(fp_write, "PERM Too big.", 13);
+            fflush(fp_write);
+            continue;
+        }
         char* rewritten = NULL;
         const char* info = NULL;
         if (strcmp(query_type, "forward") == 0)

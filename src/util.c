@@ -442,13 +442,13 @@ static const char* priority_labels[] = {"debug: ", "", "warn: ", "error: "};
 
 static void vlog(enum priority prio, const char* fmt, va_list ap)
 {
-    char buffer[256];
+    char buffer[1088];
     snprintf(buffer, sizeof(buffer), "postsrsd: %s", priority_labels[prio]);
     char* text = buffer;
     while (*text)
         text++;
     vsnprintf(text, sizeof(buffer) - (text - buffer), fmt, ap);
-    buffer[255] = 0;
+    buffer[sizeof(buffer) - 1] = 0;
     fprintf(stderr, "%s\n", buffer);
     fflush(stderr);
 }
