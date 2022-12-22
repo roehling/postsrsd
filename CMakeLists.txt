@@ -28,16 +28,40 @@ include(CheckTypeSize)
 include(CheckSymbolExists)
 include(TestBigEndian)
 
-option(GENERATE_SRS_SECRET "Generate and install a postsrsd.secret" ON)
-option(DEVELOPER_BUILD "Add strict compiler options for development only" OFF)
 option(WITH_MILTER "Enable SRS rewrite via Milter (requires libmilter)" OFF)
 option(WITH_SQLITE "Enable sqlite-based storage for opaque SRS tokens (requires sqlite3)" OFF)
 option(WITH_REDIS "Enable Redis-based storage for opaque SRS tokens (requires hiredis)" OFF)
-option(TESTS_WITH_ASAN "Run test suite with AddressSanitizer" ON)
 
+option(TESTS_WITH_ASAN "Run test suite with AddressSanitizer" ON)
+option(GENERATE_SRS_SECRET "Generate and install a postsrsd.secret" ON)
+option(DEVELOPER_BUILD "Add strict compiler options for development only" OFF)
 set(POSTSRSD_USER "nobody" CACHE STRING "The default unprivileged user as which PostSRSd will run")
+set(POSTSRSD_DATADIR "${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/lib/${PROJECT_NAME}" CACHE PATH "The default directory where PostSRSd should put runtime data")
+set(POSTSRSD_CHROOTDIR "${POSTSRSD_DATADIR}" CACHE PATH "The default chroot directory where PostSRSd should jail itself")
 find_systemd_unit_destination(DETECTED_SYSTEMD_UNITDIR)
 set(SYSTEMD_UNITDIR "${DETECTED_SYSTEMD_UNITDIR}" CACHE PATH "Install destination for systemd service unit")
+
+if (POSTSRSD_CHROOTDIR)
+    file(RELATIVE_PATH CHROOTABLE_DATADIR "${POSTSRSD_CHROOTDIR}" "${POSTSRSD_DATADIR}")
+    if(CHROOTABLE_DATADIR MATCHES "^\.\.")
+        message(FATAL_ERROR "POSTSRSD_DATADIR (${POSTSRSD_DATADIR}) must be below POSTSRSD_CHROOTDIR (${POSTSRSD_CHROOTDIR})")
+    endif()
+    if(CHROOTABLE_DATADIR STREQUAL "")
+        set(CHROOTABLE_DATADIR ".")
+    endif()
+else()
+    set(CHROOTABLE_DATADIR "${POSTSRSD_DATADIR}")
+endif()
+
+mark_as_advanced(
+    TESTS_WITH_ASAN
+    GENERATE_SRS_SECRET
+    DEVELOPER_BUILD
+    POSTSRSD_USER
+    POSTSRSD_DATADIR
+    POSTSRSD_CHROOTDIR
+    SYSTEMD_UNITDIR
+)
 
 FetchContent_Declare(Confuse
     URL https://github.com/libconfuse/libconfuse/releases/download/v3.3/confuse-3.3.tar.gz

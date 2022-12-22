@@ -114,7 +114,7 @@ cfg_t* config_from_commandline(int argc, char* const* argv)
         CFG_INT("keep-alive", 30, CFGF_NONE),
         CFG_STR("milter", NULL, CFGF_NODEFAULT),
         CFG_STR("secrets-file", DEFAULT_SECRETS_FILE, CFGF_NONE),
-        CFG_STR("envelope-database", DEFAULT_ENVELOPE_DATABASE, CFGF_NONE),
+        CFG_STR("envelope-database", NULL, CFGF_NODEFAULT),
         CFG_STR("pid-file", NULL, CFGF_NODEFAULT),
         CFG_STR("unprivileged-user", DEFAULT_POSTSRSD_USER, CFGF_NONE),
         CFG_STR("chroot-dir", DEFAULT_CHROOT_DIR, CFGF_NONE),

@@ -94,10 +94,10 @@ original-envelope = embedded
 # if you jail PostSRSd; otherwise, the database file will not be accessible.
 #
 # Examples:
-#     envelope-database = "sqlite:./senders.db"
+#     envelope-database = "sqlite:@CHROOTABLE_DATADIR@/senders.db"
 #     envelope-database = "redis:localhost:6379"
 #
-#envelope-database = "sqlite:./senders.db"
+#envelope-database = "sqlite:@CHROOTABLE_DATADIR@/senders.db"
 
 # Secret keys for signing and verifying SRS addresses.
 # Rewritten addresses are tagged with a truncated HMAC-SHA1 signature, to
@@ -157,7 +157,7 @@ always-rewrite = off
 # to handle untrusted input.
 #
 # Example:
-#     unprivileged-user = "@POSTSRSD_USER@"
+#     unprivileged-user = "nobody"
 #
 unprivileged-user = "@POSTSRSD_USER@"
 
@@ -169,4 +169,4 @@ unprivileged-user = "@POSTSRSD_USER@"
 # Example:
 #     chroot-dir = "@CMAKE_INSTALL_FULL_LOCALSTATEDIR@/lib/@PROJECT_NAME@"
 #
-chroot-dir = "@CMAKE_INSTALL_FULL_LOCALSTATEDIR@/lib/@PROJECT_NAME@"
+chroot-dir = "@POSTSRSD_CHROOTDIR@"
