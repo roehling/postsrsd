@@ -25,6 +25,12 @@
 #include <string.h>
 #include <unistd.h>
 
+#ifndef HAVE_STRCASECMP
+#    ifdef HAVE__STRICMP
+#        define strcasecmp _stricmp
+#    endif
+#endif
+
 static int parse_original_envelope(cfg_t* cfg, cfg_opt_t* opt,
                                    const char* value, void* result)
 {

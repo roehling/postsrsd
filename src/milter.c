@@ -21,6 +21,12 @@
 #include "srs.h"
 #include "util.h"
 
+#ifndef HAVE_STRNCASECMP
+#    ifdef HAVE__STRNICMP
+#        define strncasecmp _strnicmp
+#    endif
+#endif
+
 #ifdef WITH_MILTER
 #    include <libmilter/mfapi.h>
 #    ifdef HAVE_UNISTD_H

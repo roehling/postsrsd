@@ -43,6 +43,12 @@
 #endif
 #include <unistd.h>
 
+#ifndef HAVE_STRNCASECMP
+#    ifdef HAVE__STRNICMP
+#        define strncasecmp _strnicmp
+#    endif
+#endif
+
 void set_string(char** var, char* value)
 {
     free(*var);
