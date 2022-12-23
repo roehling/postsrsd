@@ -119,6 +119,7 @@ cfg_t* config_from_commandline(int argc, char* const* argv)
         CFG_STR("unprivileged-user", DEFAULT_POSTSRSD_USER, CFGF_NONE),
         CFG_STR("chroot-dir", DEFAULT_CHROOT_DIR, CFGF_NONE),
         CFG_BOOL("daemonize", cfg_false, CFGF_NONE),
+        CFG_BOOL("syslog", cfg_false, CFGF_NONE),
         CFG_END(),
     };
     cfg_t* cfg = cfg_init(opts, CFGF_NONE);

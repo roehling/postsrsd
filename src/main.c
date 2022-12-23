@@ -259,6 +259,8 @@ int main(int argc, char** argv)
     cfg = config_from_commandline(argc, argv);
     if (!cfg)
         goto shutdown;
+    if (cfg_getbool(cfg, "syslog"))
+        log_enable_syslog();
     srs = srs_from_config(cfg);
     if (!srs)
         goto shutdown;

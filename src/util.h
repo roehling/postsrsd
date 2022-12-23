@@ -56,6 +56,7 @@ void list_destroy(list_t* L, list_deleter_t deleter);
 char* endpoint_for_milter(const char* s);
 char* endpoint_for_redis(const char* s, int* port);
 
+void log_enable_syslog();
 void log_debug(const char* fmt, ...);
 void log_info(const char* fmt, ...);
 void log_warn(const char* fmt, ...);

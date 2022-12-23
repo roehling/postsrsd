@@ -170,3 +170,9 @@ unprivileged-user = "@POSTSRSD_USER@"
 #     chroot-dir = "@CMAKE_INSTALL_FULL_LOCALSTATEDIR@/lib/@PROJECT_NAME@"
 #
 chroot-dir = "@POSTSRSD_CHROOTDIR@"
+
+# Syslog
+# PostSRSd writes log messages to stderr. If you enable this option, PostSRSd
+# will also send all messages to the syslog mail facility.
+#
+syslog = off

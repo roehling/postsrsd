@@ -32,6 +32,15 @@
 #ifdef HAVE_SYS_STAT_H
 #    include <sys/stat.h>
 #endif
+#ifdef HAVE_SYSLOG_H
+#    include <syslog.h>
+#endif
+#ifdef HAVE_SYS_TIME_H
+#    include <sys/time.h>
+#endif
+#ifdef HAVE_TIME_H
+#    include <time.h>
+#endif
 #include <unistd.h>
 
 void set_string(char** var, char* value)
@@ -440,17 +449,40 @@ enum priority
 
 static const char* priority_labels[] = {"debug: ", "", "warn: ", "error: "};
 
+#ifdef HAVE_SYSLOG_H
+static bool use_syslog = false;
+static int syslog_priorities[] = {LOG_DEBUG, LOG_INFO, LOG_WARNING, LOG_ERR};
+#endif
+
 static void vlog(enum priority prio, const char* fmt, va_list ap)
 {
     char buffer[1088];
-    snprintf(buffer, sizeof(buffer), "postsrsd: %s", priority_labels[prio]);
-    char* text = buffer;
-    while (*text)
-        text++;
-    vsnprintf(text, sizeof(buffer) - (text - buffer), fmt, ap);
+    size_t prefix_len =
+        snprintf(buffer, sizeof(buffer), "postsrsd: %s", priority_labels[prio]);
+    char* text = buffer + prefix_len;
+    vsnprintf(text, sizeof(buffer) - prefix_len, fmt, ap);
     buffer[sizeof(buffer) - 1] = 0;
     fprintf(stderr, "%s\n", buffer);
     fflush(stderr);
+#ifdef HAVE_SYSLOG_H
+    if (use_syslog)
+    {
+        syslog(LOG_MAIL | syslog_priorities[prio], "%s", text);
+    }
+#endif
+}
+
+void log_enable_syslog()
+{
+#ifdef HAVE_SYSLOG_H
+    time_t now;
+    openlog("postsrsd", LOG_PID | LOG_NDELAY, LOG_MAIL);
+    now = time(NULL);
+    localtime(&now);
+    use_syslog = true;
+#else
+    log_warn("syslog facility is not available");
+#endif
 }
 
 void log_info(const char* fmt, ...)

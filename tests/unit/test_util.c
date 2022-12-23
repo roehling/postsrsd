@@ -278,6 +278,18 @@ START_TEST(util_endpoint_for_milter)
 }
 END_TEST
 
+START_TEST(util_log)
+{
+    char buffer[2049];
+    memset(buffer, 'a', sizeof(buffer) - 1);
+    buffer[sizeof(buffer) - 1] = 0;
+    log_enable_syslog();
+    log_info("Hello %s", "World");
+    log_warn("Excessively long message: %s", buffer);
+    log_error("Error?");
+}
+END_TEST
+
 BEGIN_TEST_SUITE(util)
 ADD_TEST_CASE_WITH_UNCHECKED_FIXTURE(fs, setup_fs, teardown_fs)
 ADD_TEST_TO_TEST_CASE(fs, util_file_exists)
@@ -289,5 +301,6 @@ ADD_TEST(util_list);
 ADD_TEST(util_b32h_encode)
 ADD_TEST(util_domain_set)
 ADD_TEST(util_endpoint_for_milter)
+ADD_TEST(util_log)
 END_TEST_SUITE()
 TEST_MAIN(util)
