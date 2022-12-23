@@ -135,11 +135,11 @@ Most configuration options can no longer be configured with command line argumen
 so you will have to set them in ``postsrsd.conf``. PostSRSd 1.x used shell variables
 in ``/etc/default/postsrsd``. If you migrate your settings, you should set
 
-- ``srs_domain`` to the value you configured in ``SRS_DOMAIN``
+- ``srs_domain`` to the value from ``SRS_DOMAIN``
 - ``domains`` to the list of values from ``SRS_EXCLUDE_DOMAINS``
-- ``secret-file`` to the file name in ``SRS_SECRET``
-- ``unprivileged-user`` to the user name in ``RUN_AS``
-- ``chroot`` to the directory in ``CHROOT``
+- ``secrets-file`` to the file name from ``SRS_SECRET``
+- ``unprivileged-user`` to the user name from ``RUN_AS``
+- ``chroot-dir`` to the directory from ``CHROOT``
 
 As the new ``socketmap`` mechanism is no longer compatible with the old ``tcp``
 mechanism, you will have to update your Postfix configuration as detailed above.
