@@ -173,6 +173,7 @@ static void handle_socketmap_client(cfg_t* cfg, srs_t* srs,
         size_t len;
         char* addr;
         bool error;
+        timeout = 0;
         alarm(keep_alive);
         char* request = netstring_read(fp_read, buffer, sizeof(buffer), &len);
         if (timeout)
