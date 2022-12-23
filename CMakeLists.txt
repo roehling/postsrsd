@@ -289,8 +289,8 @@ if(GENERATE_SRS_SECRET)
 endif()
 # Create directory for chroot jail on install
 install(CODE "\
-    message(STATUS \"Installing: \$ENV{DESTDIR}${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/lib/${PROJECT_NAME}\")
-    file(MAKE_DIRECTORY \"\$ENV{DESTDIR}${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/lib/${PROJECT_NAME}\")")
+    message(STATUS \"Installing: \$ENV{DESTDIR}${POSTSRSD_CHROOTDIR}\")
+    file(MAKE_DIRECTORY \"\$ENV{DESTDIR}${POSTSRSD_CHROOTDIR}\")")
 
 if(BUILD_TESTING)
     FetchContent_MakeAvailable(Check)
