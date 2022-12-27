@@ -70,7 +70,7 @@ FetchContent_Declare(Confuse
 
 FetchContent_Declare(Hiredis
     GIT_REPOSITORY https://github.com/redis/hiredis
-    GIT_TAG b808c0c206e4b1eabdbce2ee723df4258461d4da
+    GIT_TAG c14775b4e48334e0262c9f168887578f4a368b5d
 )
 
 FetchContent_Declare(LibMilter
@@ -79,8 +79,8 @@ FetchContent_Declare(LibMilter
 )
 
 FetchContent_Declare(sqlite3
-    URL https://sqlite.org/2022/sqlite-amalgamation-3390200.zip
-    URL_HASH MD5=9edc80bacd6263d39f2cc36ba6b50e14
+    URL https://sqlite.org/2022/sqlite-amalgamation-3400000.zip
+    URL_HASH MD5=bcb55322db69efd9d82185ccda6c9733
 )
 
 FetchContent_Declare(Check
