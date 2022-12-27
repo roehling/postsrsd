@@ -9,10 +9,10 @@ name: CI
 on:
   push:
     branches:
-      - develop-2.x
+      - main
   pull_request:
     branches:
-      - develop-2.x
+      - main
 jobs:
   build:
     runs-on: ubuntu-latest
