@@ -18,7 +18,7 @@ else()
     find_path(Check_INCLUDE_DIR check.h HINTS ${PC_CHECK_INCLUDE_DIRS})
     find_library(Check_LIBRARY NAMES check_pic check HINTS ${PC_CHECK_LIBRARY_DIRS})
     find_path(Check_subunit_LIBRARY subunit HINTS ${PC_SUBUNIT_LIBRARY_DIRS})
-    find_library(Check_mLIBRARY m)
+    find_library(Check_m_LIBRARY m)
     find_library(Check_rt_LIBRARY rt)
     find_package(Threads REQUIRED)
     find_package_handle_standard_args(Check
