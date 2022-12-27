@@ -16,6 +16,11 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        milter: [OFF, ON]
+        sqlite: [OFF, ON]
+        redis: [OFF, ON]
     steps:
       - uses: actions/checkout@v2
       - name: Install dependencies
@@ -26,7 +31,7 @@ jobs:
         run: |
           mkdir _build
           cd _build
-          cmake .. -DDEVELOPER_BUILD=ON -DWITH_MILTER=ON -DWITH_SQLITE=ON -DWITH_REDIS=ON -DCMAKE_INSTALL_PREFIX=/usr
+          cmake .. -DDEVELOPER_BUILD=ON -DWITH_MILTER=${{ matrix.milter }} -DWITH_SQLITE=${{ matrix.sqlite }} -DWITH_REDIS=${{ matrix.redis }} -DCMAKE_INSTALL_PREFIX=/usr
           make VERBOSE=ON
       - name: Run tests
         run: |
