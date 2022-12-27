@@ -164,6 +164,7 @@ cfg_t* config_from_commandline(int argc, char* const* argv)
                 set_string(&unprivileged_user, strdup(optarg));
                 break;
             default:
+                break;
         }
     }
     if (config_file)
@@ -179,6 +180,7 @@ cfg_t* config_from_commandline(int argc, char* const* argv)
                 ok = 0;
                 break;
             default:
+                break;
         }
         set_string(&config_file, NULL);
     }

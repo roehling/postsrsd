@@ -62,6 +62,7 @@ bool milter_create(const char* uri)
     }
     return true;
 #else
+    MAYBE_UNUSED(uri);
     log_error("no milter support");
     return false;
 #endif
@@ -196,6 +197,10 @@ static struct smfiDesc smfilter = {
 void milter_main(cfg_t* cfg, srs_t* srs, const char* srs_domain,
                  domain_set_t* local_domains)
 {
+    MAYBE_UNUSED(cfg);
+    MAYBE_UNUSED(srs);
+    MAYBE_UNUSED(srs_domain);
+    MAYBE_UNUSED(local_domains);
 #ifdef WITH_MILTER
     if (strncasecmp(milter_uri, "unix:", 5) == 0)
         milter_path = milter_uri + 5;
