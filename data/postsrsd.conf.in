@@ -108,7 +108,7 @@ original-envelope = embedded
 #
 # For security reasons, you should also make sure that the file is owned and
 # only accessible by root (chmod 600).
-# 
+#
 # Example:
 #     secrets-file = "@CMAKE_INSTALL_FULL_SYSCONFDIR@/@PROJECT_NAME@.secret"
 #

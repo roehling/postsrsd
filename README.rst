@@ -2,7 +2,7 @@
     PostSRSd - Sender Rewriting Scheme daemon for Postfix
     Copyright 2012-2022 Timo Röhling <timo@gaussglocke.de>
     SPDX-License-Identifier: GPL-3.0-only
-    
+
 ========
 PostSRSd
 ========
@@ -148,7 +148,7 @@ Frequently Asked Questions
 --------------------------
 
 * Why are some of my emails still rejected with a DMARC failure?
-  
+
   Short Answer: Because the originating MTA is misconfigured.
 
   Long Answer: DMARC has two conditions for an email, but either of them is
@@ -157,7 +157,7 @@ Frequently Asked Questions
   1. The SMTP envelope sender must have the same domain as the ``From:``
      address in the mail header.
   2. The email must have a valid DKIM signature from the domain of the
-     ``From:`` address. 
+     ``From:`` address.
 
   The first condition in combination with SPF prevents mail forwarding by
   unauthorized third parties, the second condition in combination with DKIM

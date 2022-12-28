@@ -2,7 +2,7 @@
     PostSRSd - Sender Rewriting Scheme daemon for Postfix
     Copyright 2012-2022 Timo Röhling <timo@gaussglocke.de>
     SPDX-License-Identifier: GPL-3.0-only
-    
+
 ========================
 PostSRSd Packaging Notes
 ========================
@@ -27,7 +27,7 @@ link them statically into the executable.
 
 Starting with CMake 3.24, it is possible to tweak this process and use system
 libraries by passing ``-DFETCHCONTENT_TRY_FIND_PACKAGE_MODE=ALWAYS`` to the
-CMake invocation. 
+CMake invocation.
 
 
 .. _FetchContent: https://cmake.org/cmake/help/latest/module/FetchContent.html
@@ -71,4 +71,3 @@ users:
 
 
 .. _GNUInstallDirs: https://cmake.org/cmake/help/latest/module/GNUInstallDirs.html
-
