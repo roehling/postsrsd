@@ -16,16 +16,19 @@ else()
         pkg_search_module(PC_SUBUNIT QUIET libsubunit)
     endif()
     find_path(Check_INCLUDE_DIR check.h HINTS ${PC_CHECK_INCLUDE_DIRS})
-    find_library(Check_LIBRARY NAMES check_pic check HINTS ${PC_CHECK_LIBRARY_DIRS})
+    find_library(
+        Check_LIBRARY
+        NAMES check_pic check
+        HINTS ${PC_CHECK_LIBRARY_DIRS}
+    )
     find_path(Check_subunit_LIBRARY subunit HINTS ${PC_SUBUNIT_LIBRARY_DIRS})
     find_library(Check_m_LIBRARY m)
     find_library(Check_rt_LIBRARY rt)
     find_package(Threads REQUIRED)
-    find_package_handle_standard_args(Check
+    find_package_handle_standard_args(
+        Check
         FOUND_VAR Check_FOUND
-        REQUIRED_VARS
-            Check_INCLUDE_DIR
-            Check_LIBRARY
+        REQUIRED_VARS Check_INCLUDE_DIR Check_LIBRARY
     )
     if(Check_FOUND AND NOT TARGET Check::check)
         set(Check_DEPS "Threads::Threads")
@@ -39,10 +42,11 @@ else()
             list(APPEND Check_DEPS "${Check_rt_LIBRARY}")
         endif()
         add_library(Check::check UNKNOWN IMPORTED)
-        set_target_properties(Check::check PROPERTIES
-            IMPORTED_LOCATION "${Check_LIBRARY}"
-            INTERFACE_INCLUDE_DIRECTORIES "${Check_INCLUDE_DIR}"
-            INTERFACE_LINK_LIBRARIES "${Check_DEPS}"
+        set_target_properties(
+            Check::check
+            PROPERTIES IMPORTED_LOCATION "${Check_LIBRARY}"
+                       INTERFACE_INCLUDE_DIRECTORIES "${Check_INCLUDE_DIR}"
+                       INTERFACE_LINK_LIBRARIES "${Check_DEPS}"
         )
     endif()
 endif()

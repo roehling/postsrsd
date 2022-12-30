@@ -12,16 +12,16 @@ if(PkgConfig_FOUND)
 endif()
 find_path(Confuse_INCLUDE_DIR confuse.h HINTS ${PC_CONFUSE_INCLUDE_DIRS})
 find_library(Confuse_LIBRARY confuse HINTS ${PC_CONFUSE_LIBRARY_DIRS})
-find_package_handle_standard_args(Confuse
+find_package_handle_standard_args(
+    Confuse
     FOUND_VAR Confuse_FOUND
-    REQUIRED_VARS
-        Confuse_INCLUDE_DIR
-        Confuse_LIBRARY
+    REQUIRED_VARS Confuse_INCLUDE_DIR Confuse_LIBRARY
 )
 if(Confuse_FOUND AND NOT TARGET Confuse::Confuse)
     add_library(Confuse::Confuse UNKNOWN IMPORTED)
-    set_target_properties(Confuse::Confuse PROPERTIES
-        IMPORTED_LOCATION "${Confuse_LIBRARY}"
-        INTERFACE_INCLUDE_DIRECTORIES "${Confuse_INCLUDE_DIR}"
+    set_target_properties(
+        Confuse::Confuse
+        PROPERTIES IMPORTED_LOCATION "${Confuse_LIBRARY}"
+                   INTERFACE_INCLUDE_DIRECTORIES "${Confuse_INCLUDE_DIR}"
     )
 endif()

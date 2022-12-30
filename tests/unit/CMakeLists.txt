@@ -16,12 +16,18 @@
 #
 macro(add_postsrsd_test name)
     add_executable(${name}_executable ${name}.c ${ARGN})
-    target_include_directories(${name}_executable PRIVATE ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}/src)
+    target_include_directories(
+        ${name}_executable PRIVATE ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}/src
+    )
     target_link_libraries(${name}_executable PRIVATE Check::check)
     target_compile_features(${name}_executable PRIVATE c_std_99)
     if(TESTS_WITH_ASAN)
-        target_compile_options(${name}_executable PRIVATE -fsanitize=address,undefined)
-        target_link_options(${name}_executable PRIVATE -fsanitize=address,undefined)
+        target_compile_options(
+            ${name}_executable PRIVATE -fsanitize=address,undefined
+        )
+        target_link_options(
+            ${name}_executable PRIVATE -fsanitize=address,undefined
+        )
     endif()
     add_test(NAME ${name} COMMAND ${name}_executable)
 endmacro()
@@ -32,7 +38,7 @@ add_postsrsd_test(test_netstring ${SRCDIR}/netstring.c)
 add_postsrsd_test(test_sha1 ${SRCDIR}/sha1.c)
 add_postsrsd_test(test_util ${SRCDIR}/util.c)
 add_postsrsd_test(test_database ${SRCDIR}/database.c ${SRCDIR}/util.c)
-target_link_libraries(test_database_executable PRIVATE
-    $<$<BOOL:${WITH_SQLITE}>:sqlite3::sqlite3>
-    $<$<BOOL:${WITH_REDIS}>:${HIREDIS_TARGET}>
+target_link_libraries(
+    test_database_executable PRIVATE $<$<BOOL:${WITH_SQLITE}>:sqlite3::sqlite3>
+                                     $<$<BOOL:${WITH_REDIS}>:${HIREDIS_TARGET}>
 )

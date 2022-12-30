@@ -15,7 +15,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 cmake_minimum_required(VERSION 3.14...3.24)
-project(postsrsd VERSION 2.0.0 LANGUAGES C)
+project(
+    postsrsd
+    VERSION 2.0.0
+    LANGUAGES C
+)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
@@ -29,22 +33,45 @@ include(CheckSymbolExists)
 include(TestBigEndian)
 
 option(WITH_MILTER "Enable SRS rewrite via Milter (requires libmilter)" OFF)
-option(WITH_SQLITE "Enable sqlite-based storage for opaque SRS tokens (requires sqlite3)" OFF)
-option(WITH_REDIS "Enable Redis-based storage for opaque SRS tokens (requires hiredis)" OFF)
+option(WITH_SQLITE
+       "Enable sqlite-based storage for opaque SRS tokens (requires sqlite3)"
+       OFF
+)
+option(WITH_REDIS
+       "Enable Redis-based storage for opaque SRS tokens (requires hiredis)"
+       OFF
+)
 
 option(TESTS_WITH_ASAN "Run test suite with AddressSanitizer" ON)
 option(GENERATE_SRS_SECRET "Generate and install a postsrsd.secret" ON)
 option(DEVELOPER_BUILD "Add strict compiler options for development only" OFF)
-set(POSTSRSD_USER "nobody" CACHE STRING "The default unprivileged user as which PostSRSd will run")
-set(POSTSRSD_DATADIR "${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/lib/${PROJECT_NAME}" CACHE PATH "The default directory where PostSRSd should put runtime data")
-set(POSTSRSD_CHROOTDIR "${POSTSRSD_DATADIR}" CACHE PATH "The default chroot directory where PostSRSd should jail itself")
+set(POSTSRSD_USER
+    "nobody"
+    CACHE STRING "The default unprivileged user as which PostSRSd will run"
+)
+set(POSTSRSD_DATADIR
+    "${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/lib/${PROJECT_NAME}"
+    CACHE PATH "The default directory where PostSRSd should put runtime data"
+)
+set(POSTSRSD_CHROOTDIR
+    "${POSTSRSD_DATADIR}"
+    CACHE PATH "The default chroot directory where PostSRSd should jail itself"
+)
 find_systemd_unit_destination(DETECTED_SYSTEMD_UNITDIR)
-set(SYSTEMD_UNITDIR "${DETECTED_SYSTEMD_UNITDIR}" CACHE PATH "Install destination for systemd service unit")
+set(SYSTEMD_UNITDIR
+    "${DETECTED_SYSTEMD_UNITDIR}"
+    CACHE PATH "Install destination for systemd service unit"
+)
 
-if (POSTSRSD_CHROOTDIR)
-    file(RELATIVE_PATH CHROOTABLE_DATADIR "${POSTSRSD_CHROOTDIR}" "${POSTSRSD_DATADIR}")
+if(POSTSRSD_CHROOTDIR)
+    file(RELATIVE_PATH CHROOTABLE_DATADIR "${POSTSRSD_CHROOTDIR}"
+         "${POSTSRSD_DATADIR}"
+    )
     if(CHROOTABLE_DATADIR MATCHES "^\.\.")
-        message(FATAL_ERROR "POSTSRSD_DATADIR (${POSTSRSD_DATADIR}) must be below POSTSRSD_CHROOTDIR (${POSTSRSD_CHROOTDIR})")
+        message(
+            FATAL_ERROR
+                "POSTSRSD_DATADIR (${POSTSRSD_DATADIR}) must be below POSTSRSD_CHROOTDIR (${POSTSRSD_CHROOTDIR})"
+        )
     endif()
     if(CHROOTABLE_DATADIR STREQUAL "")
         set(CHROOTABLE_DATADIR ".")
@@ -63,27 +90,32 @@ mark_as_advanced(
     SYSTEMD_UNITDIR
 )
 
-FetchContent_Declare(Confuse
+FetchContent_Declare(
+    Confuse
     URL https://github.com/libconfuse/libconfuse/releases/download/v3.3/confuse-3.3.tar.gz
     URL_HASH MD5=f590564c6ea4879db0c8f692bf12f42a
 )
 
-FetchContent_Declare(Hiredis
+FetchContent_Declare(
+    Hiredis
     GIT_REPOSITORY https://github.com/redis/hiredis
     GIT_TAG c14775b4e48334e0262c9f168887578f4a368b5d
 )
 
-FetchContent_Declare(LibMilter
+FetchContent_Declare(
+    LibMilter
     GIT_REPOSITORY https://github.com/jons/libmilter
     GIT_TAG f3b7aa0336be0d0fdbca25b97e1e7fcb46e3f333
 )
 
-FetchContent_Declare(sqlite3
+FetchContent_Declare(
+    sqlite3
     URL https://sqlite.org/2022/sqlite-amalgamation-3400000.zip
     URL_HASH MD5=bcb55322db69efd9d82185ccda6c9733
 )
 
-FetchContent_Declare(Check
+FetchContent_Declare(
+    Check
     URL https://github.com/libcheck/check/releases/download/0.15.2/check-0.15.2.tar.gz
     URL_HASH MD5=50fcafcecde5a380415b12e9c574e0b2
 )
@@ -125,16 +157,22 @@ if(CMAKE_SYSTEM_NAME MATCHES "Solaris|SunOS")
     find_library(LIBNSL nsl)
 endif()
 
-add_autotools_dependency(Confuse
+add_autotools_dependency(
+    Confuse
     LIBRARY_NAME confuse
     EXPORTED_TARGET Confuse::Confuse
 )
 
 if(WITH_REDIS)
-    set(DISABLE_TESTS ON CACHE BOOL "" FORCE)
+    set(DISABLE_TESTS
+        ON
+        CACHE BOOL "" FORCE
+    )
     FetchContent_MakeAvailable(Hiredis)
     if(IS_DIRECTORY "${hiredis_SOURCE_DIR}")
-        set_property(DIRECTORY "${hiredis_SOURCE_DIR}" PROPERTY EXCLUDE_FROM_ALL TRUE)
+        set_property(
+            DIRECTORY "${hiredis_SOURCE_DIR}" PROPERTY EXCLUDE_FROM_ALL TRUE
+        )
     endif()
     if(TARGET hiredis::hiredis_static)
         set(HIREDIS_TARGET hiredis::hiredis_static)
@@ -143,20 +181,27 @@ if(WITH_REDIS)
     elseif(TARGET hiredis)
         set(HIREDIS_TARGET hiredis)
     else()
-        message(FATAL_ERROR "Cannot link against hiredis: no suitable CMake target found")
+        message(
+            FATAL_ERROR
+                "Cannot link against hiredis: no suitable CMake target found"
+        )
     endif()
 endif()
 
 if(WITH_MILTER)
     FetchContent_MakeAvailable(LibMilter)
-    if (IS_DIRECTORY "${libmilter_SOURCE_DIR}")
+    if(IS_DIRECTORY "${libmilter_SOURCE_DIR}")
         string(TOLOWER "${CMAKE_SYSTEM_NAME}" lc_system)
-        set(SM_OS_H "${libmilter_SOURCE_DIR}/include/sm/os/sm_os_${lc_system}.h")
+        set(SM_OS_H
+            "${libmilter_SOURCE_DIR}/include/sm/os/sm_os_${lc_system}.h"
+        )
         if(EXISTS "${SM_OS_H}")
-            execute_process(COMMAND "${CMAKE_COMMAND}"
-                 -E copy_if_different "${SM_OS_H}" "${libmilter_SOURCE_DIR}/include/sm/sm_os.h"
+            execute_process(
+                COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${SM_OS_H}"
+                        "${libmilter_SOURCE_DIR}/include/sm/sm_os.h"
             )
-            add_library(milter STATIC
+            add_library(
+                milter STATIC
                 "${libmilter_SOURCE_DIR}/errstring.c"
                 "${libmilter_SOURCE_DIR}/strl.c"
                 "${libmilter_SOURCE_DIR}/comm.c"
@@ -170,18 +215,20 @@ if(WITH_MILTER)
                 "${libmilter_SOURCE_DIR}/sm_gethost.c"
                 "${libmilter_SOURCE_DIR}/worker.c"
             )
-            target_compile_definitions(milter PRIVATE
-                NOT_SENDMAIL=1
-                sm_snprintf=snprintf
+            target_compile_definitions(
+                milter PRIVATE NOT_SENDMAIL=1 sm_snprintf=snprintf
             )
-            target_include_directories(milter
+            target_include_directories(
+                milter
                 PRIVATE "${libmilter_SOURCE_DIR}/smapp"
                 PUBLIC "${libmilter_SOURCE_DIR}/include"
                 INTERFACE "${libmilter_SOURCE_DIR}/include/libmilter"
             )
             add_library(LibMilter::LibMilter ALIAS milter)
         else()
-            message(STATUS "Missing support for ${CMAKE_SYSTEM_NAME} for LibMilter")
+            message(
+                STATUS "Missing support for ${CMAKE_SYSTEM_NAME} for LibMilter"
+            )
             set(WITH_MILTER OFF)
         endif()
     endif()
@@ -189,16 +236,14 @@ endif()
 
 if(WITH_SQLITE)
     FetchContent_MakeAvailable(sqlite3)
-    if (IS_DIRECTORY "${sqlite3_SOURCE_DIR}")
-        add_library(sqlite3 STATIC
-            "${sqlite3_SOURCE_DIR}/sqlite3.c"
-        )
+    if(IS_DIRECTORY "${sqlite3_SOURCE_DIR}")
+        add_library(sqlite3 STATIC "${sqlite3_SOURCE_DIR}/sqlite3.c")
         target_include_directories(sqlite3 PUBLIC "${sqlite3_SOURCE_DIR}")
-        target_compile_definitions(sqlite3 PRIVATE
-            SQLITE_DQS=0
-            SQLITE_THREADSAFE=$<IF:$<BOOL:${WITH_MILTER}>,2,0>
-            SQLITE_DEFAULT_MEMSTATUS=0
-            SQLITE_OMIT_PROGRESS_CALLBACK
+        target_compile_definitions(
+            sqlite3
+            PRIVATE SQLITE_DQS=0
+                    SQLITE_THREADSAFE=$<IF:$<BOOL:${WITH_MILTER}>,2,0>
+                    SQLITE_DEFAULT_MEMSTATUS=0 SQLITE_OMIT_PROGRESS_CALLBACK
         )
         add_library(sqlite3::sqlite3 ALIAS sqlite3)
         target_link_libraries(sqlite3 PUBLIC ${CMAKE_DL_LIBS})
@@ -214,7 +259,8 @@ if(DEVELOPER_BUILD AND CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     add_compile_options(-Wall -Wextra -Werror)
 endif()
 
-add_executable(postsrsd
+add_executable(
+    postsrsd
     src/config.c
     src/database.c
     src/endpoint.c
@@ -227,54 +273,58 @@ add_executable(postsrsd
     src/util.c
 )
 
-target_compile_definitions(postsrsd PRIVATE
-    _GNU_SOURCE _POSIX_C_SOURCE _FILE_OFFSET_BITS=64
+target_compile_definitions(
+    postsrsd PRIVATE _GNU_SOURCE _POSIX_C_SOURCE _FILE_OFFSET_BITS=64
 )
 target_include_directories(postsrsd PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 target_compile_features(postsrsd PRIVATE c_std_99)
-target_link_libraries(postsrsd PRIVATE
-    Confuse::Confuse
-    $<$<BOOL:${WITH_SQLITE}>:sqlite3::sqlite3>
-    $<$<BOOL:${WITH_REDIS}>:${HIREDIS_TARGET}>
-    $<$<BOOL:${WITH_MILTER}>:LibMilter::LibMilter>
-    ${LIBSOCKET}
-    ${LIBNSL}
+target_link_libraries(
+    postsrsd
+    PRIVATE Confuse::Confuse
+            $<$<BOOL:${WITH_SQLITE}>:sqlite3::sqlite3>
+            $<$<BOOL:${WITH_REDIS}>:${HIREDIS_TARGET}>
+            $<$<BOOL:${WITH_MILTER}>:LibMilter::LibMilter>
+            ${LIBSOCKET}
+            ${LIBNSL}
 )
 
 configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/data/postsrsd.conf.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.conf"
-    @ONLY
+    "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.conf" @ONLY
 )
 configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/data/postsrsd.service.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.service"
-    @ONLY
+    "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.service" @ONLY
 )
 
-install(
-    TARGETS postsrsd RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR})
-install(
-    FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.conf"
-    DESTINATION "${CMAKE_INSTALL_DATADIR}/doc/${PROJECT_NAME}"
+install(TARGETS postsrsd RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR})
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.conf"
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/doc/${PROJECT_NAME}"
 )
-install(
-    FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.service"
-    DESTINATION "${SYSTEMD_UNITDIR}"
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.service"
+        DESTINATION "${SYSTEMD_UNITDIR}"
 )
 
 if(GENERATE_SRS_SECRET)
     find_program(DD dd DOC "path to dd executable")
     find_program(BASE64 base64 DOC "path to base64 executable")
     find_program(OPENSSL openssl DOC "path to OpenSSL executable")
-    find_file(RANDOM_SOURCE NAMES urandom random PATHS /dev)
+    find_file(
+        RANDOM_SOURCE
+        NAMES urandom random
+        PATHS /dev
+    )
     if(BASE64)
         set(BASE64_ENCODE "${BASE64}")
     elseif(OPENSSL)
         set(BASE64_ENCODE "${OPENSSL} base64 -e")
     endif()
-    if(DD AND BASE64_ENCODE AND RANDOM_SOURCE)
-        install(CODE "\
+    if(DD
+       AND BASE64_ENCODE
+       AND RANDOM_SOURCE
+    )
+        install(
+            CODE "\
         if(NOT EXISTS \"\$ENV{DESTDIR}${CMAKE_INSTALL_FULL_SYSCONFDIR}/${PROJECT_NAME}.secret\")
             execute_process(
                 COMMAND ${DD} if=${RANDOM_SOURCE} bs=18 count=1
@@ -285,18 +335,22 @@ if(GENERATE_SRS_SECRET)
             )
             file(INSTALL DESTINATION \"${CMAKE_INSTALL_FULL_SYSCONFDIR}\" FILES \"${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.secret\" RENAME \"${PROJECT_NAME}.secret\" PERMISSIONS OWNER_READ OWNER_WRITE)
             file(REMOVE \"${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.secret\")
-        endif()")
+        endif()"
+        )
     endif()
 endif()
 # Create directory for chroot jail on install
 install(CODE "\
     message(STATUS \"Installing: \$ENV{DESTDIR}${POSTSRSD_CHROOTDIR}\")
-    file(MAKE_DIRECTORY \"\$ENV{DESTDIR}${POSTSRSD_CHROOTDIR}\")")
+    file(MAKE_DIRECTORY \"\$ENV{DESTDIR}${POSTSRSD_CHROOTDIR}\")"
+)
 
 if(BUILD_TESTING)
     FetchContent_MakeAvailable(Check)
     if(IS_DIRECTORY "${check_SOURCE_DIR}")
-        set_property(DIRECTORY "${check_SOURCE_DIR}" PROPERTY EXCLUDE_FROM_ALL TRUE)
+        set_property(
+            DIRECTORY "${check_SOURCE_DIR}" PROPERTY EXCLUDE_FROM_ALL TRUE
+        )
     endif()
     add_subdirectory(tests)
 endif()

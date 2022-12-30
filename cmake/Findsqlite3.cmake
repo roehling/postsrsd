@@ -12,16 +12,16 @@ if(PkgConfig_FOUND)
 endif()
 find_path(sqlite3_INCLUDE_DIR sqlite3.h HINTS ${PC_SQLITE3_INCLUDE_DIRS})
 find_library(sqlite3_LIBRARY sqlite3 HINTS ${PC_SQLITE3_LIBRARY_DIRS})
-find_package_handle_standard_args(sqlite3
+find_package_handle_standard_args(
+    sqlite3
     FOUND_VAR sqlite3_FOUND
-    REQUIRED_VARS
-        sqlite3_INCLUDE_DIR
-        sqlite3_LIBRARY
+    REQUIRED_VARS sqlite3_INCLUDE_DIR sqlite3_LIBRARY
 )
 if(sqlite3_FOUND AND NOT TARGET sqlite3::sqlite3)
     add_library(sqlite3::sqlite3 UNKNOWN IMPORTED)
-    set_target_properties(sqlite3::sqlite3 PROPERTIES
-        IMPORTED_LOCATION "${sqlite3_LIBRARY}"
-        INTERFACE_INCLUDE_DIRECTORIES "${sqlite3_INCLUDE_DIR}"
+    set_target_properties(
+        sqlite3::sqlite3
+        PROPERTIES IMPORTED_LOCATION "${sqlite3_LIBRARY}"
+                   INTERFACE_INCLUDE_DIRECTORIES "${sqlite3_INCLUDE_DIR}"
     )
 endif()
