@@ -9,7 +9,7 @@
 # Exclude additional domains.
 # You may list domains which shall not be subjected to address rewriting.
 # If a domain name starts with a dot, it matches all subdomains, but not
-# the domain itself. Separate multiple domains by space or comma.
+# the domain itself. Separate multiple domains by comma.
 #
 #SRS_EXCLUDE_DOMAINS=.example.com,example.org
 
