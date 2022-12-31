@@ -21,8 +21,16 @@ if(FAKETIME_EXECUTABLE AND Python3_EXECUTABLE)
     add_test(
         NAME test_socketmap
         COMMAND
-            "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/blackbox.py"
+            "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/socketmap.py"
             "${FAKETIME_EXECUTABLE}" "$<TARGET_FILE:postsrsd>"
             "$<BOOL:${WITH_SQLITE}>"
     )
+    if(WITH_MILTER)
+        add_test(
+            NAME test_milter
+            COMMAND
+                "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/milter.py"
+                "${FAKETIME_EXECUTABLE}" "$<TARGET_FILE:postsrsd>"
+        )
+    endif()
 endif()
