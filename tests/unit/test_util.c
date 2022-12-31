@@ -123,6 +123,24 @@ START_TEST(util_argvdup)
 }
 END_TEST
 
+START_TEST(util_strip_brackets)
+{
+    char* result;
+    result = strip_brackets("test@example.com");
+    ck_assert_ptr_eq(result, NULL);
+    result = strip_brackets("<test@example.com");
+    ck_assert_ptr_eq(result, NULL);
+    result = strip_brackets("test@example.com>");
+    ck_assert_ptr_eq(result, NULL);
+    result = strip_brackets("<test@example.com>");
+    ck_assert_str_eq(result, "test@example.com");
+    free(result);
+    result = strip_brackets("Test User <test@example.com>");
+    ck_assert_str_eq(result, "test@example.com");
+    free(result);
+}
+END_TEST
+
 START_TEST(util_list)
 {
     list_t* L = list_create();
@@ -297,6 +315,7 @@ ADD_TEST_TO_TEST_CASE(fs, util_directory_exists)
 ADD_TEST_TO_TEST_CASE(fs, util_dotlock)
 ADD_TEST(util_set_string)
 ADD_TEST(util_argvdup);
+ADD_TEST(util_strip_brackets);
 ADD_TEST(util_list);
 ADD_TEST(util_b32h_encode)
 ADD_TEST(util_domain_set)

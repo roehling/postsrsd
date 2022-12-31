@@ -95,6 +95,27 @@ void freeargv(char** argv)
     free(argv);
 }
 
+char* strip_brackets(const char* addr)
+{
+    const char* lbrak = strchr(addr, '<');
+    const char* rbrak = strchr(addr, '>');
+    if (!lbrak || !rbrak)
+        return NULL;
+    lbrak++;
+    char* bare = strdup(lbrak);
+    *(bare + (rbrak - lbrak)) = 0;
+    return bare;
+}
+
+char* add_brackets(const char* addr)
+{
+    char* result = malloc(strlen(addr) + 3);
+    result[0] = '<';
+    strcpy(result + 1, addr);
+    strcat(result, ">");
+    return result;
+}
+
 char* b32h_encode(const char* data, size_t length, char* buffer, size_t bufsize)
 {
     static const char B32H_CHARS[32] = "0123456789ABCDEFGHIJKLMNOPQRSTUV";

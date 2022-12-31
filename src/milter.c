@@ -87,7 +87,7 @@ static sfsistat on_connect(SMFICTX* ctx, char* hostname, _SOCK_ADDR* hostaddr)
 static sfsistat on_envfrom(SMFICTX* ctx, char** argv)
 {
     privdata_t* priv = smfi_getpriv(ctx);
-    char* from = strdup(argv[0]);
+    char* from = strip_brackets(argv[0]);
     if (!from)
         return SMFIS_TEMPFAIL;
     priv->envfrom = from;
@@ -97,7 +97,7 @@ static sfsistat on_envfrom(SMFICTX* ctx, char** argv)
 static sfsistat on_envrcpt(SMFICTX* ctx, char** argv)
 {
     privdata_t* priv = smfi_getpriv(ctx);
-    char* rcpt = strdup(argv[0]);
+    char* rcpt = strip_brackets(argv[0]);
     if (!rcpt)
         return SMFIS_TEMPFAIL;
     if (!list_append(priv->envrcpt, rcpt))
@@ -128,37 +128,45 @@ static sfsistat on_eom(SMFICTX* ctx)
             return SMFIS_TEMPFAIL;
         if (rewritten)
         {
-            if (smfi_delrcpt(ctx, rcpt) != MI_SUCCESS)
+            char* bracketed_old_rcpt = add_brackets(rcpt);
+            char* bracketed_new_rcpt = add_brackets(rewritten);
+            free(rewritten);
+            if (smfi_delrcpt(ctx, bracketed_old_rcpt) != MI_SUCCESS)
             {
-                free(rewritten);
+                free(bracketed_old_rcpt);
+                free(bracketed_new_rcpt);
                 return SMFIS_TEMPFAIL;
             }
-            if (smfi_addrcpt(ctx, rewritten)
+            if (smfi_addrcpt(ctx, bracketed_new_rcpt)
                 != MI_SUCCESS)  // TODO maybe add ESMTP arguments?
             {
-                free(rewritten);
+                free(bracketed_old_rcpt);
+                free(bracketed_new_rcpt);
                 return SMFIS_TEMPFAIL;
             }
-            free(rewritten);
+            free(bracketed_old_rcpt);
+            free(bracketed_new_rcpt);
         }
     }
-    // TODO check if mail is actually forwarded
-    if (true)
+    if (*priv->envfrom)
     {
+        // TODO check if mail is actually forwarded
         char* rewritten = postsrsd_forward(priv->envfrom, g_srs_domain, g_srs,
                                            db, g_local_domains, &error, NULL);
         if (error)
             return SMFIS_TEMPFAIL;
         if (rewritten)
         {
-            if (smfi_chgfrom(ctx, rewritten,
+            char* bracketed_from = add_brackets(rewritten);
+            free(rewritten);
+            if (smfi_chgfrom(ctx, bracketed_from,
                              NULL)
                 != MI_SUCCESS)  // TODO maybe add ESMTP arguments?
             {
-                free(rewritten);
+                free(bracketed_from);
                 return SMFIS_TEMPFAIL;
             }
-            free(rewritten);
+            free(bracketed_from);
         }
     }
     return SMFIS_CONTINUE;

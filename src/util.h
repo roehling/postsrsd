@@ -35,6 +35,9 @@ char* b32h_encode(const char* data, size_t length, char* buffer,
 char** argvdup(char** argv);
 void freeargv(char** argv);
 
+char* strip_brackets(const char* addr);
+char* add_brackets(const char* addr);
+
 bool file_exists(const char* filename);
 bool directory_exists(const char* dirname);
 
