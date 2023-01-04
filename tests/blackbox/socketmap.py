@@ -113,7 +113,7 @@ def execute_death_tests(faketime, postsrsd, when, use_database, queries):
                     raise AssertionError(
                         f"death_test[{query}]: FAILED: Expected connection closed, got: {result!r}"
                     )
-                except TimeoutError:
+                except socket.timeout:  # TimeoutError
                     pass
                 sys.stderr.write(f"death_test[{query}]: Passed\n")
             finally:
