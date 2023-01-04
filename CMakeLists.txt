@@ -157,6 +157,8 @@ if(CMAKE_SYSTEM_NAME MATCHES "Solaris|SunOS")
     find_library(LIBNSL nsl)
 endif()
 
+set(THREADS_PREFER_PTHREAD_FLAG TRUE)
+
 add_autotools_dependency(
     Confuse
     LIBRARY_NAME confuse
@@ -351,6 +353,10 @@ if(BUILD_TESTING)
         set_property(
             DIRECTORY "${check_SOURCE_DIR}" PROPERTY EXCLUDE_FROM_ALL TRUE
         )
+        find_package(Threads QUIET)
+        if(TARGET Threads::Threads)
+            target_link_libraries(check PUBLIC Threads::Threads)
+        endif()
     endif()
     add_subdirectory(tests)
 endif()
