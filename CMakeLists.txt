@@ -158,6 +158,7 @@ if(CMAKE_SYSTEM_NAME MATCHES "Solaris|SunOS")
 endif()
 
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
+find_package(Threads QUIET)
 
 add_autotools_dependency(
     Confuse
@@ -226,6 +227,9 @@ if(WITH_MILTER)
                 PUBLIC "${libmilter_SOURCE_DIR}/include"
                 INTERFACE "${libmilter_SOURCE_DIR}/include/libmilter"
             )
+            if(TARGET Threads::Threads)
+                target_link_libraries(milter PRIVATE Threads::Threads)
+            endif()
             add_library(LibMilter::LibMilter ALIAS milter)
         else()
             message(
@@ -247,6 +251,9 @@ if(WITH_SQLITE)
                     SQLITE_THREADSAFE=$<IF:$<BOOL:${WITH_MILTER}>,2,0>
                     SQLITE_DEFAULT_MEMSTATUS=0 SQLITE_OMIT_PROGRESS_CALLBACK
         )
+        if(WITH_MILTER AND TARGET Threads::Threads)
+            target_link_libraries(sqlite PRIVATE Threads::Threads)
+        endif()
         add_library(sqlite3::sqlite3 ALIAS sqlite3)
         target_link_libraries(sqlite3 PUBLIC ${CMAKE_DL_LIBS})
     endif()
@@ -353,9 +360,8 @@ if(BUILD_TESTING)
         set_property(
             DIRECTORY "${check_SOURCE_DIR}" PROPERTY EXCLUDE_FROM_ALL TRUE
         )
-        find_package(Threads QUIET)
         if(TARGET Threads::Threads)
-            target_link_libraries(check PUBLIC Threads::Threads)
+            target_link_libraries(check PRIVATE Threads::Threads)
         endif()
     endif()
     add_subdirectory(tests)
