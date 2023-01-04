@@ -2,6 +2,16 @@
 Changelog
 #########
 
+2.0.1
+=====
+
+Fixed
+-----
+
+* Fixed improper linking against the pthread library on systems
+  where pthread is separate from libc.
+
+
 2.0.0
 =====
 
