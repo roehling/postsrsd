@@ -252,7 +252,7 @@ if(WITH_SQLITE)
                     SQLITE_DEFAULT_MEMSTATUS=0 SQLITE_OMIT_PROGRESS_CALLBACK
         )
         if(WITH_MILTER AND TARGET Threads::Threads)
-            target_link_libraries(sqlite PRIVATE Threads::Threads)
+            target_link_libraries(sqlite3 PRIVATE Threads::Threads)
         endif()
         add_library(sqlite3::sqlite3 ALIAS sqlite3)
         target_link_libraries(sqlite3 PUBLIC ${CMAKE_DL_LIBS})
