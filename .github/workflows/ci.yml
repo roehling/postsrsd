@@ -15,7 +15,7 @@ on:
       - main
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
         milter: [OFF, ON]
@@ -36,7 +36,7 @@ jobs:
       - name: Run tests
         run: |
           cd _build
-          ctest --output-on-error
+          ctest --output-on-failure
       - name: Install and start PostSRSd daemon
         run: |
           cd _build
