@@ -2,6 +2,18 @@
 Changelog
 #########
 
+2.0.2
+=====
+
+Fixed
+-----
+
+* Improved detection logic for systemd system unit directory
+  (`#132 <https://github.com/roehling/postsrsd/issues/132>`_)
+* Drop supplementary groups when relinquishing root privileges
+  (`#133 <https://github.com/roehling/postsrsd/issues/133>`_)
+
+
 2.0.1
 =====
 
