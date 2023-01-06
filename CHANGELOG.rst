@@ -9,7 +9,8 @@ Fixed
 -----
 
 * Fixed improper linking against the pthread library on systems
-  where pthread is separate from libc.
+  where pthread is separate from libc
+  (`#130 <https://github.com/roehling/postsrsd/issues/130>`_)
 
 
 2.0.0
@@ -44,8 +45,10 @@ Fixed
 
 * Explicitly clear ``O_NONBLOCK`` to avoid inherited non-blocking sockets
   on some operating systems
+  (`#117 <https://github.com/roehling/postsrsd/pull/117>`_)
 * Do not close all file descriptors up to ``_SC_MAX_OPEN``, as this limit
   tends to be absurdly high in Docker containers
+  (`#122 <https://github.com/roehling/postsrsd/issues/122>`_)
 * Check for the existence of the ``faketime`` tool before using it in the
   unit tests.
 
@@ -57,8 +60,8 @@ Security
 --------
 
 * The subprocess that talks to Postfix could be caused to hang with a very
-  long email address (Thanks to Mateusz Jończyk for the report)
-
+  long email address
+  (`077be98d <https://github.com/roehling/postsrsd/commit/077be98d8c8a9847e4ae0c7dc09e7474cbe27db2>`_)
 
 1.10
 ====
@@ -68,6 +71,7 @@ Security
 
 * Fixed CVE-2020-35573: PostSRSd could be tricked into consuming a lot of CPU
   time with an SRS address that has a very long time stamp tag
+  (`4733fb11 <https://github.com/roehling/postsrsd/commit/4733fb11f6bec6524bb8518c5e1a699288c26bac>`_)
 
 Fixed
 -----
@@ -99,6 +103,7 @@ Added
 -----
 
 * Added "Always Rewrite" option
+  (`#97 <https://github.com/roehling/postsrsd/pull/97>`_)
 * Added blackbox testing for PostSRSd daemon
 
 Changed
@@ -140,7 +145,7 @@ Fixed
 -----
 
 * Fixed Big Endian issue with SHA-1 implementation
-
+  (`#90 <https://github.com/roehling/postsrsd/pull/90>`_)
 
 1.5
 ===
