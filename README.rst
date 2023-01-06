@@ -55,6 +55,7 @@ PostSRSd has a few external build dependencies:
 
 - CMake_ version 3.14 or newer
 - gcc_ or a similar C99 capable C compiler.
+- pkgconf_ or pkg-config is optional to improve detection of system settings
 - libConfuse_ is required to parse the configuration file.
 - sqlite3_ is optional to store envelope senders;
   enable it with ``-DWITH_SQLITE=ON`` as additional argument for ``cmake``.
@@ -72,6 +73,7 @@ discovery process.
 
 .. _CMake: https://cmake.org
 .. _gcc: https://gcc.gnu.org
+.. _pkgconf: http://pkgconf.org
 .. _libConfuse: https://github.com/libconfuse/libconfuse
 .. _sqlite3: https://sqlite.org
 .. _hiredis: https://github.com/redis/hiredis
