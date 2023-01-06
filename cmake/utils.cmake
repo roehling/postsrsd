@@ -43,14 +43,16 @@ endfunction()
 
 function(find_systemd_unit_destination var)
     if(CMAKE_INSTALL_PREFIX MATCHES "^/usr/?$")
-        if(EXISTS "/etc/debian_version")
+        find_package(PkgConfig QUIET)
+        if(PkgConfig_FOUND)
+            pkg_get_variable(unitdir systemd systemdsystemunitdir)
             set(${var}
-                "/lib/systemd/system"
+                "${unitdir}"
                 PARENT_SCOPE
             )
         else()
             set(${var}
-                "${CMAKE_INSTALL_LIBDIR}/systemd/system"
+                "/usr/lib/systemd/system"
                 PARENT_SCOPE
             )
         endif()
