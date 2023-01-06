@@ -53,6 +53,9 @@
 #ifdef HAVE_UNISTD_H
 #    include <unistd.h>
 #endif
+#ifdef HAVE_GRP_H
+#    include <grp.h>
+#endif
 
 static volatile sig_atomic_t timeout = 0;
 
@@ -100,6 +103,13 @@ static bool drop_privileges(cfg_t* cfg)
     }
     if (target_uid != 0 || target_gid != 0)
     {
+#ifdef HAVE_GRP_H
+        if (setgroups(0, NULL) < 0)
+        {
+            log_perror(errno, "cannot drop privileges: setgroups");
+            return false;
+        }
+#endif
         if (setgid(target_gid) < 0)
         {
             log_perror(errno, "cannot drop privileges: setgid");

@@ -40,6 +40,7 @@
 #cmakedefine HAVE_ALLOCA_H 1
 #cmakedefine HAVE_ERRNO_H 1
 #cmakedefine HAVE_FCNTL_H 1
+#cmakedefine HAVE_GRP_H 1
 #cmakedefine HAVE_NETDB_H 1
 #cmakedefine HAVE_POLL_H 1
 #cmakedefine HAVE_PWD_H 1
