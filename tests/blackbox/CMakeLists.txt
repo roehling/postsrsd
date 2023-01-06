@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 find_program(FAKETIME_EXECUTABLE NAMES faketime)
-find_package(Python3)
+find_package(Python3 3.3 QUIET)
 
 if(FAKETIME_EXECUTABLE AND Python3_EXECUTABLE)
     add_test(
