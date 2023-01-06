@@ -25,6 +25,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 include(utils)
 include(CTest)
+include(FeatureSummary)
 include(FetchContent)
 include(GNUInstallDirs)
 include(CheckIncludeFile)
@@ -33,17 +34,25 @@ include(CheckSymbolExists)
 include(TestBigEndian)
 
 option(WITH_MILTER "Enable SRS rewrite via Milter (requires libmilter)" OFF)
+add_feature_info(WITH_MILTER WITH_MILTER "run PostSRSd as milter")
 option(WITH_SQLITE
        "Enable sqlite-based storage for opaque SRS tokens (requires sqlite3)"
        OFF
 )
+add_feature_info(WITH_SQLITE WITH_SQLITE "use SQLite as database backend")
 option(WITH_REDIS
        "Enable Redis-based storage for opaque SRS tokens (requires hiredis)"
        OFF
 )
+add_feature_info(WITH_REDIS WITH_REDIS "use Redis as database backend")
 
 option(TESTS_WITH_ASAN "Run test suite with AddressSanitizer" ON)
 option(GENERATE_SRS_SECRET "Generate and install a postsrsd.secret" ON)
+add_feature_info(
+    GENERATE_SRS_SECRET
+    GENERATE_SRS_SECRET
+    "generate missing ${CMAKE_INSTALL_FULL_SYSCONFDIR}/${PROJECT_NAME}.secret on install"
+)
 option(DEVELOPER_BUILD "Add strict compiler options for development only" OFF)
 set(POSTSRSD_USER
     "nobody"
@@ -367,3 +376,5 @@ if(BUILD_TESTING)
     endif()
     add_subdirectory(tests)
 endif()
+
+feature_summary(WHAT ENABLED_FEATURES DISABLED_FEATURES)
