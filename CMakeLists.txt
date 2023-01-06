@@ -14,10 +14,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-cmake_minimum_required(VERSION 3.14...3.24)
+cmake_minimum_required(VERSION 3.14...3.25)
 project(
     postsrsd
-    VERSION 2.0.0
+    VERSION 2.0.1
     LANGUAGES C
 )
 
