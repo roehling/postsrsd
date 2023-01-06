@@ -142,7 +142,7 @@ cfg_t* config_from_commandline(int argc, char* const* argv)
     int ok = 1;
     if (file_exists(DEFAULT_CONFIG_FILE))
         set_string(&config_file, strdup(DEFAULT_CONFIG_FILE));
-    while ((opt = getopt(argc, argv, "C:c:Dp:u:")) != -1)
+    while ((opt = getopt(argc, argv, "C:c:Dp:u:v")) != -1)
     {
         switch (opt)
         {
@@ -162,6 +162,10 @@ cfg_t* config_from_commandline(int argc, char* const* argv)
                 break;
             case 'u':
                 set_string(&unprivileged_user, strdup(optarg));
+                break;
+            case 'v':
+                puts(POSTSRSD_VERSION);
+                exit(0);
                 break;
             default:
                 break;
