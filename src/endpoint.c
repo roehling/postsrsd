@@ -70,7 +70,6 @@ static int create_unix_socket(const char* path)
     }
     if (acquire_lock(path) > 0)
         unlink(path);
-    mode_t old_mask = umask(0);
     int sock = socket(AF_UNIX, SOCK_STREAM, 0);
     if (sock < 0)
         goto fail;
@@ -79,16 +78,16 @@ static int create_unix_socket(const char* path)
     strncpy(sa.sun_path, path, sizeof(sa.sun_path) - 1);
     if (bind(sock, (const struct sockaddr*)&sa, sizeof(struct sockaddr_un)) < 0)
         goto fail;
+    if (chmod(path, 0666) < 0)
+        goto fail;
     if (listen(sock, POSTSRSD_SOCKET_LISTEN_QUEUE) < 0)
         goto fail;
     if ((flags = fcntl(sock, F_GETFL, 0)) < 0)
         goto fail;
     if (fcntl(sock, F_SETFL, flags | O_NONBLOCK) < 0)
         goto fail;
-    umask(old_mask);
     return sock;
 fail:
-    umask(old_mask);
     log_perror(errno, NULL);
     if (sock >= 0)
         close(sock);

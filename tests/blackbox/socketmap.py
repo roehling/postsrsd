@@ -19,6 +19,7 @@ import os
 import pathlib
 import signal
 import socket
+import stat
 import subprocess
 import sys
 import tempfile
@@ -81,6 +82,8 @@ def postsrsd_instance(faketime, postsrsd, when, use_database):
 
 def execute_queries(faketime, postsrsd, when, use_database, queries):
     with postsrsd_instance(faketime, postsrsd, when, use_database) as endpoint:
+        st = os.stat(endpoint)
+        assert st.st_mode & 0o777 == 0o666
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM, 0)
         sock.connect(endpoint)
         try:
