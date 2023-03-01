@@ -68,8 +68,10 @@ def postsrsd_instance(faketime, postsrsd, when, use_database):
             [faketime, when, postsrsd, "-C", str(tmpdir / "postsrsd.conf")],
             start_new_session=True,
         )
-        while not (tmpdir / "postsrsd.sock").exists():
+        wait = 50
+        while not (tmpdir / "postsrsd.sock").exists() and wait > 0:
             time.sleep(0.1)
+            wait -= 1
         try:
             yield str(tmpdir / "postsrsd.sock").encode()
         finally:
