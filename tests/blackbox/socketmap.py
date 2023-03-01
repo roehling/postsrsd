@@ -236,6 +236,16 @@ if __name__ == "__main__":
                 ("forward test@" + "a" * (513 - 9) + ".net"),
                 "PERM Too big.",
             ),
+            # Test empty address
+            (
+                "forward ",
+                "NOTFOUND No domain.",
+            ),
+            # Test empty quotes
+            (
+                'forward ""',
+                "NOTFOUND No domain.",
+            ),
         ],
     )
     execute_death_tests(
