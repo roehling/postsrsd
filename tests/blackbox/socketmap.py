@@ -104,7 +104,7 @@ def execute_death_tests(faketime, postsrsd, when, use_database, queries):
         for nr, query in enumerate(queries, start=1):
             try:
                 sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM, 0)
-                sock.settimeout(0.5)
+                sock.settimeout(10)
                 sock.connect(endpoint)
                 sock.send(query)
                 result = read_netstring(sock)
@@ -118,7 +118,8 @@ def execute_death_tests(faketime, postsrsd, when, use_database, queries):
                     raise AssertionError(
                         f"death_test[{query}]: FAILED: Expected connection closed, got: {result!r}"
                     )
-                except socket.timeout:  # TimeoutError
+                except ConnectionResetError:
+                    # Expected behavior
                     pass
                 sys.stderr.write(f"death_test[{query}]: Passed\n")
             finally:
