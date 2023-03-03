@@ -366,6 +366,7 @@ int main(int argc, char** argv)
                                                 local_domains, conn);
                         exit(EXIT_SUCCESS);
                     }
+                    close(conn);
                 }
             }
             waitpid(-1, NULL, WNOHANG);
