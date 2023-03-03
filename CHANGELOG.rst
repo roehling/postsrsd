@@ -2,6 +2,17 @@
 Changelog
 #########
 
+2.0.3
+=====
+
+Fixed
+-----
+
+* Close socketmap connection in main process to prevent resource
+  exhaustion (`#141 <https://github.com/roehling/postsrsd/issues/141>`_)
+* Explicitly set 0666 permissions on socketmap unix socket
+  (`#141 <https://github.com/roehling/postsrsd/issues/141>`_)
+
 2.0.2
 =====
 
