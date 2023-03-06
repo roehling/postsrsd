@@ -104,6 +104,24 @@ static int validate_domain_names(cfg_t* cfg, cfg_opt_t* opt)
     return 0;
 }
 
+static void show_help()
+{
+    printf(
+        "PostSRSd - Sender Rewriting Scheme daemon for Postfix\n"
+        "\n"
+        "Available command line options:\n"
+        "  -h           show this help\n"
+        "  -C <FILE>    load configuration from <FILE>\n"
+        "               (default: %s)\n"
+        "  -c <DIR>     use <DIR> as chroot directory\n"
+        "  -D           daemonize by forking into background\n"
+        "  -p <FILE>    write PostSRSd process ID into <FILE>\n"
+        "  -u <USER>    drop root privileges and run as <USER>\n"
+        "  -v           show version number (%s)\n"
+        "\n",
+        DEFAULT_CONFIG_FILE, POSTSRSD_VERSION);
+}
+
 cfg_t* config_from_commandline(int argc, char* const* argv)
 {
     static cfg_opt_t opts[] = {
@@ -142,7 +160,7 @@ cfg_t* config_from_commandline(int argc, char* const* argv)
     int ok = 1;
     if (file_exists(DEFAULT_CONFIG_FILE))
         set_string(&config_file, strdup(DEFAULT_CONFIG_FILE));
-    while ((opt = getopt(argc, argv, "C:c:Dp:u:v")) != -1)
+    while ((opt = getopt(argc, argv, "C:c:Dhp:u:v")) != -1)
     {
         switch (opt)
         {
@@ -156,6 +174,10 @@ cfg_t* config_from_commandline(int argc, char* const* argv)
                 break;
             case 'D':
                 daemonize = 1;
+                break;
+            case 'h':
+                show_help();
+                exit(0);
                 break;
             case 'p':
                 set_string(&pid_file, strdup(optarg));
