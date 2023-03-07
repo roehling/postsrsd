@@ -23,6 +23,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef HAVE_FCNTL_H
+#    include <fcntl.h>
+#endif
 #ifdef HAVE_SYS_FILE_H
 #    include <sys/file.h>
 #endif

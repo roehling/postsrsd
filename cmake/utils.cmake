@@ -18,12 +18,21 @@ function(add_autotools_dependency name)
             "${CMAKE_STATIC_LIBRARY_PREFIX}${arg_LIBRARY_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}"
         )
         string(TOLOWER "${name}" lc_name)
+        string(TOUPPER "${CMAKE_BUILD_TYPE}" uc_build_type)
+        if(CMAKE_C_COMPILER_AR)
+            set(ar_executable "${CMAKE_C_COMPILER_AR}")
+        else()
+            set(ar_executable "${CMAKE_AR}")
+        endif()
         ExternalProject_Add(
             Ext${name}
             SOURCE_DIR "${${lc_name}_SOURCE_DIR}"
             UPDATE_DISCONNECTED TRUE
-            CONFIGURE_COMMAND <SOURCE_DIR>/configure --disable-shared
-                              --prefix=<INSTALL_DIR>
+            CONFIGURE_COMMAND
+                <SOURCE_DIR>/configure --disable-shared --prefix=<INSTALL_DIR>
+                "CC=${CMAKE_C_COMPILER}" "AR=${ar_executable}"
+                "RANLIB=${CMAKE_RANLIB}"
+                "CFLAGS=${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_${uc_build_type}}"
             BUILD_COMMAND ${MAKE_EXECUTABLE} -j
             INSTALL_COMMAND ${MAKE_EXECUTABLE} -j install
             TEST_COMMAND ""

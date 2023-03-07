@@ -38,9 +38,6 @@
 #ifdef HAVE_SYS_WAIT_H
 #    include <sys/wait.h>
 #endif
-#ifdef HAVE_WAIT_H
-#    include <wait.h>
-#endif
 #ifdef HAVE_SIGNAL_H
 #    include <signal.h>
 #endif
