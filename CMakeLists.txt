@@ -23,6 +23,13 @@ project(
     HOMEPAGE_URL "https://github.com/roehling/postsrsd"
 )
 
+if(CMAKE_VERSION VERSION_LESS 3.21.0)
+    # Workaround for https://gitlab.kitware.com/cmake/cmake/-/issues/22234
+    if(POLICY CMP0082)
+        cmake_policy(SET CMP0082 OLD)
+    endif()
+endif()
+
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 include(utils)
