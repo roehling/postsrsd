@@ -19,6 +19,8 @@ project(
     postsrsd
     VERSION 2.0.3
     LANGUAGES C
+    DESCRIPTION "Sender Rewriting Scheme daemon for Postfix"
+    HOMEPAGE_URL "https://github.com/roehling/postsrsd"
 )
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -377,3 +379,27 @@ if(BUILD_TESTING)
 endif()
 
 feature_summary(WHAT ENABLED_FEATURES DISABLED_FEATURES)
+
+set(CPACK_SET_DESTDIR ON)
+set(CPACK_PACKAGE_NAME "postsrsd")
+set(CPACK_PACKAGE_VENDOR "Timo Röhling")
+set(CPACK_PACKAGE_RELOCATABLE OFF)
+set(CPACK_PACKAGE_DESCRIPTION
+    "\
+The Sender Rewriting Scheme (SRS) is a technique to forward mails from domains
+which deploy the Sender Policy Framework (SPF) to prohibit other Mail Transfer
+Agents (MTAs) from sending mails on their behalf.
+
+PostSRSd implements SRS for the Postfix MTA."
+)
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Timo Röhling <timo@gaussglocke.de>")
+set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
+set(CPACK_DEBIAN_PACKAGE_RELEASE 1)
+set(CPACK_DEBIAN_PACKAGE_SECTION "mail")
+set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+set(CPACK_RPM_FILE_NAME RPM-DEFAULT)
+set(CPACK_RPM_PACKAGE_AUTOREQ ON)
+set(CPACK_RPM_PACKAGE_DESCRIPTION "${CPACK_PACKAGE_DESCRIPTION}")
+set(CPACK_RPM_PACKAGE_LICENSE "GPLv3")
+set(CPACK_RPM_PACKAGE_RELEASE_DIST ON)
+include(CPack)
