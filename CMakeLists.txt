@@ -111,7 +111,8 @@ mark_as_advanced(
 FetchContent_Declare(
     Confuse
     URL https://github.com/libconfuse/libconfuse/releases/download/v3.3/confuse-3.3.tar.gz
-    URL_HASH MD5=f590564c6ea4879db0c8f692bf12f42a
+    URL_HASH
+        SHA3_256=da895d91a7755941872e73ff6522fd16810f1599862990df569459a0eee94515
 )
 
 FetchContent_Declare(
@@ -128,14 +129,16 @@ FetchContent_Declare(
 
 FetchContent_Declare(
     sqlite3
-    URL https://sqlite.org/2022/sqlite-amalgamation-3400000.zip
-    URL_HASH MD5=bcb55322db69efd9d82185ccda6c9733
+    URL https://sqlite.org/2023/sqlite-amalgamation-3410100.zip
+    URL_HASH
+        SHA3_256=02c0b580272ff9160b4c70459f85fd1a1c602a9f081c2c375b32ffa68483f55e
 )
 
 FetchContent_Declare(
     Check
     URL https://github.com/libcheck/check/releases/download/0.15.2/check-0.15.2.tar.gz
-    URL_HASH MD5=50fcafcecde5a380415b12e9c574e0b2
+    URL_HASH
+        SHA3_256=bfb856a68c0ea4d930803f6bd16c1eed38910a231c9e0f0009e69310e35e7a5d
 )
 
 set(saved_CMAKE_REQUIRED_DEFINITIONS "${CMAKE_REQUIRED_DEFINITIONS}")
