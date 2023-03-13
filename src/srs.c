@@ -35,7 +35,7 @@ char* postsrsd_forward(const char* addr, const char* domain, srs_t* srs,
     {
         if (info)
             *info = "No domain.";
-        log_info("<%s> not forward-rewritten: no domain", addr);
+        log_info("<%s> not rewritten: no domain", addr);
         return NULL;
     }
     const char* input_domain = at + 1;
@@ -43,7 +43,7 @@ char* postsrsd_forward(const char* addr, const char* domain, srs_t* srs,
     {
         if (info)
             *info = "Need not rewrite local domain.";
-        log_info("<%s> not forward-rewritten: local domain", addr);
+        log_info("<%s> not rewritten: local domain", addr);
         return NULL;
     }
     char db_alias_buf[35];
@@ -56,7 +56,7 @@ char* postsrsd_forward(const char* addr, const char* domain, srs_t* srs,
         db_alias = b32h_encode(digest, 20, db_alias_buf, sizeof(db_alias_buf));
         if (!db_alias)
         {
-            log_warn("<%s> not forward-rewritten: aliasing error", addr);
+            log_warn("<%s> not rewritten: aliasing error", addr);
             if (error)
                 *error = true;
             if (info)
@@ -85,7 +85,7 @@ char* postsrsd_forward(const char* addr, const char* domain, srs_t* srs,
     free(output);
     if (info)
         *info = srs_strerror(result);
-    log_info("<%s> not forward-rewritten: %s", addr, srs_strerror(result));
+    log_info("<%s> not rewritten: %s", addr, srs_strerror(result));
     return NULL;
 }
 
@@ -102,13 +102,13 @@ char* postsrsd_reverse(const char* addr, srs_t* srs, database_t* db,
     {
         if (info)
             *info = srs_strerror(result);
-        log_info("<%s> not reverse-rewritten: %s", addr, srs_strerror(result));
+        log_info("<%s> not reversed: %s", addr, srs_strerror(result));
         return NULL;
     }
     const char* at = strchr(buffer, '@');
     if (!at)
     {
-        log_info("<%s> not reverse-rewritten: internal error", addr);
+        log_info("<%s> not reversed: internal error", addr);
         if (error)
             *error = true;
         if (info)
@@ -128,7 +128,7 @@ char* postsrsd_reverse(const char* addr, srs_t* srs, database_t* db,
             char* sender = database_read(db, buffer);
             if (!sender)
             {
-                log_info("<%s> not reverse-rewritten: unknown alias", addr);
+                log_info("<%s> not reversed: unknown alias", addr);
                 if (info)
                     *info = "Unknown alias.";
                 return NULL;
@@ -138,7 +138,7 @@ char* postsrsd_reverse(const char* addr, srs_t* srs, database_t* db,
         }
         else
         {
-            log_info("<%s> not reverse-rewritten: no database for alias", addr);
+            log_info("<%s> not reversed: no database for alias", addr);
             if (error)
                 *error = true;
             if (info)
