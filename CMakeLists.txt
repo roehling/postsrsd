@@ -192,6 +192,10 @@ if(WITH_REDIS)
         ON
         CACHE BOOL "" FORCE
     )
+    set(BUILD_SHARED_LIBS
+        OFF
+        CACHE BOOL "" FORCE
+    )
     FetchContent_MakeAvailable(Hiredis)
     if(IS_DIRECTORY "${hiredis_SOURCE_DIR}")
         set_property(
