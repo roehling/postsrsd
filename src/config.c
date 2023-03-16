@@ -107,20 +107,38 @@ static int validate_domain_names(cfg_t* cfg, cfg_opt_t* opt)
 
 static void show_help()
 {
-    printf(
+    puts(
         "PostSRSd - Sender Rewriting Scheme daemon for Postfix\n"
         "\n"
         "Available command line options:\n"
         "  -h           show this help\n"
         "  -C <FILE>    load configuration from <FILE>\n"
-        "               (default: %s)\n"
+        "               (default: " DEFAULT_CONFIG_FILE
+        ")\n"
         "  -c <DIR>     use <DIR> as chroot directory\n"
+        "               (default: " DEFAULT_CHROOT_DIR
+        ")\n"
         "  -D           daemonize by forking into background\n"
         "  -p <FILE>    write PostSRSd process ID into <FILE>\n"
         "  -u <USER>    drop root privileges and run as <USER>\n"
-        "  -v           show version number (%s)\n"
-        "\n",
-        DEFAULT_CONFIG_FILE, POSTSRSD_VERSION);
+        "               (default: " DEFAULT_POSTSRSD_USER
+        ")\n"
+        "  -v           show version number (" POSTSRSD_VERSION
+        ")\n"
+#if defined(WITH_SQLITE) || defined(WITH_REDIS) || defined(WITH_MILTER)
+        "\n"
+        "This binary has been compiled with\n"
+#    ifdef WITH_SQLITE
+        "* SQLite database storage support\n"
+#    endif
+#    ifdef WITH_REDIS
+        "* Redis database storage support\n"
+#    endif
+#    ifdef WITH_MILTER
+        "* Milter support (experimental)\n"
+#    endif
+#endif
+    );
 }
 
 cfg_t* config_from_commandline(int argc, char* const* argv)
