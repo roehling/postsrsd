@@ -75,7 +75,7 @@ def mf_eom(sock):
 
 
 @contextlib.contextmanager
-def postsrsd_instance(faketime, postsrsd, when):
+def postsrsd_instance(postsrsd, when):
     with tempfile.TemporaryDirectory() as tmpdirname:
         tmpdir = pathlib.Path(tmpdirname)
         with open(tmpdir / "postsrsd.conf", "w") as f:
@@ -92,12 +92,15 @@ def postsrsd_instance(faketime, postsrsd, when):
             )
         with open(tmpdir / "postsrsd.secret", "w") as f:
             f.write("tops3cr3t\n")
+        os.environ["POSTSRSD_FAKETIME"] = when
         proc = subprocess.Popen(
-            [faketime, when, postsrsd, "-C", str(tmpdir / "postsrsd.conf")],
+            [postsrsd, "-C", str(tmpdir / "postsrsd.conf")],
             start_new_session=True,
         )
-        while not (tmpdir / "postsrsd.sock").exists():
+        wait = 50
+        while not (tmpdir / "postsrsd.sock").exists() and wait > 0:
             time.sleep(0.1)
+            wait -= 1
         try:
             yield str(tmpdir / "postsrsd.sock").encode()
         finally:
@@ -105,8 +108,8 @@ def postsrsd_instance(faketime, postsrsd, when):
             proc.wait()
 
 
-def execute_queries(faketime, postsrsd, when, queries):
-    with postsrsd_instance(faketime, postsrsd, when) as endpoint:
+def execute_queries(postsrsd, when, queries):
+    with postsrsd_instance(postsrsd, when) as endpoint:
         for query in queries:
             orig_from, orig_rcpt = query[0]
             new_from, new_rcpt = query[1]
@@ -130,8 +133,7 @@ def execute_queries(faketime, postsrsd, when, queries):
 if __name__ == "__main__":
     execute_queries(
         sys.argv[1],
-        sys.argv[2],
-        when="2020-01-01 00:01:00 UTC",
+        when="1577836860",  # 2020-01-01 00:01:00 UTC
         queries=[
             (("sender@example.com", "recipient@example.com"), (None, None)),
             (

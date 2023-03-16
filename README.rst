@@ -65,7 +65,7 @@ PostSRSd has a few external build dependencies:
   enable it with ``-DWITH_MILTER=ON``.
 - check_ is needed if you want to build and run the unit test suite;
   otherwise disable it with ``-DBUILD_TESTING=OFF``.
-- Python_ and faketime_ are needed for the optional blackbox tests.
+- Python_ is needed for the optional blackbox tests.
 
 PostSRSd relies on the FetchContent_ module of CMake for its dependency
 resolution. Please refer to its documentation if you wish to tweak the
@@ -81,7 +81,6 @@ discovery process.
 .. _check: https://github.com/libcheck/check
 .. _FetchContent: https://cmake.org/cmake/help/latest/module/FetchContent.html
 .. _Python: https://www.python.org
-.. _faketime: https://github.com/wolfcw/libfaketime
 
 Configuration
 -------------

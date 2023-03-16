@@ -127,6 +127,7 @@ void srs_init(srs_t* srs)
     srs->hashlength = 4;
     srs->hashmin = srs->hashlength;
     srs->alwaysrewrite = FALSE;
+    srs->faketime = 0;
 }
 
 void srs_free(srs_t* srs)
@@ -232,7 +233,10 @@ int srs_timestamp_check(srs_t* srs, const char* stamp)
         then = (then << SRS_TIME_BASEBITS) | off;
     }
 
-    time(&now);
+    if (srs->faketime)
+        now = srs->faketime;
+    else
+        time(&now);
     now = (now / SRS_TIME_PRECISION) % SRS_TIME_SLOTS;
     while (now < then)
         now = now + SRS_TIME_SLOTS;
@@ -410,7 +414,8 @@ int srs_compile_shortcut(srs_t* srs, char* buf, int buflen, char* sendhost,
     if (len >= buflen)
         return SRS_EBUFTOOSMALL;
 
-    ret = srs_timestamp_create(srs, srsstamp, time(NULL));
+    ret = srs_timestamp_create(srs, srsstamp,
+                               srs->faketime ? srs->faketime : time(NULL));
     if (ret != SRS_SUCCESS)
         return ret;
     srshash = alloca(srs->hashlength + 1);

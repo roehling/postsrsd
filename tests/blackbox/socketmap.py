@@ -49,7 +49,7 @@ def read_netstring(sock):
 
 
 @contextlib.contextmanager
-def postsrsd_instance(faketime, postsrsd, when, use_database):
+def postsrsd_instance(postsrsd, when, use_database):
     with tempfile.TemporaryDirectory() as tmpdirname:
         tmpdir = pathlib.Path(tmpdirname)
         with open(tmpdir / "postsrsd.conf", "w") as f:
@@ -65,8 +65,9 @@ def postsrsd_instance(faketime, postsrsd, when, use_database):
             )
         with open(tmpdir / "postsrsd.secret", "w") as f:
             f.write("tops3cr3t\n")
+        os.environ["POSTSRSD_FAKETIME"] = when
         proc = subprocess.Popen(
-            [faketime, when, postsrsd, "-C", str(tmpdir / "postsrsd.conf")],
+            [postsrsd, "-C", str(tmpdir / "postsrsd.conf")],
             start_new_session=True,
         )
         wait = 50
@@ -80,8 +81,8 @@ def postsrsd_instance(faketime, postsrsd, when, use_database):
             proc.wait()
 
 
-def execute_queries(faketime, postsrsd, when, use_database, queries):
-    with postsrsd_instance(faketime, postsrsd, when, use_database) as endpoint:
+def execute_queries(postsrsd, when, use_database, queries):
+    with postsrsd_instance(postsrsd, when, use_database) as endpoint:
         st = os.stat(endpoint)
         assert st.st_mode & 0o777 == 0o666
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM, 0)
@@ -99,8 +100,8 @@ def execute_queries(faketime, postsrsd, when, use_database, queries):
             sock.close()
 
 
-def execute_death_tests(faketime, postsrsd, when, use_database, queries):
-    with postsrsd_instance(faketime, postsrsd, when, use_database) as endpoint:
+def execute_death_tests(postsrsd, when, use_database, queries):
+    with postsrsd_instance(postsrsd, when, use_database) as endpoint:
         for nr, query in enumerate(queries, start=1):
             try:
                 sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM, 0)
@@ -129,8 +130,7 @@ def execute_death_tests(faketime, postsrsd, when, use_database, queries):
 if __name__ == "__main__":
     execute_queries(
         sys.argv[1],
-        sys.argv[2],
-        when="2020-01-01 00:01:00 UTC",
+        when="1577836860",  # 2020-01-01 00:01:00 UTC
         use_database=False,
         queries=[
             # No rewrite for local domain
@@ -256,8 +256,7 @@ if __name__ == "__main__":
     )
     execute_death_tests(
         sys.argv[1],
-        sys.argv[2],
-        when="2020-01-01 00:01:00 UTC",
+        when="1577836860",  # 2020-01-01 00:01:00 UTC
         use_database=False,
         queries=[
             # Empty query
@@ -272,11 +271,10 @@ if __name__ == "__main__":
             b"28:forward test@otherdomain.com;",
         ],
     )
-    if sys.argv[3] == "1":
+    if sys.argv[2] == "1":
         execute_queries(
             sys.argv[1],
-            sys.argv[2],
-            when="2020-01-01 00:01:00 UTC",
+            when="1577836860",  # 2020-01-01 00:01:00 UTC
             use_database=True,
             queries=[
                 # Regular rewrite

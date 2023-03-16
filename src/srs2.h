@@ -123,6 +123,8 @@ typedef struct _srs_t
     srs_bool noforward;     /* Never perform forwards rewriting */
     srs_bool noreverse;     /* Never perform reverse rewriting */
     char** neverrewrite;    /* A list of non-rewritten domains */
+
+    time_t faketime; /* Added for testing purposes */
 } srs_t;
 
 /* Interface */

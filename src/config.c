@@ -22,6 +22,7 @@
 
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -259,6 +260,26 @@ srs_t* srs_from_config(cfg_t* cfg)
         else
         {
             log_error("cannot read secrets from %s", secrets_file);
+            srs_free(srs);
+            return NULL;
+        }
+    }
+    char* faketime = getenv("POSTSRSD_FAKETIME");
+    if (faketime)
+    {
+        char* eptr;
+        long stamp = strtol(faketime, &eptr, 10);
+        if (eptr && !*eptr)
+        {
+            srs->faketime = stamp;
+            log_warn(
+                "POSTSRSD_FAKETIME=%s overrides system clock. DO NOT USE IN "
+                "PRODUCTION!",
+                faketime);
+        }
+        else
+        {
+            log_error("POSTSRSD_FAKETIME must be an integer");
             srs_free(srs);
             return NULL;
         }
