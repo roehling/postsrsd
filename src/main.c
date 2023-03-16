@@ -354,14 +354,22 @@ int main(int argc, char** argv)
                 {
                     int conn = accept(fds[i].fd, NULL, NULL);
                     if (conn < 0)
+                    {
+                        log_perror(errno, "accept");
                         continue;
-                    if (fork() == 0)
+                    }
+                    pid_t pid = fork();
+                    if (pid == 0)
                     {
                         for (unsigned j = 0; j < (unsigned)num_sockets; ++j)
                             close(socketmaps[j]);
                         handle_socketmap_client(cfg, srs, srs_domain,
                                                 local_domains, conn);
                         exit(EXIT_SUCCESS);
+                    }
+                    if (pid < 0)
+                    {
+                        log_perror(errno, "fork");
                     }
                     close(conn);
                 }
