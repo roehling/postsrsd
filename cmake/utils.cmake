@@ -24,13 +24,20 @@ function(add_autotools_dependency name)
         else()
             set(ar_executable "${CMAKE_AR}")
         endif()
+        if(CMAKE_C_COMPILER_LAUNCHER)
+            set(cc_executable
+                "${CMAKE_C_COMPILER_LAUNCHER} ${CMAKE_C_COMPILER}"
+            )
+        else()
+            set(cc_executable "${CMAKE_C_COMPILER}")
+        endif()
         ExternalProject_Add(
             Ext${name}
             SOURCE_DIR "${${lc_name}_SOURCE_DIR}"
             UPDATE_DISCONNECTED TRUE
             CONFIGURE_COMMAND
                 <SOURCE_DIR>/configure --disable-shared --prefix=<INSTALL_DIR>
-                "CC=${CMAKE_C_COMPILER}" "AR=${ar_executable}"
+                "CC=${cc_executable}" "AR=${ar_executable}"
                 "RANLIB=${CMAKE_RANLIB}"
                 "CFLAGS=${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_${uc_build_type}}"
             BUILD_COMMAND ${MAKE_EXECUTABLE} -j
