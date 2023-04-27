@@ -1,3 +1,8 @@
+..
+    PostSRSd - Sender Rewriting Scheme daemon for Postfix
+    Copyright 2012-2022 Timo Röhling <timo@gaussglocke.de>
+    SPDX-License-Identifier: GPL-3.0-only
+
 #########
 Changelog
 #########
