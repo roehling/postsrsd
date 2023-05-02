@@ -105,7 +105,7 @@ START_TEST(netstring_io_test)
     written = netstring_write(f, "0123456789abcdefgh", 17);
     ck_assert_int_eq(written, 21);
 
-    fseek(f, 0, SEEK_SET);
+    ck_assert_int_eq(fseek(f, 0, SEEK_SET), 0);
 
     data = netstring_read(f, buffer, sizeof(buffer), &length);
     ck_assert_ptr_nonnull(data);
@@ -119,11 +119,11 @@ START_TEST(netstring_io_test)
     data = netstring_read(f, buffer, sizeof(buffer), &length);
     ck_assert_ptr_null(data);
 
-    fseek(f, 0, SEEK_SET);
-    ftruncate(fileno(f), 0);
+    ck_assert_int_eq(fseek(f, 0, SEEK_SET), 0);
+    ck_assert_int_eq(ftruncate(fileno(f), 0), 0);
     fwrite("3:abc,4:abcde", 1, 13, f);
 
-    fseek(f, 0, SEEK_SET);
+    ck_assert_int_eq(fseek(f, 0, SEEK_SET), 0);
     data = netstring_read(f, buffer, sizeof(buffer), &length);
     ck_assert_ptr_nonnull(data);
     ck_assert_uint_eq(length, 3);
@@ -132,11 +132,11 @@ START_TEST(netstring_io_test)
     data = netstring_read(f, buffer, sizeof(buffer), &length);
     ck_assert_ptr_null(data);
 
-    fseek(f, 0, SEEK_SET);
-    ftruncate(fileno(f), 0);
+    ck_assert_int_eq(fseek(f, 0, SEEK_SET), 0);
+    ck_assert_int_eq(ftruncate(fileno(f), 0), 0);
     fwrite("999:obviously too short,", 1, 4, f);
 
-    fseek(f, 0, SEEK_SET);
+    ck_assert_int_eq(fseek(f, 0, SEEK_SET), 0);
     data = netstring_read(f, buffer, sizeof(buffer), &length);
     ck_assert_ptr_null(data);
     fclose(f);
