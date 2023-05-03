@@ -7,6 +7,29 @@
 Changelog
 #########
 
+2.0.4
+=====
+
+Fixed
+-----
+
+* Worked around EXCLUDE_FROM_ALL bug in CMake 3.20.x and older
+* Fixed a few compiler warnings in the test suite
+
+Added
+-----
+
+* Added support for musl as libc alternative
+* Added support for CPack to generate installable packages
+* Added new CLI option -h to print a summary of CLI options
+
+Changed
+-------
+
+* The test suite no longer requires ``faketime`` as dependency
+* Improved error logging
+
+
 2.0.3
 =====
 
