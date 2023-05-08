@@ -183,6 +183,11 @@ static char* db_redis_read(database_t* db, const char* key)
     snprintf(buffer, sizeof(buffer), "PostSRSd/%s", key);
     redisContext* handle = (redisContext*)db->handle;
     redisReply* reply = redisCommand(handle, "GET %s", buffer);
+    if (!reply)
+    {
+        log_warn("redis connection failure: %s", handle->errstr);
+        return NULL;
+    }
     char* value = NULL;
     if (reply->type == REDIS_REPLY_ERROR)
     {
@@ -205,6 +210,11 @@ static bool db_redis_write(database_t* db, const char* key, const char* value,
     bool success = true;
     redisReply* reply =
         redisCommand(handle, "SETEX %s %u %s", buffer, lifetime, value);
+    if (!reply)
+    {
+        log_warn("redis connection failure: %s", handle->errstr);
+        return false;
+    }
     if (reply->type == REDIS_REPLY_ERROR)
     {
         log_warn("redis write error: %s", reply->str);
@@ -226,29 +236,35 @@ static bool db_redis_connect(database_t* db, const char* hostname, int port)
     if (port > 0)
     {
         handle = redisConnect(hostname, port);
+        if (!handle)
+            goto alloc_fail;
+        if (handle->err)
+            goto conn_fail;
+        redisEnableKeepAlive(handle);
     }
     else
     {
         handle = redisConnectUnix(hostname);
-    }
-    if (!handle)
-    {
-        log_error("failed to allocate redis handle");
-        return false;
+        if (!handle)
+            goto alloc_fail;
     }
     if (handle->err)
-    {
-        log_error("failed to connect to redis instance: %s", handle->errstr);
-        redisFree(handle);
-        return false;
-    }
-    redisEnableKeepAlive(handle);
+        goto conn_fail;
     db->handle = handle;
     db->read = db_redis_read;
     db->write = db_redis_write;
     db->expire = NULL;
     db->disconnect = db_redis_disconnect;
     return true;
+
+conn_fail:
+    log_error("failed to connect to redis instance: %s", handle->errstr);
+    redisFree(handle);
+    return false;
+
+alloc_fail:
+    log_error("failed to allocate redis handle");
+    return false;
 }
 #endif
 
