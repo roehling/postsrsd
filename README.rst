@@ -32,8 +32,9 @@ If your Linux distribution has a sufficiently recent PostSRSd package, install
 it! Unless you need a specific new feature or bugfix from a newer version, it
 will be much less of a maintenance burden.
 
-If you are looking to package PostSRSd for a Linux distribution, have a look
-at the packaging_ notes.
+If you are interested in packaging PostSRSd for a Linux distribution, have a
+look at the packaging_ notes. In particular, we are currently looking for a new
+Debian maintainer (`#145 <https://github.com/roehling/postsrsd/issues/145>`_).
 
 .. _packaging: doc/packaging.rst
 
