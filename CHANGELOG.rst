@@ -7,6 +7,15 @@
 Changelog
 #########
 
+2.0.5
+=====
+
+Fixed
+-----
+
+* Do not try to set Keep-Alive on Redis unix sockets
+  (`#146 <https://github.com/roehling/postsrsd/issues/146>`_)
+
 2.0.4
 =====
 
