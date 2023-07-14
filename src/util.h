@@ -22,6 +22,12 @@
 
 #define MAYBE_UNUSED(x) (void)(x)
 
+#ifdef __GNUC__
+#    define ATTRIBUTE(x) __attribute__((x))
+#else
+#    define ATTRIBUTE(x)
+#endif
+
 struct domain_set;
 typedef struct domain_set domain_set_t;
 struct list;
@@ -59,12 +65,21 @@ void list_destroy(list_t* L, list_deleter_t deleter);
 char* endpoint_for_milter(const char* s);
 char* endpoint_for_redis(const char* s, int* port);
 
+enum log_priority
+{
+    LogDebug,
+    LogInfo,
+    LogWarn,
+    LogError,
+};
+
 void log_enable_syslog();
-void log_debug(const char* fmt, ...);
-void log_info(const char* fmt, ...);
-void log_warn(const char* fmt, ...);
-void log_error(const char* fmt, ...);
+void log_set_verbosity(enum log_priority prio);
+void log_debug(const char* fmt, ...) ATTRIBUTE(format(printf, 1, 2));
+void log_info(const char* fmt, ...) ATTRIBUTE(format(printf, 1, 2));
+void log_warn(const char* fmt, ...) ATTRIBUTE(format(printf, 1, 2));
+void log_error(const char* fmt, ...) ATTRIBUTE(format(printf, 1, 2));
 void log_perror(int errno, const char* prefix);
-void log_fatal(const char* fmt, ...) __attribute__((noreturn));
+void log_fatal(const char* fmt, ...) ATTRIBUTE(noreturn);
 
 #endif

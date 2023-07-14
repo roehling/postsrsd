@@ -19,6 +19,10 @@ macro(add_postsrsd_test name)
     target_include_directories(
         ${name}_executable PRIVATE ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}/src
     )
+    target_compile_definitions(
+        ${name}_executable PRIVATE _GNU_SOURCE _POSIX_C_SOURCE
+                                   _FILE_OFFSET_BITS=64
+    )
     target_link_libraries(${name}_executable PRIVATE Check::check)
     target_compile_features(${name}_executable PRIVATE c_std_99)
     if(TESTS_WITH_ASAN)

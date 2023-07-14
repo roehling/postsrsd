@@ -163,6 +163,7 @@ cfg_t* config_from_commandline(int argc, char* const* argv)
         CFG_STR("chroot-dir", DEFAULT_CHROOT_DIR, CFGF_NONE),
         CFG_BOOL("daemonize", cfg_false, CFGF_NONE),
         CFG_BOOL("syslog", cfg_false, CFGF_NONE),
+        CFG_BOOL("debug", cfg_false, CFGF_NONE),
         CFG_END(),
     };
     cfg_t* cfg = cfg_init(opts, CFGF_NONE);
@@ -281,6 +282,12 @@ srs_t* srs_from_config(cfg_t* cfg)
             srs_free(srs);
             return NULL;
         }
+    }
+    if (srs->numsecrets == 0 || srs->secrets == NULL || srs->secrets[0] == NULL)
+    {
+        log_error("need at least one secret");
+        srs_free(srs);
+        return NULL;
     }
     char* faketime = getenv("POSTSRSD_FAKETIME");
     if (faketime)

@@ -189,6 +189,7 @@ static void handle_socketmap_client(cfg_t* cfg, srs_t* srs,
         {
             netstring_write(fp_write, "PERM Invalid query.", 19);
             fflush(fp_write);
+            log_error("invalid socketmap query, closing connection");
             break;
         }
         alarm(0);
@@ -197,12 +198,14 @@ static void handle_socketmap_client(cfg_t* cfg, srs_t* srs,
         {
             netstring_write(fp_write, "PERM Invalid query.", 19);
             fflush(fp_write);
+            log_error("invalid socketmap query, closing connection");
             break;
         }
         if (len > 512 + (size_t)(addr - request))
         {
             netstring_write(fp_write, "PERM Too big.", 13);
             fflush(fp_write);
+            log_warn("socketmap query is too big");
             continue;
         }
         char* rewritten = NULL;
@@ -220,6 +223,7 @@ static void handle_socketmap_client(cfg_t* cfg, srs_t* srs,
         {
             error = true;
             info = "Invalid map.";
+            log_warn("invalid key in socketmap query");
         }
         if (rewritten)
         {
@@ -269,6 +273,8 @@ int main(int argc, char** argv)
         goto shutdown;
     if (cfg_getbool(cfg, "syslog"))
         log_enable_syslog();
+    if (cfg_getbool(cfg, "debug"))
+        log_set_verbosity(LogDebug);
     srs = srs_from_config(cfg);
     if (!srs)
         goto shutdown;

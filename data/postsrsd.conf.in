@@ -176,3 +176,9 @@ chroot-dir = "@POSTSRSD_CHROOTDIR@"
 # will also send all messages to the syslog mail facility.
 #
 syslog = off
+
+# Debug
+# This option makes PostSRSd more verbose in its logging, which can be useful
+# to hunt down configuration problems.
+#
+debug = off

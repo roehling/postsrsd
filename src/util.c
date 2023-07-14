@@ -469,14 +469,7 @@ char* endpoint_for_redis(const char* s, int* port)
     return strndup(s, colon - s);
 }
 
-enum priority
-{
-    LogDebug,
-    LogInfo,
-    LogWarn,
-    LogError,
-};
-
+static enum log_priority log_prio = LogInfo;
 static const char* priority_labels[] = {"debug: ", "", "warn: ", "error: "};
 
 #ifdef HAVE_SYSLOG_H
@@ -484,8 +477,10 @@ static bool use_syslog = false;
 static int syslog_priorities[] = {LOG_DEBUG, LOG_INFO, LOG_WARNING, LOG_ERR};
 #endif
 
-static void vlog(enum priority prio, const char* fmt, va_list ap)
+static void vlog(enum log_priority prio, const char* fmt, va_list ap)
 {
+    if (prio < log_prio)
+        return;
     char buffer[1088];
     size_t prefix_len =
         snprintf(buffer, sizeof(buffer), "postsrsd: %s", priority_labels[prio]);
@@ -513,6 +508,19 @@ void log_enable_syslog()
 #else
     log_warn("syslog facility is not available");
 #endif
+}
+
+void log_set_verbosity(enum log_priority prio)
+{
+    log_prio = prio;
+}
+
+void log_debug(const char* fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    vlog(LogDebug, fmt, ap);
+    va_end(ap);
 }
 
 void log_info(const char* fmt, ...)
