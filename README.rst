@@ -113,7 +113,7 @@ change the ``socketmap`` configuration of PostSRSd. If you prefer a TCP
 connection, e.g. ``inet:localhost:10003``, you need to change the mapping to
 something like ``socketmap:inet:localhost:10003:forward``.
 
-.. _example: data/postsrsd.conf.in
+.. _example: doc/postsrsd.conf
 
 Experimental Milter Support
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
