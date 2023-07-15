@@ -187,9 +187,12 @@ static void handle_socketmap_client(cfg_t* cfg, srs_t* srs,
             break;
         if (!request)
         {
-            netstring_write(fp_write, "PERM Invalid query.", 19);
-            fflush(fp_write);
-            log_error("invalid socketmap query, closing connection");
+            if (!feof(fp_read) && !ferror(fp_read))
+            {
+                netstring_write(fp_write, "PERM Invalid query.", 19);
+                fflush(fp_write);
+                log_error("invalid socketmap query, closing connection");
+            }
             break;
         }
         alarm(0);
