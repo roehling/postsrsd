@@ -7,6 +7,21 @@
 Changelog
 #########
 
+2.0.6
+=====
+
+Added
+-----
+
+* New configuration option ``debug`` to increase log verbosity.
+
+Changed
+-------
+
+* Reduced default log verbosity: PostSRSd no longer prints
+  messages for mail addresses which need no rewrite
+  (`#149 <https://github.com/roehling/postsrsd/issues/149>`_)
+
 2.0.5
 =====
 
