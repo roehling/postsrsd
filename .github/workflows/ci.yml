@@ -5,7 +5,7 @@
 # permitted in any medium without royalty provided the copyright notice and
 # this notice are preserved. This file is offered as-is, without any warranty.
 #
-name: CI
+name: Continuous Integration
 on:
   push:
     branches:
@@ -14,7 +14,7 @@ on:
     branches:
       - main
 jobs:
-  build:
+  test:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
