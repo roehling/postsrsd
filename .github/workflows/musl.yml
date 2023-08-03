@@ -1,0 +1,38 @@
+# Copyright 2022 Timo Röhling <timo@gaussglocke.de>
+# SPDX-License-Identifier: FSFAP
+#
+# Copying and distribution of this file, with or without modification, are
+# permitted in any medium without royalty provided the copyright notice and
+# this notice are preserved. This file is offered as-is, without any warranty.
+#
+name: Build statically linked PostSRSd
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y cmake musl-dev musl-tools
+      - name: Build PostSRSd
+        run: |
+          mkdir _build
+          cd _build
+          cmake .. -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_C_COMPILER=musl-gcc -DCMAKE_EXE_LINKER_FLAGS=-static -DBUILD_TESTING=OFF -DWITH_SQLITE=ON -DWITH_REDIS=ON -DGENERATE_SRS_SECRET=OFF
+          make VERBOSE=ON
+      - name: Install PostSRSd
+        run: |
+          cd _build
+          make install DESTDIR=$PWD/_install
+      - name: Create TAR
+        run: tar -C_build/_install -cvf postsrsd_static.tar ./
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: prebuilt
+          path: postsrsd_static.tar
