@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #ifdef HAVE_FCNTL_H
 #    include <fcntl.h>
 #endif
@@ -550,10 +551,17 @@ void log_error(const char* fmt, ...)
 void log_perror(int err, const char* prefix)
 {
     char buffer[256];
+#ifdef _GNU_SOURCE
+    char* msg = strerror_r(err, buffer, sizeof(buffer));
+#else
+    char* msg = buffer;
+    if (strerror_r(err, buffer, sizeof(buffer)) != 0)
+        snprintf(buffer, sizeof(buffer), "error %d", err);
+#endif
     if (prefix)
-        log_error("%s: %s", prefix, strerror_r(err, buffer, sizeof(buffer)));
+        log_error("%s: %s", prefix, msg);
     else
-        log_error("%s", strerror_r(err, buffer, sizeof(buffer)));
+        log_error("%s", msg);
 }
 
 void log_fatal(const char* fmt, ...)

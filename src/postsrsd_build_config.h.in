@@ -32,6 +32,7 @@
 
 #cmakedefine HAVE_BIG_ENDIAN 1
 #cmakedefine HAVE_CLOSE_RANGE 1
+#cmakedefine HAVE_CLOSE_RANGE_GNU 1
 #cmakedefine HAVE_STRCASECMP 1
 #cmakedefine HAVE__STRICMP 1
 #cmakedefine HAVE_STRNCASECMP 1

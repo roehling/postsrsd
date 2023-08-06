@@ -21,6 +21,7 @@
 #include <postsrsd_build_config.h>
 #include <stdarg.h>
 #include <string.h> /* memcpy, strcpy, memset */
+#include <strings.h>
 #ifdef HAVE_ALLOCA_H
 #    include <alloca.h>
 #endif

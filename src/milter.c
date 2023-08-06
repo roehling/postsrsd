@@ -21,18 +21,19 @@
 #include "srs.h"
 #include "util.h"
 
-#ifndef HAVE_STRNCASECMP
-#    ifdef HAVE__STRNICMP
-#        define strncasecmp _strnicmp
-#    endif
-#endif
-
 #ifdef WITH_MILTER
 #    include <libmilter/mfapi.h>
 #    ifdef HAVE_UNISTD_H
 #        include <unistd.h>
 #    endif
 #    include <string.h>
+#    include <strings.h>
+
+#    ifndef HAVE_STRNCASECMP
+#        ifdef HAVE__STRNICMP
+#            define strncasecmp _strnicmp
+#        endif
+#    endif
 
 static char* milter_uri = NULL;
 static char* milter_path = NULL;
