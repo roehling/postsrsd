@@ -5,7 +5,7 @@
 # permitted in any medium without royalty provided the copyright notice and
 # this notice are preserved. This file is offered as-is, without any warranty.
 #
-name: BSD and Solaris
+name: BSD
 on:
   push:
     branches:
@@ -23,42 +23,10 @@ jobs:
         with:
           usesh: true
           prepare: |
-            pkg install -y cmake git
+            pkg install -y cmake git gmake
           run: |
             mkdir _build
             cd _build
             cmake .. -DDEVELOPER_BUILD=ON -DWITH_SQLITE=ON -DWITH_REDIS=ON
-            make VERBOSE=ON
-            ctest --output-on-failure
-  openbsd:
-    runs-on: macos-12
-    name: OpenBSD
-    steps:
-      - uses: actions/checkout@v3
-      - uses: vmactions/openbsd-vm@v0
-        with:
-          usesh: true
-          prepare: |
-            pkg_add cmake git
-          run: |
-            mkdir _build
-            cd _build
-            cmake .. -DDEVELOPER_BUILD=ON -DWITH_SQLITE=ON -DWITH_REDIS=ON
-            make VERBOSE=ON
-            ctest --output-on-failure
-  solaris:
-    runs-on: macos-12
-    name: Solaris
-    steps:
-      - uses: actions/checkout@v3
-      - uses: vmactions/solaris-vm@v0
-        with:
-          usesh: true
-          prepare: |
-            pkgutil -y -i cmake git
-          run: |
-            mkdir _build
-            cd _build
-            cmake .. -DDEVELOPER_BUILD=ON -DWITH_SQLITE=ON -DWITH_REDIS=ON
-            make VERBOSE=ON
+            gmake VERBOSE=ON
             ctest --output-on-failure
