@@ -1,0 +1,64 @@
+# Copyright 2022 Timo Röhling <timo@gaussglocke.de>
+# SPDX-License-Identifier: FSFAP
+#
+# Copying and distribution of this file, with or without modification, are
+# permitted in any medium without royalty provided the copyright notice and
+# this notice are preserved. This file is offered as-is, without any warranty.
+#
+name: BSD and Solaris
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+jobs:
+  freebsd:
+    runs-on: macos-12
+    name: FreeBSD
+    steps:
+      - uses: actions/checkout@v3
+      - uses: vmactions/freebsd-vm@v0
+        with:
+          usesh: true
+          prepare: |
+            pkg install -y cmake
+          run: |
+            mkdir _build
+            cd _build
+            cmake .. -DDEVELOPER_BUILD=ON -DWITH_SQLITE=ON -DWITH_REDIS=ON
+            make VERBOSE=ON
+            ctest --output-on-failure
+  openbsd:
+    runs-on: macos-12
+    name: OpenBSD
+    steps:
+      - uses: actions/checkout@v3
+      - uses: vmactions/openbsd-vm@v0
+        with:
+          usesh: true
+          prepare: |
+            pkg_add cmake
+          run: |
+            mkdir _build
+            cd _build
+            cmake .. -DDEVELOPER_BUILD=ON -DWITH_SQLITE=ON -DWITH_REDIS=ON
+            make VERBOSE=ON
+            ctest --output-on-failure
+  solaris:
+    runs-on: macos-12
+    name: Solaris
+    steps:
+      - uses: actions/checkout@v3
+      - uses: vmactions/solaris-vm@v0
+        with:
+          usesh: true
+          prepare: |
+            pkgutil -y -i cmake
+          run: |
+            mkdir _build
+            cd _build
+            cmake .. -DDEVELOPER_BUILD=ON -DWITH_SQLITE=ON -DWITH_REDIS=ON
+            make VERBOSE=ON
+            ctest --output-on-failure
