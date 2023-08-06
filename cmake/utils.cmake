@@ -38,7 +38,7 @@ function(add_autotools_dependency name)
             CONFIGURE_COMMAND
                 <SOURCE_DIR>/configure --disable-shared --prefix=<INSTALL_DIR>
                 "CC=${cc_executable}" "AR=${ar_executable}"
-                "RANLIB=${CMAKE_RANLIB}"
+                "RANLIB=${CMAKE_RANLIB}" "MAKE=${MAKE_EXECUTABLE}"
                 "CFLAGS=${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_${uc_build_type}}"
             BUILD_COMMAND ${MAKE_EXECUTABLE} -j
             INSTALL_COMMAND ${MAKE_EXECUTABLE} -j install
