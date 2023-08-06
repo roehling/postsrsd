@@ -86,6 +86,7 @@ static bool drop_privileges(cfg_t* cfg)
     }
     if (chroot_dir && *chroot_dir)
     {
+#ifdef HAVE_CHROOT
         if (chdir(chroot_dir) < 0)
         {
             log_perror(errno,
@@ -97,10 +98,14 @@ static bool drop_privileges(cfg_t* cfg)
             log_perror(errno, "cannot drop privileges: chroot");
             return false;
         }
+#else
+        log_error("chroot is not supported on this system");
+        return false;
+#endif
     }
     if (target_uid != 0 || target_gid != 0)
     {
-#ifdef HAVE_GRP_H
+#ifdef HAVE_SETGROUPS
         if (setgroups(0, NULL) < 0)
         {
             log_perror(errno, "cannot drop privileges: setgroups");
