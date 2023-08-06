@@ -23,7 +23,7 @@ jobs:
         with:
           usesh: true
           prepare: |
-            pkg install -y cmake
+            pkg install -y cmake git
           run: |
             mkdir _build
             cd _build
@@ -39,7 +39,7 @@ jobs:
         with:
           usesh: true
           prepare: |
-            pkg_add cmake
+            pkg_add cmake git
           run: |
             mkdir _build
             cd _build
@@ -55,7 +55,7 @@ jobs:
         with:
           usesh: true
           prepare: |
-            pkgutil -y -i cmake
+            pkgutil -y -i cmake git
           run: |
             mkdir _build
             cd _build
