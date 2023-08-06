@@ -23,7 +23,7 @@ jobs:
         with:
           usesh: true
           prepare: |
-            pkg install -y cmake git gmake
+            pkg install -y cmake git gmake autoconf automake
           run: |
             mkdir _build
             cd _build
