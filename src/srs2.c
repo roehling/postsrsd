@@ -20,8 +20,6 @@
 
 #include <postsrsd_build_config.h>
 #include <stdarg.h>
-#include <string.h> /* memcpy, strcpy, memset */
-#include <strings.h>
 #ifdef HAVE_ALLOCA_H
 #    include <alloca.h>
 #endif
@@ -285,7 +283,11 @@ static void srs_hash_create_v(srs_t* srs, int idx, char* buf, int nargs,
     {
         data = va_arg(ap, char*);
         len = strlen(data);
+#ifndef HAVE_ALLOCA_H
+        lcdata = malloc(len + 1);
+#else
         lcdata = alloca(len + 1);
+#endif
         for (j = 0; j < len; j++)
         {
             if (isupper(data[j]))
@@ -297,6 +299,9 @@ static void srs_hash_create_v(srs_t* srs, int idx, char* buf, int nargs,
         HMAC_Update(&ctx, lcdata, len);
 #else
         srs_hmac_update(&ctx, lcdata, len);
+#endif
+#ifndef HAVE_ALLOCA_H
+        free(lcdata);
 #endif
     }
 

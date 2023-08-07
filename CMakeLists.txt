@@ -289,8 +289,10 @@ if(WITH_SQLITE)
                     SQLITE_OMIT_DEPRECATED
                     SQLITE_OMIT_PROGRESS_CALLBACK
                     SQLITE_OMIT_SHARED_CACHE
-                    SQLITE_USE_ALLOCA
         )
+        if(HAVE_ALLOCA_H)
+            target_compile_definitions(sqlite3 PRIVATE SQLITE_USE_ALLOCA)
+        endif()
         if(WITH_MILTER AND TARGET Threads::Threads)
             target_link_libraries(sqlite3 PRIVATE Threads::Threads)
         endif()
