@@ -18,16 +18,12 @@
  * information.
  */
 
-#include <postsrsd_build_config.h>
-#include <stdarg.h>
-#include <string.h> /* memcpy, strcpy, memset */
-#include <strings.h>
-#ifdef HAVE_ALLOCA_H
-#    include <alloca.h>
-#endif
+#include "srs2.h"
 
 #include "sha1.h"
-#include "srs2.h"
+
+#include <postsrsd_build_config.h>
+#include <stdarg.h>
 
 #ifndef HAVE_STRCASECMP
 #    ifdef HAVE__STRICMP
@@ -266,7 +262,6 @@ static void srs_hash_create_v(srs_t* srs, int idx, char* buf, int nargs,
     char* secret;
     char* data;
     int len;
-    char* lcdata;
     unsigned char* hp;
     char* bp;
     int i;
@@ -285,7 +280,7 @@ static void srs_hash_create_v(srs_t* srs, int idx, char* buf, int nargs,
     {
         data = va_arg(ap, char*);
         len = strlen(data);
-        lcdata = alloca(len + 1);
+        char lcdata[len + 1];
         for (j = 0; j < len; j++)
         {
             if (isupper(data[j]))
@@ -360,8 +355,6 @@ int srs_hash_create(srs_t* srs, char* buf, int nargs, ...)
 int srs_hash_check(srs_t* srs, char* hash, int nargs, ...)
 {
     va_list ap;
-    char* srshash;
-    char* tmp;
     int len;
     int i;
 
@@ -370,17 +363,13 @@ int srs_hash_check(srs_t* srs, char* hash, int nargs, ...)
         return SRS_EHASHTOOSHORT;
     if (len > srs->hashlength)
     {
-        tmp = alloca(srs->hashlength + 1);
-        strncpy(tmp, hash, srs->hashlength);
-        tmp[srs->hashlength] = '\0';
-        hash = tmp;
         len = srs->hashlength;
     }
 
+    char srshash[srs->hashlength + 1];
     for (i = 0; i < srs->numsecrets; i++)
     {
         va_start(ap, nargs);
-        srshash = alloca(srs->hashlength + 1);
         srs_hash_create_v(srs, i, srshash, nargs, ap);
         va_end(ap);
         if (strncasecmp(hash, srshash, len) == 0)
@@ -393,7 +382,6 @@ int srs_hash_check(srs_t* srs, char* hash, int nargs, ...)
 int srs_compile_shortcut(srs_t* srs, char* buf, int buflen, char* sendhost,
                          char* senduser, const char* aliashost)
 {
-    char* srshash;
     char srsstamp[SRS_TIME_SIZE + 1];
     int len;
     int ret;
@@ -419,7 +407,7 @@ int srs_compile_shortcut(srs_t* srs, char* buf, int buflen, char* sendhost,
                                srs->faketime ? srs->faketime : time(NULL));
     if (ret != SRS_SUCCESS)
         return ret;
-    srshash = alloca(srs->hashlength + 1);
+    char srshash[srs->hashlength + 1];
     ret = srs_hash_create(srs, srshash, 3, srsstamp, sendhost, senduser);
     if (ret != SRS_SUCCESS)
         return ret;
@@ -435,7 +423,6 @@ int srs_compile_guarded(srs_t* srs, char* buf, int buflen, char* sendhost,
 {
     char* srshost;
     char* srsuser;
-    char* srshash;
     int len;
     int ret;
 
@@ -443,11 +430,11 @@ int srs_compile_guarded(srs_t* srs, char* buf, int buflen, char* sendhost,
         && (strchr(srs_separators, senduser[4]) != NULL))
     {
         /* Used as a temporary convenience var */
-        srshash = senduser + 5;
-        if (*srshash == '\0')
+        char* tmp = senduser + 5;
+        if (*tmp == '\0')
             return SRS_ENOSRS1HASH;
         /* Used as a temporary convenience var */
-        srshost = strchr(srshash, SRSSEP);
+        srshost = strchr(tmp, SRSSEP);
         if (!STRINGP(srshost))
             return SRS_ENOSRS1HOST;
         *srshost++ = '\0';
@@ -455,7 +442,7 @@ int srs_compile_guarded(srs_t* srs, char* buf, int buflen, char* sendhost,
         if (!STRINGP(srsuser))
             return SRS_ENOSRS1USER;
         *srsuser++ = '\0';
-        srshash = alloca(srs->hashlength + 1);
+        char srshash[srs->hashlength + 1];
         ret = srs_hash_create(srs, srshash, 2, srshost, srsuser);
         if (ret != SRS_SUCCESS)
             return ret;
@@ -472,7 +459,7 @@ int srs_compile_guarded(srs_t* srs, char* buf, int buflen, char* sendhost,
     {
         srsuser = senduser + 4;
         srshost = sendhost;
-        srshash = alloca(srs->hashlength + 1);
+        char srshash[srs->hashlength + 1];
         ret = srs_hash_create(srs, srshash, 2, srshost, srsuser);
         if (ret != SRS_SUCCESS)
             return ret;
@@ -565,7 +552,6 @@ int srs_parse_guarded(srs_t* srs, char* buf, int buflen, char* senduser)
 int srs_forward(srs_t* srs, char* buf, unsigned buflen, const char* sender,
                 const char* alias)
 {
-    char* senduser;
     char* sendhost;
     char* tmp;
     unsigned len;
@@ -595,8 +581,7 @@ int srs_forward(srs_t* srs, char* buf, unsigned buflen, const char* sender,
         }
     }
 
-    /* Reconstruct the whole show into our alloca() buffer. */
-    senduser = alloca(len + 1);
+    char senduser[len + 1];
     strcpy(senduser, sender);
     tmp = (senduser + (tmp - sender));
     sendhost = tmp + 1;
@@ -636,7 +621,6 @@ int srs_forward_alloc(srs_t* srs, char** sptr, const char* sender,
 
 int srs_reverse(srs_t* srs, char* buf, unsigned buflen, const char* sender)
 {
-    char* senduser;
     char* tmp;
     unsigned len;
 
@@ -649,7 +633,7 @@ int srs_reverse(srs_t* srs, char* buf, unsigned buflen, const char* sender)
     len = strlen(sender);
     if (len >= buflen)
         return SRS_EBUFTOOSMALL;
-    senduser = alloca(len + 1);
+    char senduser[len + 1];
     strcpy(senduser, sender);
 
     /* We don't really care about the host for reversal. */
