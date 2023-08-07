@@ -55,7 +55,7 @@ def postsrsd_instance(postsrsd, when, use_database):
         with open(tmpdir / "postsrsd.conf", "w") as f:
             f.write(
                 'domains = {"example.com"}\n'
-                "keep-alive = 2\n"
+                "keep-alive = 10\n"
                 'chroot-dir = ""\n'
                 'unprivileged-user = ""\n'
                 f'original-envelope = {"database" if use_database else "embedded"}\n'
