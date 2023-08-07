@@ -203,6 +203,7 @@ bool directory_exists(const char* dirname)
 
 int acquire_lock(const char* path)
 {
+    MAYBE_UNUSED(path);
 #if defined(LOCK_EX) && defined(LOCK_NB)
     size_t len = strlen(path);
     char* lock_path = malloc(len + 6); /* ".lock" + "\0" */
@@ -225,6 +226,8 @@ int acquire_lock(const char* path)
 
 void release_lock(const char* path, int fd)
 {
+    MAYBE_UNUSED(path);
+    MAYBE_UNUSED(fd);
 #if defined(LOCK_EX) && defined(LOCK_NB)
     size_t len = strlen(path);
     char* lock_path = malloc(len + 6); /* ".lock" + "\0" */

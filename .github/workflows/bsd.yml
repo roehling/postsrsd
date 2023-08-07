@@ -27,6 +27,4 @@ jobs:
           run: |
             mkdir _build
             cd _build
-            cmake .. -DDEVELOPER_BUILD=ON -DWITH_SQLITE=ON -DWITH_REDIS=ON
-            gmake VERBOSE=ON
-            ctest --output-on-failure
+            cmake .. -DDEVELOPER_BUILD=ON -DWITH_SQLITE=ON -DWITH_REDIS=ON && gmake VERBOSE=ON && ctest --output-on-failure
