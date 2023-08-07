@@ -49,3 +49,4 @@ target_link_libraries(
     test_database_executable PRIVATE $<$<BOOL:${WITH_SQLITE}>:sqlite3::sqlite3>
                                      $<$<BOOL:${WITH_REDIS}>:${HIREDIS_TARGET}>
 )
+add_postsrsd_test(test_srs2 ${SRCDIR}/srs2.c ${SRCDIR}/sha1.c)

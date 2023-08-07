@@ -136,6 +136,7 @@ void srs_free(srs_t* srs)
         srs_f_free(srs->secrets[i]);
         srs->secrets[i] = 0;
     }
+    srs_f_free(srs->secrets);
     srs_f_free(srs);
 }
 
