@@ -142,9 +142,7 @@ FetchContent_Declare(
 )
 
 set(saved_CMAKE_REQUIRED_DEFINITIONS "${CMAKE_REQUIRED_DEFINITIONS}")
-list(APPEND CMAKE_REQUIRED_DEFINITIONS "-D_BSD_SOURCE" "-D_DEFAULT_SOURCE"
-     "-D_POSIX_C_SOURCE=200809L"
-)
+list(APPEND CMAKE_REQUIRED_DEFINITIONS "-D_GNU_SOURCE" "-D_FILE_OFFSET_BITS=64")
 
 check_include_file(alloca.h HAVE_ALLOCA_H)
 check_include_file(errno.h HAVE_ERRNO_H)
@@ -174,9 +172,6 @@ check_symbol_exists(strncasecmp strings.h HAVE_STRNCASECMP)
 check_symbol_exists(_strnicmp string.h HAVE__STRNICMP)
 check_type_size("unsigned long" SIZEOF_UNSIGNED_LONG)
 test_big_endian(HAVE_BIG_ENDIAN)
-
-list(APPEND CMAKE_REQUIRED_DEFINITIONS "-D_GNU_SOURCE")
-check_symbol_exists(close_range unistd.h HAVE_CLOSE_RANGE_GNU)
 
 set(CMAKE_REQUIRED_DEFINITIONS "${saved_CMAKE_REQUIRED_DEFINITIONS}")
 
@@ -322,13 +317,7 @@ add_executable(
     src/util.c
 )
 
-target_compile_definitions(
-    postsrsd PRIVATE _BSD_SOURCE _DEFAULT_SOURCE _POSIX_C_SOURCE=200809L
-                     _FILE_OFFSET_BITS=64
-)
-if(HAVE_CLOSE_RANGE_GNU AND NOT HAVE_CLOSE_RANGE)
-    target_compile_definitions(postsrsd PRIVATE _GNU_SOURCE)
-endif()
+target_compile_definitions(postsrsd PRIVATE _GNU_SOURCE _FILE_OFFSET_BITS=64)
 target_include_directories(postsrsd PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 target_compile_features(postsrsd PRIVATE c_std_99)
 target_link_libraries(
