@@ -553,14 +553,7 @@ void log_error(const char* fmt, ...)
 
 void log_perror(int err, const char* prefix)
 {
-    char buffer[256];
-#ifdef _GNU_SOURCE
-    char* msg = strerror_r(err, buffer, sizeof(buffer));
-#else
-    char* msg = buffer;
-    if (strerror_r(err, buffer, sizeof(buffer)) != 0)
-        snprintf(buffer, sizeof(buffer), "error %d", err);
-#endif
+    char* msg = strerror(err);
     if (prefix)
         log_error("%s: %s", prefix, msg);
     else
