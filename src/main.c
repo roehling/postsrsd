@@ -26,6 +26,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef HAVE_FCNTL_H
+#    include <fcntl.h>
+#endif
 #ifdef HAVE_ERRNO_H
 #    include <errno.h>
 #endif
@@ -164,11 +167,22 @@ static void handle_socketmap_client(cfg_t* cfg, srs_t* srs,
                                     const char* srs_domain,
                                     domain_set_t* local_domains, int conn)
 {
-    FILE* fp_read = fdopen(conn, "r");
-    if (fp_read == NULL)
-        return;
+#ifdef HAVE_FCNTL_H
+    int flags = fcntl(conn, F_GETFL);
+    if (flags & O_NONBLOCK)
+    {
+        if (fcntl(conn, F_SETFL, flags & ~O_NONBLOCK) < 0)
+        {
+            log_error("failed to make socket connection blocking");
+            return;
+        }
+    }
+#endif
     FILE* fp_write = fdopen(dup(conn), "w");
     if (fp_write == NULL)
+        return;
+    FILE* fp_read = fdopen(conn, "r");
+    if (fp_read == NULL)
         return;
     database_t* db = NULL;
     if (cfg_getint(cfg, "original-envelope") == SRS_ENVELOPE_DATABASE)
