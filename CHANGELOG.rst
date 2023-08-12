@@ -7,6 +7,17 @@
 Changelog
 #########
 
+2.0.7
+=====
+
+Fixed
+-----
+
+* the parser callback for the ``original-envelope`` option used the
+  wrong return type, which could prevent the ``database`` mode from
+  activating
+* PostSRSd is confirmed to build and run on FreeBSD now
+
 2.0.6
 =====
 
