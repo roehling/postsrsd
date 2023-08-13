@@ -59,6 +59,10 @@ users:
   ``postsrsd.secret`` if it does not exist. This is helpful to make a source
   installation secure by default, but less so for a distributed binary package.
 
+- ``INSTALL_SYSTEMD_SERVICE``: If set to ``ON`` (the default), a postsrsd.service
+  unit will be installed to start PostSRSd via systemd at boot time. You can disable
+  this if your distribution uses a different init system.
+
 - ``SYSTEMD_UNITDIR``: the intended install destination for the
   ``postsrsd.service`` file. The default should be fine for most systems, but
   you can override it if the auto-detected location is wrong.

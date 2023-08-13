@@ -62,6 +62,11 @@ add_feature_info(
     GENERATE_SRS_SECRET
     "generate missing ${CMAKE_INSTALL_FULL_SYSCONFDIR}/${PROJECT_NAME}.secret on install"
 )
+option(INSTALL_SYSTEMD_SERVICE "Install the systemd postsrsd.service unit" ON)
+add_feature_info(
+    INSTALL_SYSTEMD_SERVICE INSTALL_SYSTEMD_SERVICE
+    "install the systemd postsrsd.service unit"
+)
 option(DEVELOPER_BUILD "Add strict compiler options for development only" OFF)
 set(POSTSRSD_USER
     "nobody"
@@ -78,7 +83,7 @@ set(POSTSRSD_CHROOTDIR
 find_systemd_unit_destination(DETECTED_SYSTEMD_UNITDIR)
 set(SYSTEMD_UNITDIR
     "${DETECTED_SYSTEMD_UNITDIR}"
-    CACHE PATH "Install destination for systemd service unit"
+    CACHE PATH "Install destination for the systemd postsrsd.service unit"
 )
 
 if(POSTSRSD_CHROOTDIR)
@@ -343,9 +348,11 @@ install(TARGETS postsrsd RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR})
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.conf"
         DESTINATION "${CMAKE_INSTALL_DATADIR}/doc/${PROJECT_NAME}"
 )
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.service"
-        DESTINATION "${SYSTEMD_UNITDIR}"
-)
+if(INSTALL_SYSTEMD_SERVICE)
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.service"
+            DESTINATION "${SYSTEMD_UNITDIR}"
+    )
+endif()
 
 if(GENERATE_SRS_SECRET)
     find_program(DD dd DOC "path to dd executable")
