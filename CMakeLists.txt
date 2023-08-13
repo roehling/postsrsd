@@ -91,6 +91,11 @@ set(SYSTEMD_UNITDIR
     "${DETECTED_SYSTEMD_UNITDIR}"
     CACHE PATH "Install destination for the systemd postsrsd.service unit"
 )
+find_systemd_sysusers_destination(DETECTED_SYSTEMD_SYSUSERSDIR)
+set(SYSTEMD_SYSUSERSDIR
+    "${DETECTED_SYSTEMD_SYSUSERSDIR}"
+    CACHE PATH "Install destination for the sysusers.d configuration"
+)
 
 if(POSTSRSD_CHROOTDIR)
     file(RELATIVE_PATH CHROOTABLE_DATADIR "${POSTSRSD_CHROOTDIR}"
@@ -350,6 +355,10 @@ configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/data/postsrsd.service.in"
     "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.service" @ONLY
 )
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/data/sysusers.conf.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/sysusers.d/${PROJECT_NAME}.conf" @ONLY
+)
 
 install(TARGETS postsrsd RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR})
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.conf"
@@ -358,6 +367,9 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.conf"
 if(INSTALL_SYSTEMD_SERVICE)
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.service"
             DESTINATION "${SYSTEMD_UNITDIR}"
+    )
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/sysusers.d/${PROJECT_NAME}.conf"
+            DESTINATION "${SYSTEMD_SYSUSERSDIR}"
     )
 endif()
 

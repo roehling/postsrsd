@@ -79,3 +79,26 @@ function(find_systemd_unit_destination var)
         )
     endif()
 endfunction()
+
+function(find_systemd_sysusers_destination var)
+    if(CMAKE_INSTALL_PREFIX MATCHES "^/usr/?$")
+        find_package(PkgConfig QUIET)
+        if(PkgConfig_FOUND)
+            pkg_get_variable(sysusersdir systemd sysusersdir)
+            set(${var}
+                "${sysusersdir}"
+                PARENT_SCOPE
+            )
+        else()
+            set(${var}
+                "/usr/lib/sysusers.d"
+                PARENT_SCOPE
+            )
+        endif()
+    else()
+        set(${var}
+            "/etc/sysusers.d"
+            PARENT_SCOPE
+        )
+    endif()
+endfunction()

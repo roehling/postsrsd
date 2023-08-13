@@ -60,11 +60,15 @@ users:
   installation secure by default, but less so for a distributed binary package.
 
 - ``INSTALL_SYSTEMD_SERVICE``: If set to ``ON`` (the default), a postsrsd.service
-  unit will be installed to start PostSRSd via systemd at boot time. You can disable
+  unit will be installed to allow starting PostSRSd via systemd. You can disable
   this if your distribution uses a different init system.
 
 - ``SYSTEMD_UNITDIR``: the intended install destination for the
   ``postsrsd.service`` file. The default should be fine for most systems, but
+  you can override it if the auto-detected location is wrong.
+
+- ``SYSTEMD_SYSUSERSDIR``: the intended install destination for the
+  sysusers.d configuration file. The default should be fine for most systems, but
   you can override it if the auto-detected location is wrong.
 
 - ``DEVELOPER_BUILD``: this makes the compiler treat all warnings as errors and
