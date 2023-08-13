@@ -42,6 +42,25 @@ include(CheckTypeSize)
 include(CheckSymbolExists)
 include(TestBigEndian)
 
+set(POSTSRSD_CONFIGDIR
+    "${CMAKE_INSTALL_FULL_SYSCONFDIR}"
+    CACHE
+        PATH
+        "The default directory where PostSRSd should look for configuration files"
+)
+set(POSTSRSD_DATADIR
+    "${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/lib/${PROJECT_NAME}"
+    CACHE PATH "The default directory where PostSRSd should put runtime data"
+)
+set(POSTSRSD_CHROOTDIR
+    "${POSTSRSD_DATADIR}"
+    CACHE PATH "The default chroot directory where PostSRSd should jail itself"
+)
+set(POSTSRSD_USER
+    "nobody"
+    CACHE STRING "The default unprivileged user as which PostSRSd will run"
+)
+
 option(WITH_MILTER "Enable SRS rewrite via Milter (requires libmilter)" OFF)
 add_feature_info(WITH_MILTER WITH_MILTER "run PostSRSd as milter")
 option(WITH_SQLITE
@@ -54,8 +73,8 @@ option(WITH_REDIS
        OFF
 )
 add_feature_info(WITH_REDIS WITH_REDIS "use Redis as database backend")
-
 option(TESTS_WITH_ASAN "Run test suite with AddressSanitizer" ON)
+option(DEVELOPER_BUILD "Add strict compiler options for development only" OFF)
 option(GENERATE_SRS_SECRET "Generate and install a postsrsd.secret" ON)
 add_feature_info(
     GENERATE_SRS_SECRET
@@ -66,19 +85,6 @@ option(INSTALL_SYSTEMD_SERVICE "Install the systemd postsrsd.service unit" ON)
 add_feature_info(
     INSTALL_SYSTEMD_SERVICE INSTALL_SYSTEMD_SERVICE
     "install the systemd postsrsd.service unit"
-)
-option(DEVELOPER_BUILD "Add strict compiler options for development only" OFF)
-set(POSTSRSD_USER
-    "nobody"
-    CACHE STRING "The default unprivileged user as which PostSRSd will run"
-)
-set(POSTSRSD_DATADIR
-    "${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/lib/${PROJECT_NAME}"
-    CACHE PATH "The default directory where PostSRSd should put runtime data"
-)
-set(POSTSRSD_CHROOTDIR
-    "${POSTSRSD_DATADIR}"
-    CACHE PATH "The default chroot directory where PostSRSd should jail itself"
 )
 find_systemd_unit_destination(DETECTED_SYSTEMD_UNITDIR)
 set(SYSTEMD_UNITDIR
@@ -107,10 +113,11 @@ mark_as_advanced(
     TESTS_WITH_ASAN
     GENERATE_SRS_SECRET
     DEVELOPER_BUILD
-    POSTSRSD_USER
-    POSTSRSD_DATADIR
-    POSTSRSD_CHROOTDIR
     SYSTEMD_UNITDIR
+    POSTSRSD_CONFIGDIR
+    POSTSRSD_CHROOTDIR
+    POSTSRSD_DATADIR
+    POSTSRSD_USER
 )
 
 FetchContent_Declare(
@@ -374,7 +381,8 @@ if(GENERATE_SRS_SECRET)
     )
         install(
             CODE "\
-        if(NOT EXISTS \"\$ENV{DESTDIR}${CMAKE_INSTALL_FULL_SYSCONFDIR}/${PROJECT_NAME}.secret\")
+        if(NOT EXISTS \"\$ENV{DESTDIR}${POSTSRSD_CONFIGDIR}/${PROJECT_NAME}.secret\")
+            message(STATUS \"Generating: \$ENV{DESTDIR}${POSTSRSD_CONFIGDIR}/${PROJECT_NAME}.secret\")
             execute_process(
                 COMMAND ${DD} if=${RANDOM_SOURCE} bs=18 count=1
                 COMMAND ${BASE64_ENCODE}
@@ -382,7 +390,7 @@ if(GENERATE_SRS_SECRET)
                 ERROR_QUIET
                 OUTPUT_STRIP_TRAILING_WHITESPACE
             )
-            file(INSTALL DESTINATION \"${CMAKE_INSTALL_FULL_SYSCONFDIR}\" FILES \"${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.secret\" RENAME \"${PROJECT_NAME}.secret\" PERMISSIONS OWNER_READ OWNER_WRITE)
+            file(INSTALL DESTINATION \"${POSTSRSD_CONFIGDIR}\" FILES \"${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.secret\" RENAME \"${PROJECT_NAME}.secret\" PERMISSIONS OWNER_READ OWNER_WRITE)
             file(REMOVE \"${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.secret\")
         endif()"
         )

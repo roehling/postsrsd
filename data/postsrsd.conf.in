@@ -19,7 +19,7 @@ domains = {}
 # large number of domains for which you need to act as mail forwarder.
 #
 # Example:
-#     domains-file = "@CMAKE_INSTALL_FULL_SYSCONFDIR@/@PROJECT_NAME@.domains"
+#     domains-file = "@POSTSRSD_CONFIGDIR@/@PROJECT_NAME@.domains"
 #
 #domains-file =
 
@@ -110,9 +110,9 @@ original-envelope = embedded
 # only accessible by root (chmod 600).
 #
 # Example:
-#     secrets-file = "@CMAKE_INSTALL_FULL_SYSCONFDIR@/@PROJECT_NAME@.secret"
+#     secrets-file = "@POSTSRSD_CONFIGDIR@/@PROJECT_NAME@.secret"
 #
-secrets-file = "@CMAKE_INSTALL_FULL_SYSCONFDIR@/@PROJECT_NAME@.secret"
+secrets-file = "@POSTSRSD_CONFIGDIR@/@PROJECT_NAME@.secret"
 
 # SRS tag separator
 # This is the character following the initial SRS0 or SRS1 tag of a generated
