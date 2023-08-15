@@ -45,6 +45,9 @@ users:
   run. Defaults to ``nobody``. Note that this value can always be overridden in
   ``postsrsd.conf`` by the user.
 
+- ``POSTSRSD_CONFIGDIR``: the location where PostSRSd should store configuration
+  files. The default is ``${CMAKE_INSTALL_FULL_SYSCONFDIR}``.
+
 - ``POSTSRSD_DATADIR``: the location where PostSRSd should store runtime files
   such as the SQLite database for envelope senders (if PostSRSd is configured
   to use that). The default is ``${CMAKE_INSTALL_LOCALSTATEDIR}/lib/postsrsd``.
