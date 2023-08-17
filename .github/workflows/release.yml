@@ -1,17 +1,19 @@
-# Copyright 2022 Timo Röhling <timo@gaussglocke.de>
+# Copyright 2023 Timo Röhling <timo@gaussglocke.de>
 # SPDX-License-Identifier: FSFAP
 #
 # Copying and distribution of this file, with or without modification, are
 # permitted in any medium without royalty provided the copyright notice and
 # this notice are preserved. This file is offered as-is, without any warranty.
 #
-name: Build statically linked PostSRSd
+name: Create Github release
 on:
   push:
-    branches:
-      - main
+    tags:
+      - "2.*"
+permissions:
+  contents: write
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -30,9 +32,8 @@ jobs:
           cd _build
           make install DESTDIR=$PWD/_install
       - name: Create TAR
-        run: tar -C_build/_install -cvf postsrsd_static.tar ./
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        run: tar -C_build/_install -cvzf postsrsd-x86_64-musl.tar.gz ./
+      - name: Create release
+        uses: softprops/action-gh-release@v1
         with:
-          name: prebuilt
-          path: postsrsd_static.tar
+          files: postsrsd-x86_64-musl.tar.gz

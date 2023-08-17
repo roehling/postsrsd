@@ -10,19 +10,13 @@ License: GPL-3.0-only
 Files: .clang-format
        .cmake-format.json
        .pre-commit-config.yaml
-       data/postsrsd.service.in
-       data/postsrsd.conf.in
-       data/sysusers.conf.in
+       data/*
        doc/postsrsd.conf
 Copyright: 2012-2023, Timo Röhling <timo@gaussglocke.de>
 License: FSFUL
 
-Files: cmake/FindCheck.cmake
-       cmake/FindConfuse.cmake
-       cmake/FindHiredis.cmake
-       cmake/FindLibMilter.cmake
-       cmake/Findsqlite3.cmake
-       cmake/utils.cmake
+Files: .github/*
+       cmake/*
 Copyright: 2022-2023, Timo Röhling <timo@gaussglocke.de>
 License: FSFAP
 
