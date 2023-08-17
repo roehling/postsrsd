@@ -1,5 +1,5 @@
 # PostSRSd systemd service file
-# Copyright 2022 Timo Röhling
+# Copyright 2022-2023 Timo Röhling
 # SPDX-License-Identifier: FSFUL
 #
 # The copyright holder gives unlimited permission to copy, distribute and modify

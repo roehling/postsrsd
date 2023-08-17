@@ -1,1 +1,7 @@
+# PostSRSd sysusers.d configuration file
+# Copyright 2023 Timo Röhling
+# SPDX-License-Identifier: FSFUL
+#
+# The copyright holder gives unlimited permission to copy, distribute and modify
+# this file.
 u @POSTSRSD_USER@ - "PostSRSd user" - -
