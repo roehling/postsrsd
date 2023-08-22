@@ -21,6 +21,16 @@
 #include "srs.h"
 #include "util.h"
 
+#ifdef HAVE_ERRNO_H
+#    include <errno.h>
+#endif
+#ifdef HAVE_FCNTL_H
+#    include <fcntl.h>
+#endif
+#ifdef HAVE_SYS_STAT_H
+#    include <sys/stat.h>
+#endif
+
 #ifdef WITH_MILTER
 #    include <libmilter/mfapi.h>
 #    ifdef HAVE_UNISTD_H
@@ -51,23 +61,6 @@ struct privdata
 };
 typedef struct privdata privdata_t;
 #endif
-
-bool milter_create(const char* uri)
-{
-#ifdef WITH_MILTER
-    milter_uri = endpoint_for_milter(uri);
-    if (milter_uri == NULL)
-    {
-        log_error("invalid milter endpoint: %s", uri);
-        return false;
-    }
-    return true;
-#else
-    MAYBE_UNUSED(uri);
-    log_error("no milter support");
-    return false;
-#endif
-}
 
 #ifdef WITH_MILTER
 static sfsistat on_connect(SMFICTX* ctx, char* hostname, _SOCK_ADDR* hostaddr)
@@ -203,14 +196,15 @@ static struct smfiDesc smfilter = {
 /* clang-format on */
 #endif
 
-void milter_main(cfg_t* cfg, srs_t* srs, const char* srs_domain,
-                 domain_set_t* local_domains)
+bool milter_create(const char* uri)
 {
-    MAYBE_UNUSED(cfg);
-    MAYBE_UNUSED(srs);
-    MAYBE_UNUSED(srs_domain);
-    MAYBE_UNUSED(local_domains);
 #ifdef WITH_MILTER
+    milter_uri = endpoint_for_milter(uri);
+    if (milter_uri == NULL)
+    {
+        log_error("invalid milter endpoint: %s", uri);
+        return false;
+    }
     if (strncasecmp(milter_uri, "unix:", 5) == 0)
         milter_path = milter_uri + 5;
     else if (strncasecmp(milter_uri, "local:", 6) == 0)
@@ -229,15 +223,55 @@ void milter_main(cfg_t* cfg, srs_t* srs, const char* srs_domain,
         log_error("cannot start milter: failed to register callbacks");
         goto done;
     }
-    g_cfg = cfg;
-    g_srs = srs;
-    g_srs_domain = srs_domain;
-    g_local_domains = local_domains;
-    smfi_main(NULL);
+    if (smfi_opensocket(false) == MI_FAILURE)
+    {
+        log_error("cannot start milter: failed to open socket");
+        goto done;
+    }
+    if (milter_path)
+    {
+        if (chmod(milter_path, 0666) < 0)
+        {
+            log_perror(errno, "cannot start milter: cannot chmod() socket");
+            goto done;
+        }
+    }
+    return true;
 done:
     if (milter_path && milter_lock > 0)
     {
         release_lock(milter_path, milter_lock);
     }
+    milter_path = NULL;
+    milter_lock = 0;
+    free(milter_uri);
+    return false;
+#else
+    MAYBE_UNUSED(uri);
+    log_error("no milter support");
+    return false;
+#endif
+}
+
+void milter_main(cfg_t* cfg, srs_t* srs, const char* srs_domain,
+                 domain_set_t* local_domains)
+{
+    MAYBE_UNUSED(cfg);
+    MAYBE_UNUSED(srs);
+    MAYBE_UNUSED(srs_domain);
+    MAYBE_UNUSED(local_domains);
+#ifdef WITH_MILTER
+    g_cfg = cfg;
+    g_srs = srs;
+    g_srs_domain = srs_domain;
+    g_local_domains = local_domains;
+    smfi_main(NULL);
+    if (milter_path && milter_lock > 0)
+    {
+        release_lock(milter_path, milter_lock);
+    }
+    milter_path = NULL;
+    milter_lock = 0;
+    free(milter_uri);
 #endif
 }
