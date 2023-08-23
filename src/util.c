@@ -480,7 +480,7 @@ char* endpoint_for_redis(const char* s, int* port)
         return NULL;
     char* end;
     *port = strtol(colon + 1, &end, 10);
-    if (*end != 0 || *port <= 0)
+    if (NONEMPTY_STRING(end) || *port <= 0)
         return NULL;
     return strndup(s, colon - s);
 }

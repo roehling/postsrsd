@@ -65,7 +65,7 @@ static bool drop_privileges(cfg_t* cfg)
     int target_gid = 0;
     const char* user = cfg_getstr(cfg, "unprivileged-user");
     const char* chroot_dir = cfg_getstr(cfg, "chroot-dir");
-    if (user && *user)
+    if (NONEMPTY_STRING(user))
     {
 #ifdef HAVE_PWD_H
         struct passwd* pwd = NULL;
@@ -87,7 +87,7 @@ static bool drop_privileges(cfg_t* cfg)
         return false;
 #endif
     }
-    if (chroot_dir && *chroot_dir)
+    if (NONEMPTY_STRING(chroot_dir))
     {
 #ifdef HAVE_CHROOT
         if (chdir(chroot_dir) < 0)
@@ -303,7 +303,7 @@ int main(int argc, char** argv)
     if (!srs_domains_from_config(cfg, &srs_domain, &local_domains))
         goto shutdown;
     const char* socketmap_endpoint = cfg_getstr(cfg, "socketmap");
-    if (socketmap_endpoint && *socketmap_endpoint)
+    if (NONEMPTY_STRING(socketmap_endpoint))
     {
         num_sockets = endpoint_create(
             socketmap_endpoint, sizeof(socketmaps) / sizeof(int), socketmaps);
@@ -311,7 +311,7 @@ int main(int argc, char** argv)
             goto shutdown;
     }
     const char* milter_endpoint = cfg_getstr(cfg, "milter");
-    if (milter_endpoint && *milter_endpoint)
+    if (NONEMPTY_STRING(milter_endpoint))
     {
         if (!milter_create(milter_endpoint))
             goto shutdown;
@@ -321,7 +321,7 @@ int main(int argc, char** argv)
         milter_endpoint = NULL;
     }
     const char* pid_file = cfg_getstr(cfg, "pid-file");
-    if (pid_file && *pid_file)
+    if (NONEMPTY_STRING(pid_file))
     {
         pf = fopen(pid_file, "w");
         if (pf == NULL)
@@ -346,7 +346,7 @@ int main(int argc, char** argv)
     exit_code = EXIT_SUCCESS;
     if (num_sockets > 0)
     {
-        if (milter_endpoint && *milter_endpoint)
+        if (NONEMPTY_STRING(milter_endpoint))
         {
             milter_pid = fork();
             if (milter_pid == 0)
@@ -405,7 +405,7 @@ int main(int argc, char** argv)
             waitpid(-1, NULL, WNOHANG);
         }
     }
-    else if (milter_endpoint && *milter_endpoint)
+    else if (NONEMPTY_STRING(milter_endpoint))
     {
         milter_main(cfg, srs, srs_domain, local_domains);
     }

@@ -28,6 +28,9 @@
 #    define ATTRIBUTE(x)
 #endif
 
+#define NONEMPTY_STRING(s)      ((s) != NULL && *(s) != 0)
+#define NULL_OR_EMPTY_STRING(s) ((s) == NULL || *(s) == 0)
+
 struct domain_set;
 typedef struct domain_set domain_set_t;
 struct list;

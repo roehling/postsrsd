@@ -253,7 +253,7 @@ bool milter_create(const char* uri)
     }
     return true;
 done:
-    if (milter_path && milter_lock > 0)
+    if (milter_path != NULL && milter_lock > 0)
     {
         release_lock(milter_path, milter_lock);
     }
@@ -281,7 +281,7 @@ void milter_main(cfg_t* cfg, srs_t* srs, const char* srs_domain,
     g_srs_domain = srs_domain;
     g_local_domains = local_domains;
     smfi_main(NULL);
-    if (milter_path && milter_lock > 0)
+    if (milter_path != NULL && milter_lock > 0)
     {
         release_lock(milter_path, milter_lock);
     }

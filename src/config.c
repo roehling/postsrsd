@@ -295,7 +295,7 @@ srs_t* srs_from_config(cfg_t* cfg)
     {
         char* eptr;
         long stamp = strtol(faketime, &eptr, 10);
-        if (eptr && !*eptr)
+        if (eptr && *eptr == 0)
         {
             srs->faketime = stamp;
             log_warn(

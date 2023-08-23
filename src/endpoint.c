@@ -63,7 +63,7 @@ static int create_unix_socket(const char* path)
 {
     struct sockaddr_un sa;
     int flags;
-    if (path == NULL || *path == 0)
+    if (NULL_OR_EMPTY_STRING(path))
     {
         log_error("expected file path for unix socket");
         return -1;
@@ -137,7 +137,7 @@ static int create_inet_sockets(char* addr, int family, int max_fds, int* fds)
             node = NULL;
         }
     }
-    if (service == NULL || *service == 0)
+    if (NULL_OR_EMPTY_STRING(service))
     {
         log_error("expected portnumber in socket address");
         return -1;

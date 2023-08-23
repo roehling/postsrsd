@@ -271,7 +271,7 @@ alloc_fail:
 database_t* database_connect(const char* uri, bool create_if_not_exist)
 {
     MAYBE_UNUSED(create_if_not_exist);
-    if (uri == NULL || *uri == 0)
+    if (NULL_OR_EMPTY_STRING(uri))
     {
         log_error("not database uri configured");
         return NULL;
