@@ -135,7 +135,7 @@ static bool prepare_database(cfg_t* cfg)
     {
         database_t* db =
             database_connect(cfg_getstr(cfg, "envelope-database"), true);
-        if (!db)
+        if (db == NULL)
             return false;
         database_expire(db);
         database_disconnect(db);
@@ -188,7 +188,7 @@ static void handle_socketmap_client(cfg_t* cfg, srs_t* srs,
     if (cfg_getint(cfg, "original-envelope") == SRS_ENVELOPE_DATABASE)
     {
         db = database_connect(cfg_getstr(cfg, "envelope-database"), false);
-        if (!db)
+        if (db == NULL)
             return;
     }
     signal(SIGALRM, on_sigalrm);
@@ -204,7 +204,7 @@ static void handle_socketmap_client(cfg_t* cfg, srs_t* srs,
         char* request = netstring_read(fp_read, buffer, sizeof(buffer), &len);
         if (timeout)
             break;
-        if (!request)
+        if (request == NULL)
         {
             if (!feof(fp_read) && !ferror(fp_read))
             {
@@ -216,7 +216,7 @@ static void handle_socketmap_client(cfg_t* cfg, srs_t* srs,
         }
         alarm(0);
         char* query_type = strtok_r(request, " ", &addr);
-        if (!query_type)
+        if (query_type == NULL)
         {
             netstring_write(fp_write, "PERM Invalid query.", 19);
             fflush(fp_write);
@@ -291,14 +291,14 @@ int main(int argc, char** argv)
         close(fd);
 #endif
     cfg = config_from_commandline(argc, argv);
-    if (!cfg)
+    if (cfg == NULL)
         goto shutdown;
     if (cfg_getbool(cfg, "syslog"))
         log_enable_syslog();
     if (cfg_getbool(cfg, "debug"))
         log_set_verbosity(LogDebug);
     srs = srs_from_config(cfg);
-    if (!srs)
+    if (srs == NULL)
         goto shutdown;
     if (!srs_domains_from_config(cfg, &srs_domain, &local_domains))
         goto shutdown;
@@ -324,7 +324,7 @@ int main(int argc, char** argv)
     if (pid_file && *pid_file)
     {
         pf = fopen(pid_file, "w");
-        if (!pf)
+        if (pf == NULL)
         {
             log_error("cannot open %s for writing", pid_file);
             goto shutdown;
@@ -336,7 +336,7 @@ int main(int argc, char** argv)
         goto shutdown;
     if (!daemonize(cfg))
         goto shutdown;
-    if (pf)
+    if (pf != NULL)
     {
         fprintf(pf, "%d", (int)getpid());
         fclose(pf);
@@ -413,14 +413,14 @@ shutdown:
     for (unsigned i = 0; i < sizeof(socketmaps) / sizeof(int); ++i)
         if (socketmaps[i] >= 0)
             close(socketmaps[i]);
-    if (pf)
+    if (pf != NULL)
         fclose(pf);
     free(srs_domain);
-    if (local_domains)
+    if (local_domains != NULL)
         domain_set_destroy(local_domains);
-    if (srs)
+    if (srs != NULL)
         srs_free(srs);
-    if (cfg)
+    if (cfg != NULL)
         cfg_free(cfg);
     if (milter_pid > 0)
     {

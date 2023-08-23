@@ -61,18 +61,18 @@ void set_string(char** var, char* value)
 
 char** argvdup(char** argv)
 {
-    if (!argv)
+    if (argv == NULL)
         return NULL;
     size_t num = 0;
     while (argv[num] != NULL)
         num++;
     char** result = malloc((num + 1) * sizeof(char*));
-    if (!result)
+    if (result == NULL)
         return NULL;
     for (size_t i = 0; i < num; ++i)
     {
         result[i] = strdup(argv[i]);
-        if (!result[i])
+        if (result[i] == NULL)
         {
             for (size_t j = 0; j < i; ++j)
             {
@@ -88,10 +88,10 @@ char** argvdup(char** argv)
 
 void freeargv(char** argv)
 {
-    if (!argv)
+    if (argv == NULL)
         return;
     size_t i = 0;
-    while (argv[i])
+    while (argv[i] != NULL)
     {
         free(argv[i]);
         i++;
@@ -103,7 +103,7 @@ char* strip_brackets(const char* addr)
 {
     const char* lbrak = strchr(addr, '<');
     const char* rbrak = strchr(addr, '>');
-    if (!lbrak || !rbrak)
+    if (lbrak == NULL || rbrak == NULL)
         return NULL;
     lbrak++;
     char* bare = strdup(lbrak);
@@ -324,6 +324,8 @@ static bool walk_domain_set(domain_set_t* D, char* domain, int flags)
 
 bool domain_set_add(domain_set_t* D, const char* domain)
 {
+    if (D == NULL)
+        return false;
     char buffer[1024];
     strncpy(buffer, domain, sizeof(buffer) - 1);
     buffer[sizeof(buffer) - 1] = 0;
@@ -332,6 +334,8 @@ bool domain_set_add(domain_set_t* D, const char* domain)
 
 bool domain_set_contains(domain_set_t* D, const char* domain)
 {
+    if (D == NULL)
+        return false;
     char buffer[1024];
     strncpy(buffer, domain, sizeof(buffer) - 1);
     buffer[sizeof(buffer) - 1] = 0;
@@ -348,7 +352,7 @@ struct list
 list_t* list_create()
 {
     list_t* L = malloc(sizeof(list_t));
-    if (L)
+    if (L != NULL)
     {
         L->capacity = 0;
         L->size = 0;
@@ -359,19 +363,21 @@ list_t* list_create()
 
 void* list_get(list_t* L, size_t i)
 {
-    if (i < L->size)
+    if (L != NULL && i < L->size)
         return L->entries[i];
     return NULL;
 }
 
 bool list_append(list_t* L, void* entry)
 {
+    if (L == NULL)
+        return false;
     if (L->size >= L->capacity)
     {
         if (L->capacity == 0)
         {
             L->entries = malloc(4 * sizeof(void*));
-            if (!L->entries)
+            if (L->entries == NULL)
                 return false;
             L->capacity = 4;
         }
@@ -379,7 +385,7 @@ bool list_append(list_t* L, void* entry)
         {
             void** new_entries =
                 realloc(L->entries, 2 * L->capacity * sizeof(void*));
-            if (!new_entries)
+            if (new_entries == NULL)
                 return false;
             L->entries = new_entries;
             L->capacity *= 2;
@@ -391,11 +397,15 @@ bool list_append(list_t* L, void* entry)
 
 size_t list_size(list_t* L)
 {
-    return L->size;
+    if (L != NULL)
+        return L->size;
+    return 0;
 }
 
 void list_clear(list_t* L, list_deleter_t deleter)
 {
+    if (L == NULL)
+        return;
     if (deleter)
     {
         for (size_t i = 0; i < L->size; ++i)
@@ -408,7 +418,7 @@ void list_clear(list_t* L, list_deleter_t deleter)
 
 void list_destroy(list_t* L, list_deleter_t deleter)
 {
-    if (!L)
+    if (L == NULL)
         return;
     list_clear(L, deleter);
     free(L->entries);
@@ -418,14 +428,16 @@ void list_destroy(list_t* L, list_deleter_t deleter)
 static char* swap_host_port(const char* s, size_t prefix_len)
 {
     char* port = strchr(s + prefix_len, ':');
-    if (!port)
+    if (port == NULL)
         return NULL;
-    if (!*(port + 1))
+    if (*(port + 1) == 0)
         return NULL;
     ptrdiff_t host_len = (port - s) - prefix_len;
     if (host_len == 0)
         return NULL;
     char* result = strdup(s);
+    if (result == NULL)
+        return NULL;
     strcpy(result + prefix_len, port + 1);
     if (host_len > 1 || s[prefix_len] != '*')
     {
@@ -437,7 +449,7 @@ static char* swap_host_port(const char* s, size_t prefix_len)
 
 char* endpoint_for_milter(const char* s)
 {
-    if (!s)
+    if (s == NULL)
         return NULL;
     if (strncasecmp(s, "unix:", 5) == 0 || strncasecmp(s, "local:", 6) == 0)
         return strdup(s);
@@ -454,7 +466,7 @@ char* endpoint_for_milter(const char* s)
 
 char* endpoint_for_redis(const char* s, int* port)
 {
-    if (!s)
+    if (s == NULL)
         return NULL;
     char* colon = strchr(s, ':');
     char* slash = strchr(s, '/');

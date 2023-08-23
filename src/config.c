@@ -75,11 +75,11 @@ static int validate_uint(cfg_t* cfg, cfg_opt_t* opt)
 static bool is_valid_domain_name(const char* s)
 {
     char prev = 0;
-    if (!s)
+    if (s == NULL)
         return false;
-    if (!*s)
+    if (*s == 0)
         return false;
-    while (*s)
+    while (*s != 0)
     {
         if (*s == '.' && prev == '.')
             return false;

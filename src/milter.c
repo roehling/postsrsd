@@ -68,11 +68,11 @@ static sfsistat on_connect(SMFICTX* ctx, char* hostname, _SOCK_ADDR* hostaddr)
     MAYBE_UNUSED(hostname);
     MAYBE_UNUSED(hostaddr);
     privdata_t* priv = malloc(sizeof(privdata_t));
-    if (!priv)
+    if (priv == NULL)
         return SMFIS_TEMPFAIL;
     priv->envfrom = NULL;
     priv->envrcpt = list_create();
-    if (!priv->envrcpt)
+    if (priv->envrcpt == NULL)
         return SMFIS_TEMPFAIL;
     smfi_setpriv(ctx, priv);
     return SMFIS_CONTINUE;
@@ -81,10 +81,10 @@ static sfsistat on_connect(SMFICTX* ctx, char* hostname, _SOCK_ADDR* hostaddr)
 static sfsistat on_envfrom(SMFICTX* ctx, char** argv)
 {
     privdata_t* priv = smfi_getpriv(ctx);
-    if (!priv)
+    if (priv == NULL)
         return SMFIS_TEMPFAIL;
     char* from = strip_brackets(argv[0]);
-    if (!from)
+    if (from == NULL)
         return SMFIS_TEMPFAIL;
     priv->envfrom = from;
     return SMFIS_CONTINUE;
@@ -93,10 +93,10 @@ static sfsistat on_envfrom(SMFICTX* ctx, char** argv)
 static sfsistat on_envrcpt(SMFICTX* ctx, char** argv)
 {
     privdata_t* priv = smfi_getpriv(ctx);
-    if (!priv)
+    if (priv == NULL)
         return SMFIS_TEMPFAIL;
     char* rcpt = strip_brackets(argv[0]);
-    if (!rcpt)
+    if (rcpt == NULL)
         return SMFIS_TEMPFAIL;
     if (!list_append(priv->envrcpt, rcpt))
     {
@@ -109,13 +109,13 @@ static sfsistat on_envrcpt(SMFICTX* ctx, char** argv)
 static sfsistat on_eom(SMFICTX* ctx)
 {
     privdata_t* priv = smfi_getpriv(ctx);
-    if (!priv)
+    if (priv == NULL)
         return SMFIS_TEMPFAIL;
     database_t* db = NULL;
     if (cfg_getint(g_cfg, "original-envelope") == SRS_ENVELOPE_DATABASE)
     {
         db = database_connect(cfg_getstr(g_cfg, "envelope-database"), false);
-        if (!db)
+        if (db == NULL)
             return SMFIS_TEMPFAIL;
     }
     size_t rcpt_size = list_size(priv->envrcpt);

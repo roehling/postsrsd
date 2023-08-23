@@ -183,7 +183,7 @@ static char* db_redis_read(database_t* db, const char* key)
     snprintf(buffer, sizeof(buffer), "PostSRSd/%s", key);
     redisContext* handle = (redisContext*)db->handle;
     redisReply* reply = redisCommand(handle, "GET %s", buffer);
-    if (!reply)
+    if (reply == NULL)
     {
         log_warn("redis connection failure: %s", handle->errstr);
         return NULL;
@@ -210,7 +210,7 @@ static bool db_redis_write(database_t* db, const char* key, const char* value,
     bool success = true;
     redisReply* reply =
         redisCommand(handle, "SETEX %s %u %s", buffer, lifetime, value);
-    if (!reply)
+    if (reply == NULL)
     {
         log_warn("redis connection failure: %s", handle->errstr);
         return false;
@@ -236,7 +236,7 @@ static bool db_redis_connect(database_t* db, const char* hostname, int port)
     if (port > 0)
     {
         handle = redisConnect(hostname, port);
-        if (!handle)
+        if (handle == NULL)
             goto alloc_fail;
         if (handle->err)
             goto conn_fail;
@@ -245,7 +245,7 @@ static bool db_redis_connect(database_t* db, const char* hostname, int port)
     else
     {
         handle = redisConnectUnix(hostname);
-        if (!handle)
+        if (handle == NULL)
             goto alloc_fail;
     }
     if (handle->err)
@@ -271,7 +271,7 @@ alloc_fail:
 database_t* database_connect(const char* uri, bool create_if_not_exist)
 {
     MAYBE_UNUSED(create_if_not_exist);
-    if (!uri || !*uri)
+    if (uri == NULL || *uri == 0)
     {
         log_error("not database uri configured");
         return NULL;
@@ -328,7 +328,7 @@ database_t* database_connect(const char* uri, bool create_if_not_exist)
 
 char* database_read(database_t* db, const char* key)
 {
-    if (db && key)
+    if (db != NULL && key != NULL)
         return db->read(db, key);
     return NULL;
 }
@@ -336,20 +336,20 @@ char* database_read(database_t* db, const char* key)
 bool database_write(database_t* db, const char* key, const char* value,
                     unsigned lifetime)
 {
-    if (db && key && value)
+    if (db != NULL && key != NULL && value != NULL)
         return db->write(db, key, value, lifetime);
     return false;
 }
 
 void database_expire(database_t* db)
 {
-    if (db && db->expire)
+    if (db != NULL && db->expire != NULL)
         db->expire(db);
 }
 
 void database_disconnect(database_t* db)
 {
-    if (db)
+    if (db != NULL)
         db->disconnect(db);
     free(db);
 }
