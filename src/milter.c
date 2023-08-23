@@ -68,11 +68,11 @@ static sfsistat on_connect(SMFICTX* ctx, char* hostname, _SOCK_ADDR* hostaddr)
     MAYBE_UNUSED(hostname);
     MAYBE_UNUSED(hostaddr);
     privdata_t* priv = malloc(sizeof(privdata_t));
-    if (priv == NULL)
+    if (!priv)
         return SMFIS_TEMPFAIL;
     priv->envfrom = NULL;
     priv->envrcpt = list_create();
-    if (priv->envrcpt == NULL)
+    if (!priv->envrcpt)
         return SMFIS_TEMPFAIL;
     smfi_setpriv(ctx, priv);
     return SMFIS_CONTINUE;
@@ -81,6 +81,8 @@ static sfsistat on_connect(SMFICTX* ctx, char* hostname, _SOCK_ADDR* hostaddr)
 static sfsistat on_envfrom(SMFICTX* ctx, char** argv)
 {
     privdata_t* priv = smfi_getpriv(ctx);
+    if (!priv)
+        return SMFIS_TEMPFAIL;
     char* from = strip_brackets(argv[0]);
     if (!from)
         return SMFIS_TEMPFAIL;
@@ -91,6 +93,8 @@ static sfsistat on_envfrom(SMFICTX* ctx, char** argv)
 static sfsistat on_envrcpt(SMFICTX* ctx, char** argv)
 {
     privdata_t* priv = smfi_getpriv(ctx);
+    if (!priv)
+        return SMFIS_TEMPFAIL;
     char* rcpt = strip_brackets(argv[0]);
     if (!rcpt)
         return SMFIS_TEMPFAIL;
@@ -104,6 +108,9 @@ static sfsistat on_envrcpt(SMFICTX* ctx, char** argv)
 
 static sfsistat on_eom(SMFICTX* ctx)
 {
+    privdata_t* priv = smfi_getpriv(ctx);
+    if (!priv)
+        return SMFIS_TEMPFAIL;
     database_t* db = NULL;
     if (cfg_getint(g_cfg, "original-envelope") == SRS_ENVELOPE_DATABASE)
     {
@@ -111,7 +118,6 @@ static sfsistat on_eom(SMFICTX* ctx)
         if (!db)
             return SMFIS_TEMPFAIL;
     }
-    privdata_t* priv = smfi_getpriv(ctx);
     size_t rcpt_size = list_size(priv->envrcpt);
     bool error = false;
     for (size_t i = 0; i < rcpt_size; ++i)
@@ -119,7 +125,7 @@ static sfsistat on_eom(SMFICTX* ctx)
         char* rcpt = (char*)list_get(priv->envrcpt, i);
         char* rewritten = postsrsd_reverse(rcpt, g_srs, db, &error, NULL);
         if (error)
-            return SMFIS_TEMPFAIL;
+            goto tempfail;
         if (rewritten)
         {
             char* bracketed_old_rcpt = add_brackets(rcpt);
@@ -129,14 +135,14 @@ static sfsistat on_eom(SMFICTX* ctx)
             {
                 free(bracketed_old_rcpt);
                 free(bracketed_new_rcpt);
-                return SMFIS_TEMPFAIL;
+                goto tempfail;
             }
             if (smfi_addrcpt(ctx, bracketed_new_rcpt)
                 != MI_SUCCESS)  // TODO maybe add ESMTP arguments?
             {
                 free(bracketed_old_rcpt);
                 free(bracketed_new_rcpt);
-                return SMFIS_TEMPFAIL;
+                goto tempfail;
             }
             free(bracketed_old_rcpt);
             free(bracketed_new_rcpt);
@@ -148,7 +154,7 @@ static sfsistat on_eom(SMFICTX* ctx)
         char* rewritten = postsrsd_forward(priv->envfrom, g_srs_domain, g_srs,
                                            db, g_local_domains, &error, NULL);
         if (error)
-            return SMFIS_TEMPFAIL;
+            goto tempfail;
         if (rewritten)
         {
             char* bracketed_from = add_brackets(rewritten);
@@ -158,21 +164,30 @@ static sfsistat on_eom(SMFICTX* ctx)
                 != MI_SUCCESS)  // TODO maybe add ESMTP arguments?
             {
                 free(bracketed_from);
-                return SMFIS_TEMPFAIL;
+                goto tempfail;
             }
             free(bracketed_from);
         }
     }
+    if (db)
+        database_disconnect(db);
     return SMFIS_CONTINUE;
+tempfail:
+    if (db)
+        database_disconnect(db);
+    return SMFIS_TEMPFAIL;
 }
 
 static sfsistat on_close(SMFICTX* ctx)
 {
     privdata_t* priv = smfi_getpriv(ctx);
-    smfi_setpriv(ctx, NULL);
-    free(priv->envfrom);
-    list_destroy(priv->envrcpt, free);
-    free(priv);
+    if (priv)
+    {
+        smfi_setpriv(ctx, NULL);
+        free(priv->envfrom);
+        list_destroy(priv->envrcpt, free);
+        free(priv);
+    }
     return SMFIS_CONTINUE;
 }
 
