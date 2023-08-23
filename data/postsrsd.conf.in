@@ -16,7 +16,8 @@ domains = {}
 # Local domains (file storage)
 # Instead of listing your local domains directly, you can also write them to a
 # file and have PostSRSd read it. This is particularly useful if you have a
-# large number of domains for which you need to act as mail forwarder.
+# large number of domains for which you need to act as mail forwarder. PostSRSd
+# reads this file before it chroots and drops root privileges.
 #
 # Example:
 #     domains-file = "@POSTSRSD_CONFIGDIR@/@PROJECT_NAME@.domains"
@@ -38,7 +39,8 @@ domains = {}
 # Traditionally, PostSRSd interacts with Postfix through the canonicalization
 # lookup tables of the cleanup daemon. If you use a unix socket, be aware that
 # most Postfix instances will jail their cleanup daemon in a /var/spool/postfix
-# chroot, so no other path will be visible to them.
+# chroot, so no other path will be visible to them. Unix sockets are created
+# before PostSRSd chroots and drops root privileges.
 #
 # Examples:
 #     socketmap = unix:/var/spool/postfix/srs
@@ -58,7 +60,8 @@ keep-alive = 30
 
 # Milter endpoint for MTA integration.
 # PostSRSd can act as a milter to rewrite envelope addresses if it has been
-# built with milter support.
+# built with milter support. Unix sockets are created before PostSRSd chroots
+# and drops root privileges.
 #
 # Examples:
 #     milter = unix:/var/spool/postfix/srs_milter
@@ -90,8 +93,8 @@ original-envelope = embedded
 # used. The option is ignored if original-envelope is set to "embedded". Also
 # note that PostSRSd needs to be built with SQLite or Redis support for this.
 #
-# Also note that you need to put the SQLite database into the chroot directory
-# if you jail PostSRSd; otherwise, the database file will not be accessible.
+# PostSRSd reads this database after it chroots and drops root privileges, so
+# the actual filename is the chroot directory joined with this filename.
 #
 # Examples:
 #     envelope-database = "sqlite:@CHROOTABLE_DATADIR@/senders.db"
@@ -107,7 +110,8 @@ original-envelope = embedded
 # signatures will always be generated with the first configured secret.
 #
 # For security reasons, you should also make sure that the file is owned and
-# only accessible by root (chmod 600).
+# only accessible by root (chmod 600). PostSRSd reads this file before it
+# chroots and drops root privileges.
 #
 # Example:
 #     secrets-file = "@POSTSRSD_CONFIGDIR@/@PROJECT_NAME@.secret"
@@ -152,9 +156,9 @@ hash-minimum = 4
 always-rewrite = off
 
 # Execute PostSRSd as unprivileged user
-# If you set this highly recommended option, PostSRSd will drop root
-# privileges and switch to the configured user before it enters the main loop
-# to handle untrusted input.
+# Drop root privileges and run as this user before entering the main loop and
+# handling untrusted input. To prevent PostSRSd from changing users, set this to
+# the empty string.
 #
 # Example:
 #     unprivileged-user = "nobody"
@@ -162,9 +166,9 @@ always-rewrite = off
 unprivileged-user = "@POSTSRSD_USER@"
 
 # Execute PostSRSd in chroot jail
-# If you set this highly recommended option, PostSRSd will jail itself
-# in the given directory, which adds an additional layer of protection
-# against the exploitation of security bugs in PostSRSd.
+# PostSRSd will jail itself in the given directory, which adds an additional
+# layer of protection against the exploitation of security bugs in PostSRSd. To
+# prevent PostSRSd from chrooting, set this to the empty string.
 #
 # Example:
 #     chroot-dir = "@CMAKE_INSTALL_FULL_LOCALSTATEDIR@/lib/@PROJECT_NAME@"
