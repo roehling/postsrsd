@@ -7,6 +7,34 @@
 Changelog
 #########
 
+2.0.8
+=====
+
+Fixed
+-----
+
+* Fixed socket creation for Milter
+* Fixed Milter issue with IPv6 clients
+  (`#156 <https://github.com/roehling/postsrsd/issues/156>`_)
+
+Added
+-----
+
+* Support for system user management with ``sysusers.d``
+* Better customization of the PostSRSd build with
+  ``POSTSRSD_CONFIGDIR`` and ``INSTALL_SYSTEMD_SERVICE``
+
+Changed
+-------
+
+* Improved documentation of the PostSRSd example configuration
+
+Contributions
+-------------
+
+* Richard Hansen (`#155 <https://github.com/roehling/postsrsd/pull/155>`_,
+  `#157 <https://github.com/roehling/postsrsd/pull/157>`_)
+
 2.0.7
 =====
 
