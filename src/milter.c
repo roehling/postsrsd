@@ -63,30 +63,45 @@ typedef struct privdata privdata_t;
 #endif
 
 #ifdef WITH_MILTER
-static sfsistat on_connect(SMFICTX* ctx, char* hostname, _SOCK_ADDR* hostaddr)
+static void free_privdata(SMFICTX* ctx)
 {
-    MAYBE_UNUSED(hostname);
-    MAYBE_UNUSED(hostaddr);
+    privdata_t* priv = smfi_getpriv(ctx);
+    if (priv == NULL)
+        return;
+    free(priv->envfrom);
+    list_destroy(priv->envrcpt, free);
+    free(priv);
+    smfi_setpriv(ctx, NULL);
+}
+
+static privdata_t* new_privdata(SMFICTX* ctx)
+{
+    free_privdata(ctx);
     privdata_t* priv = malloc(sizeof(privdata_t));
     if (priv == NULL)
-        return SMFIS_TEMPFAIL;
+        return NULL;
     priv->envfrom = NULL;
     priv->envrcpt = list_create();
     if (priv->envrcpt == NULL)
-        return SMFIS_TEMPFAIL;
+    {
+        free(priv);
+        return NULL;
+    }
     smfi_setpriv(ctx, priv);
-    return SMFIS_CONTINUE;
+    return priv;
 }
 
 static sfsistat on_envfrom(SMFICTX* ctx, char** argv)
 {
-    privdata_t* priv = smfi_getpriv(ctx);
+    privdata_t* priv = new_privdata(ctx);
     if (priv == NULL)
         return SMFIS_TEMPFAIL;
-    char* from = strip_brackets(argv[0]);
-    if (from == NULL)
+    priv->envfrom = strip_brackets(argv[0]);
+    if (priv->envfrom == NULL)
+    {
+        free_privdata(ctx);
         return SMFIS_TEMPFAIL;
-    priv->envfrom = from;
+    }
     return SMFIS_CONTINUE;
 }
 
@@ -97,10 +112,14 @@ static sfsistat on_envrcpt(SMFICTX* ctx, char** argv)
         return SMFIS_TEMPFAIL;
     char* rcpt = strip_brackets(argv[0]);
     if (rcpt == NULL)
+    {
+        free_privdata(ctx);
         return SMFIS_TEMPFAIL;
+    }
     if (!list_append(priv->envrcpt, rcpt))
     {
         free(rcpt);
+        free_privdata(ctx);
         return SMFIS_TEMPFAIL;
     }
     return SMFIS_CONTINUE;
@@ -108,15 +127,16 @@ static sfsistat on_envrcpt(SMFICTX* ctx, char** argv)
 
 static sfsistat on_eom(SMFICTX* ctx)
 {
+    sfsistat status = SMFIS_TEMPFAIL;
     privdata_t* priv = smfi_getpriv(ctx);
     if (priv == NULL)
-        return SMFIS_TEMPFAIL;
+        goto done;
     database_t* db = NULL;
     if (cfg_getint(g_cfg, "original-envelope") == SRS_ENVELOPE_DATABASE)
     {
         db = database_connect(cfg_getstr(g_cfg, "envelope-database"), false);
         if (db == NULL)
-            return SMFIS_TEMPFAIL;
+            goto done;
     }
     size_t rcpt_size = list_size(priv->envrcpt);
     bool error = false;
@@ -125,7 +145,7 @@ static sfsistat on_eom(SMFICTX* ctx)
         char* rcpt = (char*)list_get(priv->envrcpt, i);
         char* rewritten = postsrsd_reverse(rcpt, g_srs, db, &error, NULL);
         if (error)
-            goto tempfail;
+            goto done;
         if (rewritten)
         {
             char* bracketed_old_rcpt = add_brackets(rcpt);
@@ -135,14 +155,14 @@ static sfsistat on_eom(SMFICTX* ctx)
             {
                 free(bracketed_old_rcpt);
                 free(bracketed_new_rcpt);
-                goto tempfail;
+                goto done;
             }
             if (smfi_addrcpt(ctx, bracketed_new_rcpt)
                 != MI_SUCCESS)  // TODO maybe add ESMTP arguments?
             {
                 free(bracketed_old_rcpt);
                 free(bracketed_new_rcpt);
-                goto tempfail;
+                goto done;
             }
             free(bracketed_old_rcpt);
             free(bracketed_new_rcpt);
@@ -154,7 +174,7 @@ static sfsistat on_eom(SMFICTX* ctx)
         char* rewritten = postsrsd_forward(priv->envfrom, g_srs_domain, g_srs,
                                            db, g_local_domains, &error, NULL);
         if (error)
-            goto tempfail;
+            goto done;
         if (rewritten)
         {
             char* bracketed_from = add_brackets(rewritten);
@@ -164,37 +184,29 @@ static sfsistat on_eom(SMFICTX* ctx)
                 != MI_SUCCESS)  // TODO maybe add ESMTP arguments?
             {
                 free(bracketed_from);
-                goto tempfail;
+                goto done;
             }
             free(bracketed_from);
         }
     }
+    status = SMFIS_CONTINUE;
+done:
     if (db)
         database_disconnect(db);
-    return SMFIS_CONTINUE;
-tempfail:
-    if (db)
-        database_disconnect(db);
-    return SMFIS_TEMPFAIL;
+    free_privdata(ctx);
+    return status;
 }
 
-static sfsistat on_close(SMFICTX* ctx)
+static sfsistat on_abort(SMFICTX* ctx)
 {
-    privdata_t* priv = smfi_getpriv(ctx);
-    if (priv)
-    {
-        smfi_setpriv(ctx, NULL);
-        free(priv->envfrom);
-        list_destroy(priv->envrcpt, free);
-        free(priv);
-    }
+    free_privdata(ctx);
     return SMFIS_CONTINUE;
 }
 
 /* clang-format off */
 static struct smfiDesc smfilter = {
     "PostSRSd", SMFI_VERSION, SMFIF_CHGFROM | SMFIF_ADDRCPT | SMFIF_DELRCPT,
-    on_connect,
+    NULL /* connect */,
     NULL /* helo */,
     on_envfrom,
     on_envrcpt,
@@ -202,8 +214,8 @@ static struct smfiDesc smfilter = {
     NULL /* eoh */,
     NULL /* body */,
     on_eom,
-    NULL /* abort */,
-    on_close,
+    on_abort,
+    NULL /* close */,
     NULL /* unknown */,
     NULL /* data */,
     NULL /* negotiate */,
