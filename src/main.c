@@ -302,6 +302,34 @@ int main(int argc, char** argv)
         goto shutdown;
     if (!srs_domains_from_config(cfg, &srs_domain, &local_domains))
         goto shutdown;
+    if (cfg_getstr(cfg, "_hidden_diag_forward")
+        || cfg_getstr(cfg, "_hidden_diag_reverse"))
+    {
+        database_t* db = NULL;
+        if (cfg_getint(cfg, "original-envelope") == SRS_ENVELOPE_DATABASE)
+        {
+            db = database_connect(cfg_getstr(cfg, "envelope-database"), false);
+            if (db == NULL)
+                goto shutdown;
+        }
+        bool error;
+        char* out;
+        if (cfg_getstr(cfg, "_hidden_diag_forward"))
+            out = postsrsd_forward(cfg_getstr(cfg, "_hidden_diag_forward"),
+                                   srs_domain, srs, db, local_domains, &error,
+                                   NULL);
+        if (cfg_getstr(cfg, "_hidden_diag_reverse"))
+            out = postsrsd_reverse(cfg_getstr(cfg, "_hidden_diag_reverse"), srs,
+                                   db, &error, NULL);
+        if (out && !error)
+            exit_code = EXIT_SUCCESS;
+        if (out)
+            printf("%s\n", out);
+        free(out);
+        if (db)
+            database_disconnect(db);
+        goto shutdown;
+    }
     const char* socketmap_endpoint = cfg_getstr(cfg, "socketmap");
     if (NONEMPTY_STRING(socketmap_endpoint))
     {

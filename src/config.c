@@ -126,6 +126,11 @@ static void show_help()
         ")\n"
         "  -v           show version number (" POSTSRSD_VERSION
         ")\n"
+        "\n"
+        "Diagnostic utilities:\n"
+        "  -f <ADDR>    rewrite <ADDR>, print the result to stdout, and exit\n"
+        "  -r <ADDR>    reverse the rewritten <ADDR>, print the result to "
+        "stdout, and exit\n"
 #if defined(WITH_SQLITE) || defined(WITH_REDIS) || defined(WITH_MILTER)
         "\n"
         "This binary has been compiled with\n"
@@ -165,6 +170,8 @@ cfg_t* config_from_commandline(int argc, char* const* argv)
         CFG_BOOL("daemonize", cfg_false, CFGF_NONE),
         CFG_BOOL("syslog", cfg_false, CFGF_NONE),
         CFG_BOOL("debug", cfg_false, CFGF_NONE),
+        CFG_STR("_hidden_diag_forward", NULL, CFGF_NODEFAULT),
+        CFG_STR("_hidden_diag_reverse", NULL, CFGF_NODEFAULT),
         CFG_END(),
     };
     cfg_t* cfg = cfg_init(opts, CFGF_NONE);
@@ -177,11 +184,13 @@ cfg_t* config_from_commandline(int argc, char* const* argv)
     char* pid_file = NULL;
     char* chroot_dir = NULL;
     char* unprivileged_user = NULL;
+    char* diag_forward = NULL;
+    char* diag_reverse = NULL;
     int daemonize = 0;
     int ok = 1;
     if (file_exists(DEFAULT_CONFIG_FILE))
         set_string(&config_file, strdup(DEFAULT_CONFIG_FILE));
-    while ((opt = getopt(argc, argv, "C:c:Dhp:u:v")) != -1)
+    while ((opt = getopt(argc, argv, "C:c:Df:hp:r:u:v")) != -1)
     {
         switch (opt)
         {
@@ -196,12 +205,18 @@ cfg_t* config_from_commandline(int argc, char* const* argv)
             case 'D':
                 daemonize = 1;
                 break;
+            case 'f':
+                set_string(&diag_forward, strdup(optarg));
+                break;
             case 'h':
                 show_help();
                 exit(0);
                 break;
             case 'p':
                 set_string(&pid_file, strdup(optarg));
+                break;
+            case 'r':
+                set_string(&diag_reverse, strdup(optarg));
                 break;
             case 'u':
                 set_string(&unprivileged_user, strdup(optarg));
@@ -248,6 +263,21 @@ cfg_t* config_from_commandline(int argc, char* const* argv)
     }
     if (daemonize)
         cfg_setbool(cfg, "daemonize", cfg_true);
+    if (diag_forward && diag_reverse)
+    {
+        log_error("the -f and -r options cannot be used together");
+        ok = 0;
+    }
+    if (diag_forward)
+    {
+        cfg_setstr(cfg, "_hidden_diag_forward", diag_forward);
+        set_string(&diag_forward, NULL);
+    }
+    if (diag_reverse)
+    {
+        cfg_setstr(cfg, "_hidden_diag_reverse", diag_reverse);
+        set_string(&diag_reverse, NULL);
+    }
     if (ok)
         return cfg;
     cfg_free(cfg);
