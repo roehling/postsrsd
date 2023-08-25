@@ -128,10 +128,10 @@ static sfsistat on_envrcpt(SMFICTX* ctx, char** argv)
 static sfsistat on_eom(SMFICTX* ctx)
 {
     sfsistat status = SMFIS_TEMPFAIL;
+    database_t* db = NULL;
     privdata_t* priv = smfi_getpriv(ctx);
     if (priv == NULL)
         goto done;
-    database_t* db = NULL;
     if (cfg_getint(g_cfg, "original-envelope") == SRS_ENVELOPE_DATABASE)
     {
         db = database_connect(cfg_getstr(g_cfg, "envelope-database"), false);
