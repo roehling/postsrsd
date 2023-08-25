@@ -77,7 +77,7 @@ static bool drop_privileges(cfg_t* cfg)
         }
         target_uid = pwd->pw_uid;
         target_gid = pwd->pw_gid;
-        if (chdir(pwd->pw_dir) < 0 && EMPTY_STRING(chroot_dir))
+        if (chdir(pwd->pw_dir) < 0 && NULL_OR_EMPTY_STRING(chroot_dir))
         {
             log_warn("cannot chdir to home directory of user %s: %s", user,
                      strerror(errno));
