@@ -24,9 +24,6 @@
 #ifdef HAVE_ERRNO_H
 #    include <errno.h>
 #endif
-#ifdef HAVE_FCNTL_H
-#    include <fcntl.h>
-#endif
 #ifdef HAVE_SYS_TYPES_H
 #    include <sys/types.h>
 #endif
@@ -62,7 +59,6 @@
 static int create_unix_socket(const char* path)
 {
     struct sockaddr_un sa;
-    int flags;
     if (NULL_OR_EMPTY_STRING(path))
     {
         log_error("expected file path for unix socket");
@@ -70,7 +66,7 @@ static int create_unix_socket(const char* path)
     }
     if (acquire_lock(path) > 0)
         unlink(path);
-    int sock = socket(AF_UNIX, SOCK_STREAM, 0);
+    int sock = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
     if (sock < 0)
         goto fail;
     sa.sun_family = AF_UNIX;
@@ -81,10 +77,6 @@ static int create_unix_socket(const char* path)
     if (chmod(path, 0666) < 0)
         goto fail;
     if (listen(sock, POSTSRSD_SOCKET_LISTEN_QUEUE) < 0)
-        goto fail;
-    if ((flags = fcntl(sock, F_GETFL, 0)) < 0)
-        goto fail;
-    if (fcntl(sock, F_SETFL, flags | O_NONBLOCK) < 0)
         goto fail;
     return sock;
 fail:
@@ -159,12 +151,14 @@ static int create_inet_sockets(char* addr, int family, int max_fds, int* fds)
         log_error("%s", gai_strerror(err));
         return -1;
     }
-    int sock = -1, count = 0, flags;
+    int sock = -1, count = 0;
     for (struct addrinfo* it = ai; it; it = it->ai_next)
     {
         if (max_fds == 0)
             break;
-        sock = socket(it->ai_family, it->ai_socktype, it->ai_protocol);
+        sock = socket(it->ai_family,
+                      it->ai_socktype | SOCK_NONBLOCK | SOCK_CLOEXEC,
+                      it->ai_protocol);
         if (sock < 0)
             goto fail;
         if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &one, sizeof(one)) < 0)
@@ -172,10 +166,6 @@ static int create_inet_sockets(char* addr, int family, int max_fds, int* fds)
         if (bind(sock, it->ai_addr, it->ai_addrlen) < 0)
             goto fail;
         if (listen(sock, POSTSRSD_SOCKET_LISTEN_QUEUE) < 0)
-            goto fail;
-        if ((flags = fcntl(sock, F_GETFL, 0)) < 0)
-            goto fail;
-        if (fcntl(sock, F_SETFL, flags | O_NONBLOCK) < 0)
             goto fail;
         *fds++ = sock;
         max_fds--;
