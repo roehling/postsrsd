@@ -94,7 +94,7 @@ __BEGIN_DECLS
 #define SRS_ETIMESTAMPOUTOFDATE (SRS_ERRTYPE_SRS | 1)
 #define SRS_EHASHINVALID        (SRS_ERRTYPE_SRS | 2)
 
-#define SRS_ERROR_TYPE(x) ((x)&SRS_ERRTYPE_MASK)
+#define SRS_ERROR_TYPE(x) ((x) & SRS_ERRTYPE_MASK)
 
 /* SRS implementation */
 
