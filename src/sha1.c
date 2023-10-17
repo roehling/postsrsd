@@ -67,7 +67,7 @@
 #define CONST4 0xca62c1d6L
 
 /* truncate to 32 bits -- should be a null op on 32-bit machines */
-#define T32(x) ((x)&0xffffffffL)
+#define T32(x) ((x) & 0xffffffffL)
 
 /* 32-bit rotate */
 #define R32(x, n) T32(((x << n) | (x >> (32 - n))))
