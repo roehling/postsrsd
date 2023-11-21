@@ -15,11 +15,11 @@ on:
       - main
 jobs:
   freebsd:
-    runs-on: macos-12
+    runs-on: ubuntu-latest
     name: FreeBSD
     steps:
       - uses: actions/checkout@v3
-      - uses: vmactions/freebsd-vm@v0
+      - uses: vmactions/freebsd-vm@v1
         with:
           usesh: true
           prepare: |
