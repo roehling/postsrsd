@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-cmake_minimum_required(VERSION 3.14...3.26)
+cmake_minimum_required(VERSION 3.14...3.28)
 project(
     postsrsd
     VERSION 2.0.8
