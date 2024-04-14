@@ -57,7 +57,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y cmake libconfuse-dev libhiredis-dev libsqlite3-dev redis
+          sudo apt-get install -y check cmake libconfuse-dev libhiredis-dev libsqlite3-dev redis
       - name: Build PostSRSd
         run: |
           mkdir _build
