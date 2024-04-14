@@ -21,7 +21,7 @@ else()
         NAMES check_pic check
         HINTS ${PC_CHECK_LIBRARY_DIRS}
     )
-    find_path(Check_subunit_LIBRARY subunit HINTS ${PC_SUBUNIT_LIBRARY_DIRS})
+    find_library(Check_subunit_LIBRARY subunit HINTS ${PC_SUBUNIT_LIBRARY_DIRS})
     find_library(Check_m_LIBRARY m)
     find_library(Check_rt_LIBRARY rt)
     find_package(Threads REQUIRED)
