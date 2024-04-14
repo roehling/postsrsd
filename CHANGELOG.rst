@@ -7,6 +7,20 @@
 Changelog
 #########
 
+2.0.9
+=====
+
+Fixed
+-----
+
+* Fixed build with system libraries
+  (`#176 <https://github.com/roehling/postsrsd/issues/176>`_)
+
+Changed
+-------
+
+* Create sockets non-blocking and with close-on-exec enabled
+
 2.0.8
 =====
 
