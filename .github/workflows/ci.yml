@@ -50,3 +50,21 @@ jobs:
         run: |
           postmap -q test@otherdomain.com socketmap:unix:/var/spool/postfix/srs:forward | tee /tmp/srs-alias.txt
           postmap -q "$(cat /tmp/srs-alias.txt)" socketmap:unix:/var/spool/postfix/srs:reverse
+  packaging:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y cmake libconfuse-dev libhiredis-dev libsqlite3-dev redis
+      - name: Build PostSRSd
+        run: |
+          mkdir _build
+          cd _build
+          cmake .. -DFETCHCONTENT_FULLY_DISCONNECTED=ON -DFETCHCONTENT_TRY_FIND_PACKAGE_MODE=ALWAYS -DWITH_SQLITE=ON -DWITH_REDIS=ON
+          make VERBOSE=ON
+      - name: Run tests
+        run: |
+          cd _build
+          ctest --output-on-failure
