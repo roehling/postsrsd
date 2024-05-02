@@ -30,12 +30,12 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y cmake postfix redis ${{ matrix.deps == 'system-deps' && 'libconfuse-dev libhiredis-dev libsqlite3-dev' }}
+          sudo apt-get install -y cmake postfix redis ${{ matrix.deps == 'system-deps' && 'libconfuse-dev libhiredis-dev libsqlite3-dev' || '' }}
       - name: Build PostSRSd
         run: |
           mkdir _build
           cd _build
-          cmake .. -DDEVELOPER_BUILD=ON -DWITH_${{ matrix.milter }} -DWITH_${{ matrix.sqlite }} -DWITH_${{ matrix.redis }} ${{ matrix.deps == 'system-deps' && '-DFETCHCONTENT_FULLY_DISCONNECTED=ON -DFETCHCONTENT_TRY_FIND_PACKAGE_MODE=ALWAYS' }}
+          cmake .. -DDEVELOPER_BUILD=ON -DWITH_${{ matrix.milter }} -DWITH_${{ matrix.sqlite }} -DWITH_${{ matrix.redis }} ${{ matrix.deps == 'system-deps' && '-DFETCHCONTENT_FULLY_DISCONNECTED=ON -DFETCHCONTENT_TRY_FIND_PACKAGE_MODE=ALWAYS' || '' }}
           cmake --build . --verbose
       - name: Run tests
         run: |
