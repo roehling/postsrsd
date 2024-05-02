@@ -15,24 +15,28 @@ on:
       - main
 jobs:
   test:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        milter: [OFF, ON]
-        sqlite: [OFF, ON]
-        redis: [OFF, ON]
+        milter: [MILTER=OFF, MILTER=ON]
+        sqlite: [SQLITE=OFF, SQLITE=ON]
+        redis: [REDIS=OFF, REDIS=ON]
+        deps: [vendored-deps, system-deps]
+        exclude:
+          - milter: MILTER=ON
+            deps: system-deps
     steps:
       - uses: actions/checkout@v4
       - name: Install dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y cmake postfix redis
+          sudo apt-get install -y cmake postfix redis ${{ matrix.deps == 'system-deps' && 'libconfuse-dev libhiredis-dev libsqlite3-dev' }}
       - name: Build PostSRSd
         run: |
           mkdir _build
           cd _build
-          cmake .. -DDEVELOPER_BUILD=ON -DWITH_MILTER=${{ matrix.milter }} -DWITH_SQLITE=${{ matrix.sqlite }} -DWITH_REDIS=${{ matrix.redis }}
-          make VERBOSE=ON
+          cmake .. -DDEVELOPER_BUILD=ON -DWITH_${{ matrix.milter }} -DWITH_${{ matrix.sqlite }} -DWITH_${{ matrix.redis }} ${{ matrix.deps == 'system-deps' && '-DFETCHCONTENT_FULLY_DISCONNECTED=ON -DFETCHCONTENT_TRY_FIND_PACKAGE_MODE=ALWAYS' }}
+          cmake --build . --verbose
       - name: Run tests
         run: |
           cd _build
@@ -50,21 +54,3 @@ jobs:
         run: |
           postmap -q test@otherdomain.com socketmap:unix:/var/spool/postfix/srs:forward | tee /tmp/srs-alias.txt
           postmap -q "$(cat /tmp/srs-alias.txt)" socketmap:unix:/var/spool/postfix/srs:reverse
-  packaging:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install dependencies
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y check cmake libconfuse-dev libhiredis-dev libsqlite3-dev redis
-      - name: Build PostSRSd
-        run: |
-          mkdir _build
-          cd _build
-          cmake .. -DFETCHCONTENT_FULLY_DISCONNECTED=ON -DFETCHCONTENT_TRY_FIND_PACKAGE_MODE=ALWAYS -DWITH_SQLITE=ON -DWITH_REDIS=ON
-          make VERBOSE=ON
-      - name: Run tests
-        run: |
-          cd _build
-          ctest --output-on-failure
