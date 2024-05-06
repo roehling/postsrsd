@@ -292,7 +292,7 @@ void milter_main(cfg_t* cfg, srs_t* srs, const char* srs_domain,
     g_srs = srs;
     g_srs_domain = srs_domain;
     g_local_domains = local_domains;
-    smfi_main(NULL);
+    smfi_main();
     if (milter_path != NULL && milter_lock > 0)
     {
         release_lock(milter_path, milter_lock);
