@@ -22,15 +22,12 @@ jobs:
         sqlite: [SQLITE=OFF, SQLITE=ON]
         redis: [REDIS=OFF, REDIS=ON]
         deps: [vendored-deps, system-deps]
-        exclude:
-          - milter: MILTER=ON
-            deps: system-deps
     steps:
       - uses: actions/checkout@v4
       - name: Install dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y cmake postfix redis ${{ matrix.deps == 'system-deps' && 'check libconfuse-dev libhiredis-dev libsqlite3-dev' || '' }}
+          sudo apt-get install -y cmake postfix redis ${{ matrix.deps == 'system-deps' && 'check libconfuse-dev libhiredis-dev libmilter-dev libsqlite3-dev' || '' }}
       - name: Build PostSRSd
         run: |
           mkdir _build
