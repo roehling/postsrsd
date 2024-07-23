@@ -7,6 +7,20 @@
 Changelog
 #########
 
+2.0.10
+======
+
+Changed
+-------
+
+* Allow comments in domains-file
+  (`#181 <https://github.com/roehling/postsrsd/issues/181>`_)
+
+Added
+-----
+
+* Support for building against system libmilter library
+
 2.0.9
 =====
 
