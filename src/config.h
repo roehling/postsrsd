@@ -25,6 +25,7 @@
 
 #include <confuse.h>
 
+cfg_t* config_defaults();
 cfg_t* config_from_commandline(int argc, char* const* argv);
 srs_t* srs_from_config(cfg_t* cfg);
 bool srs_domains_from_config(cfg_t* cfg, char** srs_domain,

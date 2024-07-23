@@ -46,3 +46,8 @@ target_link_libraries(
                                      $<$<BOOL:${WITH_REDIS}>:${HIREDIS_TARGET}>
 )
 add_postsrsd_test(test_srs2 ${SRCDIR}/srs2.c ${SRCDIR}/sha1.c)
+add_postsrsd_test(
+    test_config ${SRCDIR}/config.c ${SRCDIR}/sha1.c ${SRCDIR}/srs2.c
+    ${SRCDIR}/util.c
+)
+target_link_libraries(test_config_executable PRIVATE Confuse::Confuse)

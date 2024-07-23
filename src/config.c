@@ -142,7 +142,7 @@ static void show_help()
     );
 }
 
-cfg_t* config_from_commandline(int argc, char* const* argv)
+cfg_t* config_defaults()
 {
     static cfg_opt_t opts[] = {
         CFG_STR("srs-domain", NULL, CFGF_NODEFAULT),
@@ -172,6 +172,12 @@ cfg_t* config_from_commandline(int argc, char* const* argv)
     cfg_set_validate_func(cfg, "srs-domain", validate_domain_names);
     cfg_set_validate_func(cfg, "domains", validate_domain_names);
     cfg_set_validate_func(cfg, "keep-alive", validate_uint);
+    return cfg;
+}
+
+cfg_t* config_from_commandline(int argc, char* const* argv)
+{
+    cfg_t* cfg = config_defaults();
     int opt;
     char* config_file = NULL;
     char* pid_file = NULL;
@@ -340,24 +346,34 @@ bool srs_domains_from_config(cfg_t* cfg, char** srs_domain,
         if (f)
         {
             char buffer[1024];
+            char* end;
             while ((domain = fgets(buffer, sizeof(buffer), f)) != NULL)
             {
                 domain = strtok(domain, "\r\n");
-                if (domain && domain[0])
+                if (domain == NULL)
+                    continue;
+                while (isspace(domain[0]))
+                    ++domain;
+                end = strchr(domain, '#');
+                if (end != NULL)
+                    *end = 0;
+                end = domain + strlen(domain);
+                while (end != domain && isspace(*(end - 1)))
+                    *--end = 0;
+                if (domain[0] == 0)
+                    continue;
+                if (is_valid_domain_name(domain))
                 {
-                    if (is_valid_domain_name(domain))
-                    {
-                        domain_set_add(*local_domains, domain);
-                        if (*srs_domain == NULL)
-                            *srs_domain =
-                                strdup(domain[0] == '.' ? domain + 1 : domain);
-                    }
-                    else
-                    {
-                        log_error("invalid domain name '%s' in domains file",
-                                  domain);
-                        goto fail;
-                    }
+                    domain_set_add(*local_domains, domain);
+                    if (*srs_domain == NULL)
+                        *srs_domain =
+                            strdup(domain[0] == '.' ? domain + 1 : domain);
+                }
+                else
+                {
+                    log_error("invalid domain name '%s' in domains file",
+                              domain);
+                    goto fail;
                 }
             }
             fclose(f);
