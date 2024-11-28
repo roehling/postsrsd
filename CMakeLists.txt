@@ -140,8 +140,8 @@ FetchContent_Declare(
 
 FetchContent_Declare(
     LibMilter
-    GIT_REPOSITORY https://github.com/jons/libmilter
-    GIT_TAG 98d481b0fd3ba1e2ca420c7c43fcc50afdae879f
+    GIT_REPOSITORY https://github.com/roehling/libmilter
+    GIT_TAG 3661f3c5ac5e47205f26775031d2ac276d6d47ca
 )
 
 FetchContent_Declare(
