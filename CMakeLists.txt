@@ -277,9 +277,9 @@ if(WITH_MILTER)
             add_library(LibMilter::LibMilter ALIAS milter)
         else()
             message(
-                STATUS "Missing support for ${CMAKE_SYSTEM_NAME} for LibMilter"
+                FATAL_ERROR
+                    "Missing support for ${CMAKE_SYSTEM_NAME} for LibMilter"
             )
-            set(WITH_MILTER OFF)
         endif()
     endif()
 endif()
