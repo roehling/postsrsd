@@ -417,6 +417,8 @@ install(CODE "\
 if(BUILD_TESTING)
     FetchContent_MakeAvailable(Check)
     if(IS_DIRECTORY "${check_SOURCE_DIR}")
+        # Workaround for https://github.com/roehling/postsrsd/issues/161
+        file(REMOVE "${check_SOURCE_DIR}/src/check.h")
         set_property(
             DIRECTORY "${check_SOURCE_DIR}" PROPERTY EXCLUDE_FROM_ALL TRUE
         )
