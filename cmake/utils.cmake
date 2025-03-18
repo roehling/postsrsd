@@ -35,6 +35,8 @@ function(add_autotools_dependency name)
             Ext${name}
             SOURCE_DIR "${${lc_name}_SOURCE_DIR}"
             UPDATE_DISCONNECTED TRUE
+            PATCH_COMMAND
+            command -v autoreconf && autoreconf --force --install <SOURCE_DIR>
             CONFIGURE_COMMAND
                 <SOURCE_DIR>/configure --disable-shared --prefix=<INSTALL_DIR>
                 "CC=${cc_executable}" "AR=${ar_executable}"
