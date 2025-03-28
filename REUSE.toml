@@ -1,0 +1,28 @@
+version = 1
+SPDX-PackageName = "PostSRSd"
+SPDX-PackageSupplier = "Timo Röhling <timo@gaussglocke.de>"
+SPDX-PackageDownloadLocation = "https://github.com/roehling/postsrsd"
+
+[[annotations]]
+path = "**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2012-2023, Timo Röhling <timo@gaussglocke.de>"
+SPDX-License-Identifier = "GPL-3.0-only"
+
+[[annotations]]
+path = [".clang-format", ".cmake-format.json", ".pre-commit-config.yaml", "data/**", "doc/postsrsd.conf"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2012-2023, Timo Röhling <timo@gaussglocke.de>"
+SPDX-License-Identifier = "FSFUL"
+
+[[annotations]]
+path = [".github/**", "cmake/**"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2022-2023, Timo Röhling <timo@gaussglocke.de>"
+SPDX-License-Identifier = "FSFAP"
+
+[[annotations]]
+path = ["src/sha1.c", "src/sha1.h", "src/srs2.c", "src/srs2.h"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = ["Gisle Ass, Peter C. Gutmann, Bruce Schneier", "2004, Shevek <srs@anarres.org>", "2012-2023, Timo Röhling <timo@gaussglocke.de>"]
+SPDX-License-Identifier = "BSD-3-Clause"
