@@ -13,6 +13,8 @@ on:
   pull_request:
     branches:
       - main
+permissions:
+  contents: read
 jobs:
   freebsd:
     runs-on: ubuntu-latest
