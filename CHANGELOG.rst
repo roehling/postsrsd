@@ -7,6 +7,19 @@
 Changelog
 #########
 
+2.0.11
+======
+
+Fixed
+-----
+
+* Run `autoreconf` to prevent confuse build failures with newer
+  autoconf/automake releases
+* Fix build failures with libcheck if libsubunit ist installed
+  (`#161 <https://github.com/roehling/postsrsd/issues/161`_)
+* Do not fail silently if `WITH_MILTER=ON` is set but libmilter
+  is not available
+
 2.0.10
 ======
 
