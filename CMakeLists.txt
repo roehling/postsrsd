@@ -135,7 +135,7 @@ FetchContent_Declare(
 FetchContent_Declare(
     Hiredis
     GIT_REPOSITORY https://github.com/redis/hiredis
-    GIT_TAG c14775b4e48334e0262c9f168887578f4a368b5d
+    GIT_TAG 67c88a05bb97c40d5c29d0680e51828627e4f362
 )
 
 FetchContent_Declare(
@@ -146,9 +146,9 @@ FetchContent_Declare(
 
 FetchContent_Declare(
     sqlite3
-    URL https://sqlite.org/2023/sqlite-amalgamation-3410200.zip
+    URL https://sqlite.org/2026/sqlite-amalgamation-3530200.zip
     URL_HASH
-        SHA3_256=c51ca72411b8453c64e0980be23bc9b9530bdc3ec1513e06fbf022ed0fd02463
+        SHA3_256=81142986038e18f96c4a54e1a72562ae17e502a916f2a7701eff43388cbf1a40
 )
 
 FetchContent_Declare(
