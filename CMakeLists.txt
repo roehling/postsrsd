@@ -73,7 +73,7 @@ option(WITH_REDIS
        OFF
 )
 add_feature_info(WITH_REDIS WITH_REDIS "use Redis as database backend")
-option(TESTS_WITH_ASAN "Run test suite with AddressSanitizer" ON)
+option(TESTS_WITH_ASAN "Run test suite with AddressSanitizer" OFF)
 option(DEVELOPER_BUILD "Add strict compiler options for development only" OFF)
 option(GENERATE_SRS_SECRET "Generate and install a postsrsd.secret" ON)
 add_feature_info(

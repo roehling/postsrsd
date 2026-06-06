@@ -34,7 +34,7 @@ jobs:
         run: |
           mkdir _build
           cd _build
-          cmake .. -DDEVELOPER_BUILD=ON -DWITH_${{ matrix.milter }} -DWITH_${{ matrix.sqlite }} -DWITH_${{ matrix.redis }} ${{ matrix.deps == 'system-deps' && '-DFETCHCONTENT_FULLY_DISCONNECTED=ON -DFETCHCONTENT_TRY_FIND_PACKAGE_MODE=ALWAYS' || '' }}
+          cmake .. -DDEVELOPER_BUILD=ON -DTESTS_WITH_ASAN=ON -DWITH_${{ matrix.milter }} -DWITH_${{ matrix.sqlite }} -DWITH_${{ matrix.redis }} ${{ matrix.deps == 'system-deps' && '-DFETCHCONTENT_FULLY_DISCONNECTED=ON -DFETCHCONTENT_TRY_FIND_PACKAGE_MODE=ALWAYS' || '' }}
           cmake --build . --verbose
       - name: Run tests
         run: |
