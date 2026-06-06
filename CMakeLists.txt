@@ -368,9 +368,12 @@ if(INSTALL_SYSTEMD_SERVICE)
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.service"
             DESTINATION "${SYSTEMD_UNITDIR}"
     )
-    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/sysusers.d/${PROJECT_NAME}.conf"
+    if(NOT POSTSRSD_USER STREQUAL "nobody")
+        install(
+            FILES "${CMAKE_CURRENT_BINARY_DIR}/sysusers.d/${PROJECT_NAME}.conf"
             DESTINATION "${SYSTEMD_SYSUSERSDIR}"
-    )
+        )
+    endif()
 endif()
 
 if(GENERATE_SRS_SECRET)
