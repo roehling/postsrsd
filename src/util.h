@@ -36,6 +36,8 @@ typedef struct domain_set domain_set_t;
 struct list;
 typedef struct list list_t;
 typedef void (*list_deleter_t)(void*);
+struct file_watch;
+typedef struct file_watch file_watch_t;
 
 void set_string(char** var, char* value);
 char* b32h_encode(const char* data, size_t length, char* buffer,
@@ -64,6 +66,11 @@ bool list_append(list_t* L, void* data);
 size_t list_size(list_t* L);
 void list_clear(list_t* L, list_deleter_t deleter);
 void list_destroy(list_t* L, list_deleter_t deleter);
+
+file_watch_t* file_watch_create();
+int file_watch_poll_fd(file_watch_t* W);
+void file_watch_process_events(file_watch_t* W);
+void file_watch_destroy(file_watch_t* W);
 
 char* endpoint_for_milter(const char* s);
 char* endpoint_for_redis(const char* s, int* port);

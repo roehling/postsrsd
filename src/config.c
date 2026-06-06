@@ -326,7 +326,7 @@ bool srs_domains_from_config(cfg_t* cfg, char** srs_domain,
     *local_domains = domain_set_create();
     char* domain;
     domain = cfg_getstr(cfg, "srs-domain");
-    if (domain && domain[0])
+    if (NONEMPTY_STRING(domain))
         *srs_domain = strdup(domain[0] == '.' ? domain + 1 : domain);
     unsigned ndomains = cfg_size(cfg, "domains");
     for (unsigned i = 0; i < ndomains; ++i)
@@ -340,7 +340,7 @@ bool srs_domains_from_config(cfg_t* cfg, char** srs_domain,
         }
     }
     char* domains_file = cfg_getstr(cfg, "domains-file");
-    if (domains_file && domains_file[0])
+    if (NONEMPTY_STRING(domains_file))
     {
         FILE* f = fopen(domains_file, "r");
         if (f)
@@ -360,7 +360,7 @@ bool srs_domains_from_config(cfg_t* cfg, char** srs_domain,
                 end = domain + strlen(domain);
                 while (end != domain && isspace(*(end - 1)))
                     *--end = 0;
-                if (domain[0] == 0)
+                if (NULL_OR_EMPTY_STRING(domain))
                     continue;
                 if (is_valid_domain_name(domain))
                 {
@@ -383,6 +383,11 @@ bool srs_domains_from_config(cfg_t* cfg, char** srs_domain,
             log_error("cannot read local domains from %s", domains_file);
             goto fail;
         }
+    }
+    if (*srs_domain == NULL)
+    {
+        log_error("no SRS domain configured");
+        goto fail;
     }
     return true;
 fail:

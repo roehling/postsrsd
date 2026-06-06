@@ -38,6 +38,15 @@ char* postsrsd_forward(const char* addr, const char* domain, srs_t* srs,
         log_debug("<%s> not rewritten: no domain", addr);
         return NULL;
     }
+    if (domain == NULL)
+    {
+        log_error("<%s> not rewritten: no SRS domain configured", addr);
+        if (error != NULL)
+            *error = true;
+        if (info != NULL)
+            *info = "Configuration error.";
+        return NULL;
+    }
     const char* input_domain = at + 1;
     if (domain_set_contains(local_domains, input_domain))
     {

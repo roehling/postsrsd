@@ -425,6 +425,40 @@ void list_destroy(list_t* L, list_deleter_t deleter)
     free(L);
 }
 
+struct file_watch
+{
+    int fd;
+};
+
+file_watch_t* file_watch_create()
+{
+    file_watch_t* W = malloc(sizeof(file_watch_t));
+    if (W != NULL)
+    {
+        W->fd = -1;
+    }
+    return W;
+}
+
+int file_watch_poll_fd(file_watch_t* W)
+{
+    return W != NULL ? W->fd : -1;
+}
+
+void file_watch_process_events(file_watch_t* W)
+{
+    MAYBE_UNUSED(W);
+}
+
+void file_watch_destroy(file_watch_t* W)
+{
+    if (W != NULL)
+    {
+        close(W->fd);
+        free(W);
+    }
+}
+
 static char* swap_host_port(const char* s, size_t prefix_len)
 {
     char* port = strchr(s + prefix_len, ':');
