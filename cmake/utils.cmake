@@ -14,6 +14,7 @@ function(add_autotools_dependency name)
     FetchContent_MakeAvailable(${name})
     if(NOT TARGET ${arg_EXPORTED_TARGET})
         find_program(MAKE_EXECUTABLE NAMES gmake make mingw32-make REQUIRED)
+        mark_as_advanced(MAKE_EXECUTABLE)
         set(library_file
             "${CMAKE_STATIC_LIBRARY_PREFIX}${arg_LIBRARY_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}"
         )
@@ -74,6 +75,11 @@ function(find_systemd_unit_destination var)
                 PARENT_SCOPE
             )
         endif()
+    elseif(CMAKE_INSTALL_PREFIX MATCHES "^/usr/local/?$")
+        set(${var}
+            "/usr/local/lib/systemd/system"
+            PARENT_SCOPE
+        )
     else()
         set(${var}
             "/etc/systemd/system"
@@ -97,6 +103,11 @@ function(find_systemd_sysusers_destination var)
                 PARENT_SCOPE
             )
         endif()
+    elseif(CMAKE_INSTALL_PREFIX MATCHES "^/usr/local/?$")
+        set(${var}
+            "/usr/local/lib/sysusers.d"
+            PARENT_SCOPE
+        )
     else()
         set(${var}
             "/etc/sysusers.d"
