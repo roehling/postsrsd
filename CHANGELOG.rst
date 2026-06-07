@@ -7,6 +7,31 @@
 Changelog
 #########
 
+2.0.12
+======
+
+Fixed
+-----
+
+* PostSRSd will give a proper diagnostic instead of crashing
+  if no SRS domain is configured.
+* The sysusers.d snippet will never be installed for the "nobody"
+  user.
+
+Changed
+-------
+
+* The build will always look for installed system dependencies first.
+* Updated vendored dependencies for Hiredis and SQLite to latest release.
+* If PostSRSd is installed to `/usr/local`, the systemd files are also
+  installed there instead of `/etc`.
+
+Added
+-----
+
+* New CMake switch `INSTALL_SYSTEMD_SYSUSERS` for sysusers.d snippet
+  installation.
+
 2.0.11
 ======
 

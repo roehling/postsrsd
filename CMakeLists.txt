@@ -17,7 +17,7 @@
 cmake_minimum_required(VERSION 3.14...4.2)
 project(
     postsrsd
-    VERSION 2.0.11
+    VERSION 2.0.12
     LANGUAGES C
     DESCRIPTION "Sender Rewriting Scheme daemon for Postfix"
     HOMEPAGE_URL "https://github.com/roehling/postsrsd"
