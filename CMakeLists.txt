@@ -467,6 +467,13 @@ endif()
 
 feature_summary(WHAT ENABLED_FEATURES DISABLED_FEATURES)
 
+if(DEFINED INIT_FLAVOR)
+    message(
+        WARNING
+            "The INIT_FLAVOR option is no longer used by PostSRSd 2.x and will be ignored"
+    )
+endif()
+
 set(CPACK_SET_DESTDIR ON)
 set(CPACK_PACKAGE_NAME "postsrsd")
 set(CPACK_PACKAGE_VENDOR "Timo Röhling")
