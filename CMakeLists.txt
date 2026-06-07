@@ -149,18 +149,21 @@ FetchContent_Declare(
     URL https://github.com/libconfuse/libconfuse/releases/download/v3.3/confuse-3.3.tar.gz
     URL_HASH
         SHA3_256=da895d91a7755941872e73ff6522fd16810f1599862990df569459a0eee94515
+    FIND_PACKAGE_ARGS
 )
 
 FetchContent_Declare(
     Hiredis
     GIT_REPOSITORY https://github.com/redis/hiredis
     GIT_TAG 67c88a05bb97c40d5c29d0680e51828627e4f362
+    FIND_PACKAGE_ARGS
 )
 
 FetchContent_Declare(
     LibMilter
     GIT_REPOSITORY https://github.com/roehling/libmilter
     GIT_TAG 3661f3c5ac5e47205f26775031d2ac276d6d47ca
+    FIND_PACKAGE_ARGS
 )
 
 FetchContent_Declare(
@@ -168,6 +171,7 @@ FetchContent_Declare(
     URL https://sqlite.org/2026/sqlite-amalgamation-3530200.zip
     URL_HASH
         SHA3_256=81142986038e18f96c4a54e1a72562ae17e502a916f2a7701eff43388cbf1a40
+    FIND_PACKAGE_ARGS
 )
 
 FetchContent_Declare(
@@ -175,6 +179,7 @@ FetchContent_Declare(
     URL https://github.com/libcheck/check/releases/download/0.15.2/check-0.15.2.tar.gz
     URL_HASH
         SHA3_256=bfb856a68c0ea4d930803f6bd16c1eed38910a231c9e0f0009e69310e35e7a5d
+    FIND_PACKAGE_ARGS
 )
 
 set(saved_CMAKE_REQUIRED_DEFINITIONS "${CMAKE_REQUIRED_DEFINITIONS}")
@@ -393,6 +398,7 @@ install(TARGETS postsrsd RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR})
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.conf"
         DESTINATION "${CMAKE_INSTALL_DATADIR}/doc/${PROJECT_NAME}"
 )
+
 if(INSTALL_SYSTEMD_SERVICE)
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.service"
             DESTINATION "${SYSTEMD_UNITDIR}"
