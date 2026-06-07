@@ -220,7 +220,7 @@ cfg_t* config_from_commandline(int argc, char* const* argv)
                 break;
         }
     }
-    if (config_file)
+    if (config_file != NULL)
     {
         switch (cfg_parse(cfg, config_file))
         {
@@ -237,17 +237,17 @@ cfg_t* config_from_commandline(int argc, char* const* argv)
         }
         set_string(&config_file, NULL);
     }
-    if (pid_file)
+    if (pid_file != NULL)
     {
         cfg_setstr(cfg, "pid-file", pid_file);
         set_string(&pid_file, NULL);
     }
-    if (unprivileged_user)
+    if (unprivileged_user != NULL)
     {
         cfg_setstr(cfg, "unprivileged-user", unprivileged_user);
         set_string(&unprivileged_user, NULL);
     }
-    if (chroot_dir)
+    if (chroot_dir != NULL)
     {
         cfg_setstr(cfg, "chroot-dir", chroot_dir);
         set_string(&chroot_dir, NULL);
@@ -297,7 +297,7 @@ srs_t* srs_from_config(cfg_t* cfg)
         return NULL;
     }
     char* faketime = getenv("POSTSRSD_FAKETIME");
-    if (faketime)
+    if (NONEMPTY_STRING(faketime))
     {
         char* eptr;
         long stamp = strtol(faketime, &eptr, 10);

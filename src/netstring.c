@@ -28,7 +28,7 @@ char* netstring_encode(const char* data, size_t length, char* buffer,
         return NULL;
     strncpy(&buffer[i], data, length);
     buffer[length + i] = ',';
-    if (encoded_length)
+    if (encoded_length != NULL)
         *encoded_length = length + i + 1;
     return buffer;
 }
@@ -47,7 +47,7 @@ char* netstring_decode(const char* netstring, char* buffer, size_t bufsize,
     if (netstring[i] != ':' || netstring[length + i + 1] != ',')
         return NULL;
     strncpy(buffer, &netstring[i + 1], length);
-    if (decoded_length)
+    if (decoded_length != NULL)
         *decoded_length = length;
     buffer[length] = 0;
     return buffer;
@@ -67,7 +67,7 @@ char* netstring_read(FILE* f, char* buffer, size_t bufsize,
         return NULL;
     if (fgetc(f) != ',')
         return NULL;
-    if (decoded_length)
+    if (decoded_length != NULL)
         *decoded_length = length;
     buffer[length] = 0;
     return buffer;

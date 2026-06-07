@@ -255,7 +255,7 @@ bool milter_create(const char* uri)
         log_error("cannot start milter: failed to open socket");
         goto done;
     }
-    if (milter_path)
+    if (milter_path != NULL)
     {
         if (chmod(milter_path, 0666) < 0)
         {

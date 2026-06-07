@@ -269,7 +269,7 @@ void domain_set_destroy(domain_set_t* D)
     for (unsigned i = 0; i < sizeof(D->c) / sizeof(D->c[0]); ++i)
         if (D->c[i])
             domain_set_destroy(D->c[i]);
-    if (D->s)
+    if (D->s != NULL)
         domain_set_destroy(D->s);
     free(D);
 }
@@ -278,7 +278,7 @@ static bool walk_domain_set(domain_set_t* D, char* domain, int flags)
 {
     char* dot = strrchr(domain, '.');
     char* subdomain = domain;
-    if (dot)
+    if (dot != NULL)
     {
         subdomain = dot + 1;
         *dot = 0;
@@ -304,7 +304,7 @@ static bool walk_domain_set(domain_set_t* D, char* domain, int flags)
         }
         D = D->c[ch];
     }
-    if (dot)
+    if (dot != NULL)
     {
         if (D->s == NULL)
         {
@@ -406,7 +406,7 @@ void list_clear(list_t* L, list_deleter_t deleter)
 {
     if (L == NULL)
         return;
-    if (deleter)
+    if (deleter != NULL)
     {
         for (size_t i = 0; i < L->size; ++i)
         {
@@ -600,7 +600,7 @@ void log_error(const char* fmt, ...)
 void log_perror(int err, const char* prefix)
 {
     char* msg = strerror(err);
-    if (prefix)
+    if (NONEMPTY_STRING(prefix))
         log_error("%s: %s", prefix, msg);
     else
         log_error("%s", msg);

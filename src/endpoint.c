@@ -199,7 +199,7 @@ int endpoint_create(const char* s, int max_fds, int* fds)
     {
         path = &s[6];
     }
-    if (path)
+    if (path != NULL)
     {
         int fd = create_unix_socket(path);
         if (fd < 0)
@@ -228,7 +228,7 @@ int endpoint_create(const char* s, int max_fds, int* fds)
         addr = strdup(&s[6]);
         family = AF_INET6;
     }
-    if (addr)
+    if (addr != NULL)
     {
         int ret = create_inet_sockets(addr, family, max_fds, fds);
         free(addr);

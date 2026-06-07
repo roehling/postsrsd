@@ -66,9 +66,9 @@ char* postsrsd_forward(const char* addr, const char* domain, srs_t* srs,
         if (db_alias == NULL)
         {
             log_warn("<%s> not rewritten: aliasing error", addr);
-            if (error)
+            if (error != NULL)
                 *error = true;
-            if (info)
+            if (info != NULL)
                 *info = "Aliasing error.";
             return NULL;
         }
@@ -155,9 +155,9 @@ char* postsrsd_reverse(const char* addr, srs_t* srs, database_t* db,
         else
         {
             log_warn("<%s> not reversed: no database for alias", addr);
-            if (error)
+            if (error != NULL)
                 *error = true;
-            if (info)
+            if (info != NULL)
                 *info = "No database for alias.";
             return NULL;
         }
