@@ -133,8 +133,11 @@ endif()
 mark_as_advanced(
     TESTS_WITH_ASAN
     GENERATE_SRS_SECRET
+    INSTALL_SYSTEMD_SERVICE
+    INSTALL_SYSTEMD_SYSUSERS
     DEVELOPER_BUILD
     SYSTEMD_UNITDIR
+    SYSTEMD_SYSUSERSDIR
     POSTSRSD_CONFIGDIR
     POSTSRSD_CHROOTDIR
     POSTSRSD_DATADIR
@@ -232,6 +235,16 @@ if(WITH_REDIS)
         CACHE BOOL "" FORCE
     )
     FetchContent_MakeAvailable(Hiredis)
+    mark_as_advanced(
+        ENABLE_ASYNC_TESTS
+        ENABLE_SSL_TESTS
+        ENABLE_SSL
+        ENABLE_NUGET
+        ENABLE_EXAMPLES
+        DISABLE_TESTS
+        BUILD_SHARED_LIBS
+        hiredis_export_name
+    )
     if(IS_DIRECTORY "${hiredis_SOURCE_DIR}")
         set_property(
             DIRECTORY "${hiredis_SOURCE_DIR}" PROPERTY EXCLUDE_FROM_ALL TRUE
@@ -400,6 +413,7 @@ if(GENERATE_SRS_SECRET)
         NAMES urandom random
         PATHS /dev
     )
+    mark_as_advanced(DD BASE64 OPENSSL RANDOM_SOURCE)
     if(BASE64)
         set(BASE64_ENCODE "${BASE64}")
     elseif(OPENSSL)
@@ -434,6 +448,10 @@ install(CODE "\
 
 if(BUILD_TESTING)
     FetchContent_MakeAvailable(Check)
+    mark_as_advanced(
+        AWK_PATH CHECK_ENABLE_GCOV CHECK_ENABLE_TESTS
+        CHECK_ENABLE_TIMEOUT_TESTS ENABLE_MEMORY_LEAKING_TESTS INSTALL_CHECKMK
+    )
     if(IS_DIRECTORY "${check_SOURCE_DIR}")
         # Workaround for https://github.com/roehling/postsrsd/issues/161
         file(REMOVE "${check_SOURCE_DIR}/src/check.h")
