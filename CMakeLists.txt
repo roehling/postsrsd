@@ -86,6 +86,13 @@ add_feature_info(
     INSTALL_SYSTEMD_SERVICE INSTALL_SYSTEMD_SERVICE
     "install the systemd postsrsd.service unit"
 )
+option(INSTALL_SYSTEMD_SYSUSERS "Install a systemd sysusers.d/postsrsd.conf"
+       ${INSTALL_SYSTEMD_SERVICE}
+)
+add_feature_info(
+    INSTALL_SYSTEMD_SYSUSERS DO_INSTALL_SYSTEMD_SYSUSERS
+    "instruct systemd to create the PostSRSd user \"${POSTSRSD_USER}\""
+)
 find_systemd_unit_destination(DETECTED_SYSTEMD_UNITDIR)
 set(SYSTEMD_UNITDIR
     "${DETECTED_SYSTEMD_UNITDIR}"
@@ -112,6 +119,15 @@ if(POSTSRSD_CHROOTDIR)
     endif()
 else()
     set(CHROOTABLE_DATADIR "${POSTSRSD_DATADIR}")
+endif()
+
+if(INSTALL_SYSTEMD_SERVICE
+   AND INSTALL_SYSTEMD_SYSUSERS
+   AND NOT POSTSRSD_USER STREQUAL "nobody"
+)
+    set(DO_INSTALL_SYSTEMD_SYSUSERS TRUE)
+else()
+    set(DO_INSTALL_SYSTEMD_SYSUSERS FALSE)
 endif()
 
 mark_as_advanced(
@@ -368,12 +384,11 @@ if(INSTALL_SYSTEMD_SERVICE)
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.service"
             DESTINATION "${SYSTEMD_UNITDIR}"
     )
-    if(NOT POSTSRSD_USER STREQUAL "nobody")
-        install(
-            FILES "${CMAKE_CURRENT_BINARY_DIR}/sysusers.d/${PROJECT_NAME}.conf"
+endif()
+if(INSTALL_SYSTEMD_SYSUSERS AND NOT POSTSRSD_USER STREQUAL "nobody")
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/sysusers.d/${PROJECT_NAME}.conf"
             DESTINATION "${SYSTEMD_SYSUSERSDIR}"
-        )
-    endif()
+    )
 endif()
 
 if(GENERATE_SRS_SECRET)
