@@ -25,7 +25,7 @@ jobs:
         run: |
           mkdir _build
           cd _build
-          cmake .. -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_C_COMPILER=musl-gcc -DCMAKE_EXE_LINKER_FLAGS=-static -DBUILD_TESTING=OFF -DWITH_SQLITE=ON -DWITH_REDIS=ON -DGENERATE_SRS_SECRET=OFF
+          cmake .. -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_C_COMPILER=musl-gcc -DCMAKE_EXE_LINKER_FLAGS=-static -DBUILD_TESTING=OFF -DWITH_SQLITE=ON -DWITH_REDIS=ON -DGENERATE_SRS_SECRET=OFF -DFETCHCONTENT_TRY_FIND_PACKAGE_MODE=NEVER
           make VERBOSE=ON
       - name: Install PostSRSd
         run: |
