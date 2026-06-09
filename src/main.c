@@ -60,54 +60,6 @@
 static volatile sig_atomic_t timeout = 0;
 static volatile sig_atomic_t sighup_received = 0, sigterm_received = 0;
 
-static bool prepare_unprivileged_work(cfg_t* cfg, int* target_uid,
-                                      int* target_gid)
-{
-    if (target_uid == NULL || target_gid == NULL)
-        return false;
-    *target_uid = 0;
-    *target_gid = 0;
-    const char* chroot_dir = cfg_getstr(cfg, "chroot-dir");
-    const char* user = cfg_getstr(cfg, "unprivileged-user");
-    if (NONEMPTY_STRING(user))
-    {
-#ifdef HAVE_PWD_H
-        struct passwd* pwd = NULL;
-        pwd = getpwnam(user);
-        if (pwd == NULL)
-        {
-            log_error("cannot drop privileges: no such user: %s", user);
-            return false;
-        }
-        *target_uid = pwd->pw_uid;
-        *target_gid = pwd->pw_gid;
-        if (chdir(pwd->pw_dir) < 0 && NULL_OR_EMPTY_STRING(chroot_dir))
-        {
-            log_warn("cannot chdir to home directory of user %s: %s", user,
-                     strerror(errno));
-        }
-#else
-        log_error("cannot drop privileges: not supported by system");
-        return false;
-#endif
-    }
-    if (NONEMPTY_STRING(chroot_dir))
-    {
-#ifdef HAVE_CHROOT
-        if (chdir(chroot_dir) < 0)
-        {
-            log_perror(errno,
-                       "cannot drop privileges: failed to chdir to chroot");
-            return false;
-        }
-#else
-        log_error("chroot is not supported on this system");
-        return false;
-#endif
-    }
-    return true;
-}
-
 static bool drop_privileges(cfg_t* cfg, int target_uid, int target_gid)
 {
     const char* chroot_dir = cfg_getstr(cfg, "chroot-dir");
@@ -392,6 +344,8 @@ int main(int argc, char** argv)
         goto shutdown;
     if (!srs_domains_from_config(cfg, &srs_domain, &local_domains))
         goto shutdown;
+    if (!check_unprivileged_work(cfg, target_uid, target_gid))
+        goto shutdown;
     const char* socketmap_endpoint = cfg_getstr(cfg, "socketmap");
     if (NONEMPTY_STRING(socketmap_endpoint))
     {
@@ -420,8 +374,6 @@ int main(int argc, char** argv)
             goto shutdown;
         }
     }
-    if (!check_unprivileged_work(cfg, target_uid, target_gid))
-        goto shutdown;
     if (!daemonize(cfg))
         goto shutdown;
     if (pf != NULL)
