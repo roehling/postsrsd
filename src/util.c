@@ -122,8 +122,10 @@ char* add_brackets(const char* addr)
 
 char* b32h_encode(const char* data, size_t length, char* buffer, size_t bufsize)
 {
-    static const char B32H_CHARS[32] ATTRIBUTE(nonstring) =
-        "0123456789ABCDEFGHIJKLMNOPQRSTUV";
+    static const char B32H_CHARS[32] = {'0', '1', '2', '3', '4', '5', '6', '7',
+                                        '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
+                                        'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
+                                        'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V'};
     if (data == NULL)
         return NULL;
     if ((bufsize <= 8 * ((length + 4) / 5)))
