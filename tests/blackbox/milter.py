@@ -26,41 +26,41 @@ import tempfile
 import time
 
 
-def send_milter(sock, code, data):
+def send_milter(sock: socket.socket, code: bytes, data: bytes):
     sock.send(struct.pack(">Lc", len(data) + 1, code) + data)
 
 
-def recv_milter(sock):
+def recv_milter(sock: socket.socket):
     size = struct.unpack(">L", sock.recv(4))
     data = sock.recv(*size)
     return data[:1], data[1:]
 
 
-def mf_optneg(sock):
+def mf_optneg(sock: socket.socket):
     send_milter(sock, b"O", struct.pack(">LLL", 6, 0xFF, 0xFF))
     code, _ = recv_milter(sock)
     return code == b"O"
 
 
-def mf_connect(sock):
+def mf_connect(sock: socket.socket):
     send_milter(sock, b"C", b"mail.example.com\x00U")
     code, _ = recv_milter(sock)
     return code == b"c"
 
 
-def mf_envfrom(sock, envfrom):
+def mf_envfrom(sock: socket.socket, envfrom: str):
     send_milter(sock, b"M", b"<" + envfrom.encode() + b">\x00")
     code, _ = recv_milter(sock)
     return code == b"c"
 
 
-def mf_rcptto(sock, rcptto):
+def mf_rcptto(sock: socket.socket, rcptto: str):
     send_milter(sock, b"R", b"<" + rcptto.encode() + b">\x00")
     code, _ = recv_milter(sock)
     return code == b"c"
 
 
-def mf_eom(sock):
+def mf_eom(sock: socket.socket):
     new_from = None
     new_rcpt = None
     send_milter(sock, b"E", b"")
@@ -75,7 +75,7 @@ def mf_eom(sock):
 
 
 @contextlib.contextmanager
-def postsrsd_instance(postsrsd, when):
+def postsrsd_instance(postsrsd: str, when: str):
     with tempfile.TemporaryDirectory() as tmpdirname:
         tmpdir = pathlib.Path(tmpdirname)
         with open(tmpdir / "postsrsd.conf", "w") as f:
@@ -108,7 +108,11 @@ def postsrsd_instance(postsrsd, when):
             proc.wait()
 
 
-def execute_queries(postsrsd, when, queries):
+def execute_queries(
+    postsrsd: str,
+    when: str,
+    queries: list[tuple[tuple[str, str], tuple[str | None, str | None]]],
+):
     with postsrsd_instance(postsrsd, when) as endpoint:
         for query in queries:
             orig_from, orig_rcpt = query[0]
