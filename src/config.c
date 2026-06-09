@@ -362,7 +362,8 @@ bool srs_domains_from_config(cfg_t* cfg, char** srs_domain,
         domain = cfg_getnstr(cfg, "domains", i);
         if (NONEMPTY_STRING(domain))
         {
-            domain_set_add(*local_domains, domain);
+            if (!domain_set_add(*local_domains, domain))
+                log_warn("duplicate local domain: %s", domain);
             if (*srs_domain == NULL)
                 *srs_domain = strdup(domain[0] == '.' ? domain + 1 : domain);
         }
@@ -392,7 +393,8 @@ bool srs_domains_from_config(cfg_t* cfg, char** srs_domain,
                     continue;
                 if (is_valid_domain_name(domain))
                 {
-                    domain_set_add(*local_domains, domain);
+                    if (!domain_set_add(*local_domains, domain))
+                        log_warn("duplicate local domain: %s", domain);
                     if (*srs_domain == NULL)
                         *srs_domain =
                             strdup(domain[0] == '.' ? domain + 1 : domain);
