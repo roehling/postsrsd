@@ -17,6 +17,15 @@
 #ifndef ENDPOINT_H
 #define ENDPOINT_H
 
-int endpoint_create(const char* s, int max_fd, int* fds);
+#include <stdbool.h>
+
+struct pollfd;
+struct endpoint;
+typedef struct endpoint endpoint_t;
+
+endpoint_t* endpoint_create(const char* s);
+void endpoint_close(endpoint_t* endpoint);
+unsigned endpoint_prepare_poll(endpoint_t* endpoint, struct pollfd* pollfds,
+                               unsigned max_fds);
 
 #endif

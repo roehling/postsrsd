@@ -99,9 +99,9 @@ END_TEST
 START_TEST(util_argvdup)
 {
     const char* tokens[5] = {"one", "two", "three", "four", "five"};
-    char* argv[5];
+    char* argv[6];
     ck_assert_ptr_null(argvdup(NULL));
-    for (size_t num = 0; num < 5; ++num)
+    for (size_t num = 0; num <= 5; ++num)
     {
         for (size_t i = 0; i < num; ++i)
         {

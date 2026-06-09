@@ -180,6 +180,7 @@ def execute_sighup_tests(
                         break
                     except ConnectionError:
                         if retry > 0:
+                            sys.stderr.write("Reconnect after SIGHUP\n")
                             sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM, 0)
                             sock.connect(daemon[0])
                             sock_stream = SockStream(sock)

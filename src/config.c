@@ -360,7 +360,7 @@ bool srs_domains_from_config(cfg_t* cfg, char** srs_domain,
     for (unsigned i = 0; i < ndomains; ++i)
     {
         domain = cfg_getnstr(cfg, "domains", i);
-        if (domain && domain[0])
+        if (NONEMPTY_STRING(domain))
         {
             domain_set_add(*local_domains, domain);
             if (*srs_domain == NULL)

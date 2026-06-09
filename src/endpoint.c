@@ -24,6 +24,9 @@
 #ifdef HAVE_ERRNO_H
 #    include <errno.h>
 #endif
+#ifdef HAVE_POLL_H
+#    include <poll.h>
+#endif
 #ifdef HAVE_SYS_TYPES_H
 #    include <sys/types.h>
 #endif
@@ -54,17 +57,32 @@
 #    define SO_REUSEPORT SO_REUSEADDR
 #endif
 #define POSTSRSD_SOCKET_LISTEN_QUEUE 16
+#define POSTSRSD_MAX_FDS             4
+
+struct endpoint
+{
+    unsigned num_fds;
+    int fd[POSTSRSD_MAX_FDS];
+    int lock;
+    char* path;
+};
 
 #ifdef HAVE_UNIX_SOCKETS
-static int create_unix_socket(const char* path)
+static bool create_unix_socket(const char* path, endpoint_t* endpoint)
 {
     struct sockaddr_un sa;
     if (NULL_OR_EMPTY_STRING(path))
     {
         log_error("expected file path for unix socket");
-        return -1;
+        return false;
     }
-    if (acquire_lock(path) > 0)
+    if (endpoint->num_fds >= POSTSRSD_MAX_FDS)
+    {
+        log_warn("too many endpoint sockets");
+        return true;
+    }
+    endpoint->lock = acquire_lock(path);
+    if (endpoint->lock >= 0)
         unlink(path);
     int sock = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
     if (sock < 0)
@@ -78,20 +96,33 @@ static int create_unix_socket(const char* path)
         goto fail;
     if (listen(sock, POSTSRSD_SOCKET_LISTEN_QUEUE) < 0)
         goto fail;
-    return sock;
+    endpoint->fd[endpoint->num_fds++] = sock;
+    if (endpoint->lock >= 0)
+        endpoint->path = strdup(path);
+    return true;
 fail:
     log_perror(errno, NULL);
     if (sock >= 0)
         close(sock);
-    return -1;
+    if (endpoint->lock >= 0)
+    {
+        release_lock(path, endpoint->lock);
+        endpoint->lock = -1;
+    }
+    return false;
 }
 #endif
 
 #ifdef HAVE_INET_SOCKETS
-static int create_inet_sockets(char* addr, int family, int max_fds, int* fds)
+static bool create_inet_sockets(char* addr, int family, endpoint_t* endpoint)
 {
     const int one = 1;
     struct addrinfo hints, *ai;
+    if (endpoint->num_fds >= POSTSRSD_MAX_FDS)
+    {
+        log_warn("too many endpoint sockets");
+        return true;
+    }
     memset(&hints, 0, sizeof(struct addrinfo));
     char* node = addr;
     char* service = NULL;
@@ -103,7 +134,7 @@ static int create_inet_sockets(char* addr, int family, int max_fds, int* fds)
             if (*addr == 0)
             {
                 log_error("expected closing ']' in socket address");
-                return -1;
+                return false;
             }
             ++addr;
         }
@@ -111,7 +142,7 @@ static int create_inet_sockets(char* addr, int family, int max_fds, int* fds)
         if (*addr != ':')
         {
             log_error("expected ':' separator in socket address");
-            return -1;
+            return false;
         }
         service = ++addr;
     }
@@ -132,7 +163,7 @@ static int create_inet_sockets(char* addr, int family, int max_fds, int* fds)
     if (NULL_OR_EMPTY_STRING(service))
     {
         log_error("expected portnumber in socket address");
-        return -1;
+        return false;
     }
     hints.ai_family = family;
     hints.ai_socktype = SOCK_STREAM;
@@ -151,10 +182,10 @@ static int create_inet_sockets(char* addr, int family, int max_fds, int* fds)
         log_error("%s", gai_strerror(err));
         return -1;
     }
-    int sock = -1, count = 0;
+    int sock = -1, count = 0, free_fds = POSTSRSD_MAX_FDS - endpoint->num_fds;
     for (struct addrinfo* it = ai; it; it = it->ai_next)
     {
-        if (max_fds == 0)
+        if (free_fds == 0)
             break;
         sock = socket(it->ai_family,
                       it->ai_socktype | SOCK_NONBLOCK | SOCK_CLOEXEC,
@@ -167,8 +198,8 @@ static int create_inet_sockets(char* addr, int family, int max_fds, int* fds)
             goto fail;
         if (listen(sock, POSTSRSD_SOCKET_LISTEN_QUEUE) < 0)
             goto fail;
-        *fds++ = sock;
-        max_fds--;
+        endpoint->fd[endpoint->num_fds++] = sock;
+        free_fds--;
         count++;
         continue;
 fail:
@@ -184,11 +215,19 @@ fail:
 }
 #endif
 
-int endpoint_create(const char* s, int max_fds, int* fds)
+endpoint_t* endpoint_create(const char* s)
 {
-    MAYBE_UNUSED(fds);
-    if (max_fds < 1)
-        return 0;
+    endpoint_t* result = (endpoint_t*)malloc(sizeof(struct endpoint));
+    if (result == NULL)
+    {
+        log_error("failed to allocate endpoint socket handle");
+        return NULL;
+    }
+    result->num_fds = 0;
+    for (unsigned i = 0; i < result->num_fds; ++i)
+        result->fd[i] = -1;
+    result->lock = -1;
+    result->path = NULL;
 #ifdef HAVE_UNIX_SOCKETS
     const char* path = NULL;
     if (strncmp(s, "unix:", 5) == 0)
@@ -201,14 +240,11 @@ int endpoint_create(const char* s, int max_fds, int* fds)
     }
     if (path != NULL)
     {
-        int fd = create_unix_socket(path);
-        if (fd < 0)
-        {
-            log_error("failed to create endpoint '%s'", s);
-            return -1;
-        }
-        *fds = fd;
-        return 1;
+        if (create_unix_socket(path, result))
+            return result;
+        log_error("failed to create endpoint '%s'", s);
+        endpoint_close(result);
+        return NULL;
     }
 #endif
 #ifdef HAVE_INET_SOCKETS
@@ -230,15 +266,47 @@ int endpoint_create(const char* s, int max_fds, int* fds)
     }
     if (addr != NULL)
     {
-        int ret = create_inet_sockets(addr, family, max_fds, fds);
+        bool ok = create_inet_sockets(addr, family, result);
         free(addr);
-        if (ret < 0)
-        {
-            log_error("failed to create endpoint '%s'", s);
-        }
-        return ret;
+        if (ok)
+            return result;
+        log_error("failed to create endpoint '%s'", s);
+        endpoint_close(result);
+        return NULL;
     }
 #endif
     log_error("unsupported endpoint '%s'", s);
-    return -1;
+    endpoint_close(result);
+    return NULL;
+}
+
+void endpoint_close(endpoint_t* endpoint)
+{
+    if (endpoint->lock >= 0 && endpoint->path != NULL)
+    {
+        release_lock(endpoint->path, endpoint->lock);
+    }
+    if (endpoint->path != NULL)
+        free(endpoint->path);
+    for (unsigned i = 0; i < endpoint->num_fds; ++i)
+    {
+        int sock = endpoint->fd[i];
+        if (sock >= 0)
+            close(sock);
+    }
+    free(endpoint);
+}
+
+unsigned endpoint_prepare_poll(endpoint_t* endpoint, struct pollfd* pollfds,
+                               unsigned max_fds)
+{
+    unsigned count = 0;
+    for (unsigned i = 0; i < endpoint->num_fds && i < max_fds; ++i)
+    {
+        pollfds[i].fd = endpoint->fd[i];
+        pollfds[i].events = POLLIN;
+        pollfds[i].revents = 0;
+        ++count;
+    }
+    return count;
 }

@@ -58,7 +58,7 @@
 #endif
 
 static volatile sig_atomic_t timeout = 0;
-static volatile sig_atomic_t sighup_received = 0, sigterm_received = 0;
+static volatile sig_atomic_t sig_hup_received = 0, sig_term_received = 0;
 
 static bool drop_privileges(cfg_t* cfg, int target_uid, int target_gid)
 {
@@ -157,14 +157,14 @@ static void on_sigalrm(int signum)
     timeout = signum;
 }
 
-static void on_sighup(int signum)
+static void on_sig_hup(int signum)
 {
-    sighup_received = signum;
+    sig_hup_received = signum;
 }
 
-static void on_sigterm(int signum)
+static void on_sig_term(int signum)
 {
-    sigterm_received = signum;
+    sig_term_received = signum;
 }
 
 static void handle_socketmap_client(cfg_t* cfg, srs_t* srs,
@@ -196,7 +196,7 @@ static void handle_socketmap_client(cfg_t* cfg, srs_t* srs,
             return;
     }
     signal(SIGALRM, on_sigalrm);
-    signal(SIGUSR1, on_sighup);
+    signal(SIGUSR1, on_sig_hup);
     signal(SIGTERM, SIG_DFL);
     int keep_alive = cfg_getint(cfg, "keep-alive");
     for (;;)
@@ -205,7 +205,7 @@ static void handle_socketmap_client(cfg_t* cfg, srs_t* srs,
         size_t len;
         char* addr;
         bool error;
-        if (sighup_received)
+        if (sig_hup_received)
             break;
         timeout = 0;
         alarm(keep_alive);
@@ -316,11 +316,10 @@ int main(int argc, char** argv)
 {
     cfg_t* cfg = NULL;
     srs_t* srs = NULL;
+    endpoint_t* socketmap = NULL;
     domain_set_t* local_domains = NULL;
     char* srs_domain = NULL;
     FILE* pf = NULL;
-    int socketmaps[4] = {-1, -1, -1, -1};
-    int num_sockets = 0;
     int milter_pid = 0;
     int exit_code = EXIT_FAILURE;
     int target_uid = 0, target_gid = 0;
@@ -330,13 +329,14 @@ int main(int argc, char** argv)
     for (int fd = 3; fd < 1024; ++fd)
         close(fd);
 #endif
+    signal(SIGALRM, SIG_IGN);
+    signal(SIGUSR1, SIG_IGN);
     cfg = config_from_commandline(argc, argv);
     if (cfg == NULL)
         goto shutdown;
     if (cfg_getbool(cfg, "syslog"))
         log_enable_syslog();
-    if (cfg_getbool(cfg, "debug"))
-        log_set_verbosity(LogDebug);
+    log_set_verbosity(cfg_getbool(cfg, "debug") ? LogDebug : LogInfo);
     if (!unprivileged_user_from_config(cfg, &target_uid, &target_gid))
         goto shutdown;
     srs = srs_from_config(cfg);
@@ -349,9 +349,8 @@ int main(int argc, char** argv)
     const char* socketmap_endpoint = cfg_getstr(cfg, "socketmap");
     if (NONEMPTY_STRING(socketmap_endpoint))
     {
-        num_sockets = endpoint_create(
-            socketmap_endpoint, sizeof(socketmaps) / sizeof(int), socketmaps);
-        if (num_sockets < 0)
+        socketmap = endpoint_create(socketmap_endpoint);
+        if (socketmap == NULL)
             goto shutdown;
     }
     const char* milter_endpoint = cfg_getstr(cfg, "milter");
@@ -383,7 +382,7 @@ int main(int argc, char** argv)
         pf = NULL;
     }
     exit_code = EXIT_SUCCESS;
-    if (num_sockets > 0)
+    if (socketmap != NULL)
     {
         if (NONEMPTY_STRING(milter_endpoint))
         {
@@ -392,43 +391,29 @@ int main(int argc, char** argv)
             {
                 if (drop_privileges(cfg, target_uid, target_gid))
                 {
-                    for (unsigned i = 0; i < sizeof(socketmaps) / sizeof(int);
-                         ++i)
-                    {
-                        if (socketmaps[i] >= 0)
-                            close(socketmaps[i]);
-                        socketmaps[i] = -1;
-                    }
                     milter_main(cfg, srs, srs_domain, local_domains);
                 }
                 goto shutdown;
             }
         }
-        signal(SIGALRM, SIG_IGN);
-        signal(SIGUSR1, SIG_IGN);
-        signal(SIGHUP, on_sighup);
-        signal(SIGTERM, on_sigterm);
-        struct pollfd fds[sizeof(socketmaps) / sizeof(int)];
-        unsigned num_fds = 0;
-        for (unsigned i = 0; i < (unsigned)num_sockets; ++i)
-        {
-            fds[num_fds].fd = socketmaps[i];
-            fds[num_fds].events = POLLIN;
-            ++num_fds;
-        }
+        signal(SIGHUP, on_sig_hup);
+        signal(SIGTERM, on_sig_term);
+        struct pollfd fds[4];
+        unsigned num_fds = endpoint_prepare_poll(
+            socketmap, fds, sizeof(fds) / sizeof(struct pollfd));
         for (;;)
         {
-            if (sighup_received)
+            if (sig_hup_received)
             {
-                sighup_received = 0;
+                sig_hup_received = 0;
                 log_info("SIGHUP received. Reloading SRS configuration.");
                 if (!reload_srs_configuration(argc, argv, &cfg, &srs,
                                               &srs_domain, &local_domains))
                     goto shutdown;
             }
-            if (sigterm_received)
+            if (sig_term_received)
             {
-                sigterm_received = 0;
+                sig_term_received = 0;
                 log_info("SIGTERM received. shutting down.");
                 goto shutdown;
             }
@@ -471,11 +456,13 @@ int main(int argc, char** argv)
         milter_main(cfg, srs, srs_domain, local_domains);
     }
 shutdown:
-    for (unsigned i = 0; i < sizeof(socketmaps) / sizeof(int); ++i)
-        if (socketmaps[i] >= 0)
-            close(socketmaps[i]);
     if (pf != NULL)
         fclose(pf);
+    if (socketmap != NULL)
+    {
+        endpoint_close(socketmap);
+        socketmap = NULL;
+    }
     set_string(&srs_domain, NULL);
     if (local_domains != NULL)
     {
@@ -497,6 +484,7 @@ shutdown:
     {
         kill(milter_pid, SIGTERM);
         waitpid(milter_pid, NULL, 0);
+        milter_pid = 0;
     }
     return exit_code;
 }

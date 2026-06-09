@@ -52,6 +52,9 @@
 #        define strncasecmp _strnicmp
 #    endif
 #endif
+#ifndef O_CLOEXEC
+#    define O_CLOEXEC 0
+#endif
 
 void set_string(char** var, char* value)
 {
@@ -212,7 +215,7 @@ int acquire_lock(const char* path)
     char* lock_path = malloc(len + 6); /* ".lock" + "\0" */
     strcpy(lock_path, path);
     strcat(lock_path, ".lock");
-    int fd = open(lock_path, O_RDONLY | O_CREAT, 0600);
+    int fd = open(lock_path, O_RDONLY | O_CREAT | O_CLOEXEC, 0600);
     free(lock_path);
     if (fd < 0)
         return -1;
