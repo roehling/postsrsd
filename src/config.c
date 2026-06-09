@@ -32,6 +32,9 @@
 #        define strcasecmp _stricmp
 #    endif
 #endif
+#ifdef HAVE_PWD_H
+#    include <pwd.h>
+#endif
 
 static int parse_original_envelope(cfg_t* cfg, cfg_opt_t* opt,
                                    const char* value, void* result)
@@ -106,6 +109,29 @@ static int validate_domain_names(cfg_t* cfg, cfg_opt_t* opt)
     return 0;
 }
 
+static int validate_unprivileged_user(cfg_t* cfg, cfg_opt_t* opt)
+{
+    const char* user = cfg_opt_getstr(opt);
+    if (NONEMPTY_STRING(user))
+    {
+#ifdef HAVE_PWD_H
+        struct passwd* pwd = NULL;
+        pwd = getpwnam(user);
+        if (pwd == NULL)
+        {
+            cfg_error(cfg, "option '%s' has invalid user name '%s'",
+                      cfg_opt_name(opt), user);
+            return -1;
+        }
+#else
+        cfg_error(cfg, "option '%s' is unsupported by system",
+                  cfg_opt_name(opt));
+        return -1;
+#endif
+    }
+    return 0;
+}
+
 static void show_help()
 {
     puts(
@@ -172,6 +198,7 @@ cfg_t* config_defaults()
     cfg_set_validate_func(cfg, "srs-domain", validate_domain_names);
     cfg_set_validate_func(cfg, "domains", validate_domain_names);
     cfg_set_validate_func(cfg, "keep-alive", validate_uint);
+    cfg_set_validate_func(cfg, "unprivileged-user", validate_unprivileged_user);
     return cfg;
 }
 
@@ -187,6 +214,7 @@ cfg_t* config_from_commandline(int argc, char* const* argv)
     int ok = 1;
     if (file_exists(DEFAULT_CONFIG_FILE))
         set_string(&config_file, strdup(DEFAULT_CONFIG_FILE));
+    optind = 1;
     while ((opt = getopt(argc, argv, "C:c:Dhp:u:v")) != -1)
     {
         switch (opt)
@@ -268,7 +296,7 @@ srs_t* srs_from_config(cfg_t* cfg)
     srs_set_hashmin(srs, cfg_getint(cfg, "hash-minimum"));
     srs_set_separator(srs, cfg_getstr(cfg, "separator")[0]);
     char* secrets_file = cfg_getstr(cfg, "secrets-file");
-    if (secrets_file && secrets_file[0])
+    if (NONEMPTY_STRING(secrets_file))
     {
         FILE* f = fopen(secrets_file, "r");
         if (f)
@@ -278,7 +306,7 @@ srs_t* srs_from_config(cfg_t* cfg)
             while ((secret = fgets(buffer, sizeof(buffer), f)) != NULL)
             {
                 secret = strtok(secret, "\r\n");
-                if (secret && secret[0])
+                if (NONEMPTY_STRING(secret))
                     srs_add_secret(srs, secret);
             }
             fclose(f);
@@ -396,4 +424,32 @@ fail:
     free(*srs_domain);
     *srs_domain = NULL;
     return false;
+}
+
+bool unprivileged_user_from_config(cfg_t* cfg, int* target_uid, int* target_gid)
+{
+    char* user = cfg_getstr(cfg, "unprivileged-user");
+    if (NONEMPTY_STRING(user))
+    {
+#ifdef HAVE_PWD_H
+        struct passwd* pwd = NULL;
+        pwd = getpwnam(user);
+        if (pwd == NULL)
+        {
+            log_error("unknown or invalid unprivileged user: %s", user);
+            return false;
+        }
+        *target_uid = pwd->pw_uid;
+        *target_gid = pwd->pw_gid;
+#else
+        log_error("cannot drop privileges: not supported by system");
+        return false;
+#endif
+    }
+    else
+    {
+        *target_uid = 0;
+        *target_gid = 0;
+    }
+    return true;
 }

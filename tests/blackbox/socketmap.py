@@ -157,6 +157,39 @@ def execute_death_tests(
                     sock.close()
 
 
+def execute_sighup_tests(
+    postsrsd: str, when: str, use_database: bool, queries: Iterable[tuple[str, str]]
+):
+    with postsrsd_instance(postsrsd, when, use_database) as daemon:
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM, 0)
+        sock.connect(daemon[0])
+        sock_stream = SockStream(sock)
+        try:
+            for query in queries:
+                retry = 3
+                while True:
+                    try:
+                        write_netstring(sock_stream, query[0])
+                        result = read_netstring(sock_stream)
+                        if result != query[1]:
+                            raise AssertionError(
+                                f"sighup_test[{query[0]}]: FAILED: Expected reply {query[1]!r}, got: {result!r}"
+                            )
+                        sys.stderr.write(f"sighup_test[{query[0]}]: Passed\n")
+                        os.kill(daemon[1], signal.SIGHUP)
+                        break
+                    except (ConnectionResetError, BrokenPipeError):
+                        if retry > 0:
+                            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM, 0)
+                            sock.connect(daemon[0])
+                            sock_stream = SockStream(sock)
+                            retry -= 1
+                        else:
+                            raise
+        finally:
+            sock.close()
+
+
 STATELESS_QUERIES = [
     # No rewrite for local domain
     ("forward test@example.com", "NOTFOUND Need not rewrite local domain."),
@@ -346,11 +379,23 @@ if __name__ == "__main__":
             b"28:forward test@otherdomain.com;",
         ],
     )
+    execute_sighup_tests(
+        sys.argv[1],
+        when="1577836860",  # 2020-01-01 00:01:00 UTC
+        use_database=False,
+        queries=STATELESS_QUERIES,
+    )
     if sys.argv[2] == "1":
         execute_queries(
             sys.argv[1],
             when="1577836860",  # 2020-01-01 00:01:00 UTC
             use_database=True,
+            queries=DATABASE_QUERIES,
+        )
+        execute_sighup_tests(
+            sys.argv[1],
+            when="1577836860",  # 2020-01-01 00:01:00 UTC
+            use_database=False,
             queries=DATABASE_QUERIES,
         )
     sys.exit(0)

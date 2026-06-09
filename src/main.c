@@ -58,13 +58,17 @@
 #endif
 
 static volatile sig_atomic_t timeout = 0;
+static volatile sig_atomic_t sighup_received = 0, sigterm_received = 0;
 
-static bool drop_privileges(cfg_t* cfg)
+static bool prepare_unprivileged_work(cfg_t* cfg, int* target_uid,
+                                      int* target_gid)
 {
-    int target_uid = 0;
-    int target_gid = 0;
-    const char* user = cfg_getstr(cfg, "unprivileged-user");
+    if (target_uid == NULL || target_gid == NULL)
+        return false;
+    *target_uid = 0;
+    *target_gid = 0;
     const char* chroot_dir = cfg_getstr(cfg, "chroot-dir");
+    const char* user = cfg_getstr(cfg, "unprivileged-user");
     if (NONEMPTY_STRING(user))
     {
 #ifdef HAVE_PWD_H
@@ -75,8 +79,8 @@ static bool drop_privileges(cfg_t* cfg)
             log_error("cannot drop privileges: no such user: %s", user);
             return false;
         }
-        target_uid = pwd->pw_uid;
-        target_gid = pwd->pw_gid;
+        *target_uid = pwd->pw_uid;
+        *target_gid = pwd->pw_gid;
         if (chdir(pwd->pw_dir) < 0 && NULL_OR_EMPTY_STRING(chroot_dir))
         {
             log_warn("cannot chdir to home directory of user %s: %s", user,
@@ -87,6 +91,26 @@ static bool drop_privileges(cfg_t* cfg)
         return false;
 #endif
     }
+    if (NONEMPTY_STRING(chroot_dir))
+    {
+#ifdef HAVE_CHROOT
+        if (chdir(chroot_dir) < 0)
+        {
+            log_perror(errno,
+                       "cannot drop privileges: failed to chdir to chroot");
+            return false;
+        }
+#else
+        log_error("chroot is not supported on this system");
+        return false;
+#endif
+    }
+    return true;
+}
+
+static bool drop_privileges(cfg_t* cfg, int target_uid, int target_gid)
+{
+    const char* chroot_dir = cfg_getstr(cfg, "chroot-dir");
     if (NONEMPTY_STRING(chroot_dir))
     {
 #ifdef HAVE_CHROOT
@@ -129,18 +153,36 @@ static bool drop_privileges(cfg_t* cfg)
     return true;
 }
 
-static bool prepare_database(cfg_t* cfg)
+static bool check_unprivileged_work(cfg_t* cfg, int target_uid, int target_gid)
 {
-    if (cfg_getint(cfg, "original-envelope") == SRS_ENVELOPE_DATABASE)
+    int status;
+    pid_t worker_pid = fork();
+    if (worker_pid < 0)
     {
-        database_t* db =
-            database_connect(cfg_getstr(cfg, "envelope-database"), true);
-        if (db == NULL)
-            return false;
-        database_expire(db);
-        database_disconnect(db);
+        log_perror(errno, "fork");
+        return false;
     }
-    return true;
+    if (worker_pid == 0)
+    {
+        if (!drop_privileges(cfg, target_uid, target_gid))
+            exit(EXIT_FAILURE);
+        if (cfg_getint(cfg, "original-envelope") == SRS_ENVELOPE_DATABASE)
+        {
+            database_t* db =
+                database_connect(cfg_getstr(cfg, "envelope-database"), true);
+            if (db == NULL)
+                exit(EXIT_FAILURE);
+            database_expire(db);
+            database_disconnect(db);
+        }
+        exit(EXIT_SUCCESS);
+    }
+    if (waitpid(worker_pid, &status, 0) < 0)
+    {
+        log_perror(errno, "waitpid");
+        return false;
+    }
+    return (WEXITSTATUS(status) == EXIT_SUCCESS);
 }
 
 static bool daemonize(cfg_t* cfg)
@@ -161,6 +203,16 @@ static bool daemonize(cfg_t* cfg)
 static void on_sigalrm(int signum)
 {
     timeout = signum;
+}
+
+static void on_sighup(int signum)
+{
+    sighup_received = signum;
+}
+
+static void on_sigterm(int signum)
+{
+    sigterm_received = signum;
 }
 
 static void handle_socketmap_client(cfg_t* cfg, srs_t* srs,
@@ -192,6 +244,8 @@ static void handle_socketmap_client(cfg_t* cfg, srs_t* srs,
             return;
     }
     signal(SIGALRM, on_sigalrm);
+    signal(SIGUSR1, on_sighup);
+    signal(SIGTERM, SIG_DFL);
     int keep_alive = cfg_getint(cfg, "keep-alive");
     for (;;)
     {
@@ -199,6 +253,8 @@ static void handle_socketmap_client(cfg_t* cfg, srs_t* srs,
         size_t len;
         char* addr;
         bool error;
+        if (sighup_received)
+            break;
         timeout = 0;
         alarm(keep_alive);
         char* request = netstring_read(fp_read, buffer, sizeof(buffer), &len);
@@ -273,6 +329,37 @@ static void handle_socketmap_client(cfg_t* cfg, srs_t* srs,
     database_disconnect(db);
 }
 
+bool reload_srs_configuration(int argc, char** argv, cfg_t** cfg, srs_t** srs,
+                              char** srs_domain, domain_set_t** local_domains)
+{
+    set_string(srs_domain, NULL);
+    if (*local_domains != NULL)
+    {
+        domain_set_destroy(*local_domains);
+        *local_domains = NULL;
+    }
+    if (*srs != NULL)
+    {
+        srs_free(*srs);
+        *srs = NULL;
+    }
+    if (*cfg != NULL)
+    {
+        cfg_free(*cfg);
+        *cfg = NULL;
+    }
+    kill(0, SIGUSR1);
+    *cfg = config_from_commandline(argc, argv);
+    if (*cfg == NULL)
+        return false;
+    *srs = srs_from_config(*cfg);
+    if (*srs == NULL)
+        return false;
+    if (!srs_domains_from_config(*cfg, srs_domain, local_domains))
+        return false;
+    return true;
+}
+
 int main(int argc, char** argv)
 {
     cfg_t* cfg = NULL;
@@ -284,6 +371,7 @@ int main(int argc, char** argv)
     int num_sockets = 0;
     int milter_pid = 0;
     int exit_code = EXIT_FAILURE;
+    int target_uid = 0, target_gid = 0;
 #ifdef HAVE_CLOSE_RANGE
     close_range(3, ~0U, 0);
 #else
@@ -297,6 +385,8 @@ int main(int argc, char** argv)
         log_enable_syslog();
     if (cfg_getbool(cfg, "debug"))
         log_set_verbosity(LogDebug);
+    if (!unprivileged_user_from_config(cfg, &target_uid, &target_gid))
+        goto shutdown;
     srs = srs_from_config(cfg);
     if (srs == NULL)
         goto shutdown;
@@ -330,9 +420,7 @@ int main(int argc, char** argv)
             goto shutdown;
         }
     }
-    if (!drop_privileges(cfg))
-        goto shutdown;
-    if (!prepare_database(cfg))
+    if (!check_unprivileged_work(cfg, target_uid, target_gid))
         goto shutdown;
     if (!daemonize(cfg))
         goto shutdown;
@@ -342,7 +430,6 @@ int main(int argc, char** argv)
         fclose(pf);
         pf = NULL;
     }
-    signal(SIGALRM, SIG_IGN);
     exit_code = EXIT_SUCCESS;
     if (num_sockets > 0)
     {
@@ -351,32 +438,56 @@ int main(int argc, char** argv)
             milter_pid = fork();
             if (milter_pid == 0)
             {
-                for (unsigned i = 0; i < sizeof(socketmaps) / sizeof(int); ++i)
+                if (drop_privileges(cfg, target_uid, target_gid))
                 {
-                    if (socketmaps[i] >= 0)
-                        close(socketmaps[i]);
-                    socketmaps[i] = -1;
+                    for (unsigned i = 0; i < sizeof(socketmaps) / sizeof(int);
+                         ++i)
+                    {
+                        if (socketmaps[i] >= 0)
+                            close(socketmaps[i]);
+                        socketmaps[i] = -1;
+                    }
+                    milter_main(cfg, srs, srs_domain, local_domains);
                 }
-                milter_main(cfg, srs, srs_domain, local_domains);
                 goto shutdown;
             }
         }
+        signal(SIGALRM, SIG_IGN);
+        signal(SIGUSR1, SIG_IGN);
+        signal(SIGHUP, on_sighup);
+        signal(SIGTERM, on_sigterm);
         struct pollfd fds[sizeof(socketmaps) / sizeof(int)];
+        unsigned num_fds = 0;
         for (unsigned i = 0; i < (unsigned)num_sockets; ++i)
         {
-            fds[i].fd = socketmaps[i];
-            fds[i].events = POLLIN;
+            fds[num_fds].fd = socketmaps[i];
+            fds[num_fds].events = POLLIN;
+            ++num_fds;
         }
         for (;;)
         {
-            if (poll(fds, num_sockets, 1000) < 0)
+            if (sighup_received)
+            {
+                sighup_received = 0;
+                log_info("SIGHUP received. Reloading SRS configuration.");
+                if (!reload_srs_configuration(argc, argv, &cfg, &srs,
+                                              &srs_domain, &local_domains))
+                    goto shutdown;
+            }
+            if (sigterm_received)
+            {
+                sigterm_received = 0;
+                log_info("SIGTERM received. shutting down.");
+                goto shutdown;
+            }
+            if (poll(fds, num_fds, 1000) < 0)
             {
                 if (errno == EINTR)
                     continue;
                 log_perror(errno, "poll");
                 goto shutdown;
             }
-            for (unsigned i = 0; i < (unsigned)num_sockets; ++i)
+            for (unsigned i = 0; i < num_fds; ++i)
             {
                 if (fds[i].revents)
                 {
@@ -400,7 +511,7 @@ int main(int argc, char** argv)
                     close(conn);
                 }
             }
-            waitpid(-1, NULL, WNOHANG);
+            waitpid(0, NULL, WNOHANG);
         }
     }
     else if (NONEMPTY_STRING(milter_endpoint))
@@ -413,13 +524,23 @@ shutdown:
             close(socketmaps[i]);
     if (pf != NULL)
         fclose(pf);
-    free(srs_domain);
+    set_string(&srs_domain, NULL);
     if (local_domains != NULL)
+    {
         domain_set_destroy(local_domains);
+        local_domains = NULL;
+    }
     if (srs != NULL)
+    {
         srs_free(srs);
+        srs = NULL;
+    }
     if (cfg != NULL)
+    {
         cfg_free(cfg);
+        cfg = NULL;
+    }
+    kill(0, SIGUSR1);
     if (milter_pid > 0)
     {
         kill(milter_pid, SIGTERM);
