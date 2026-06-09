@@ -178,7 +178,7 @@ def execute_sighup_tests(
                         sys.stderr.write(f"sighup_test[{query[0]}]: Passed\n")
                         os.kill(daemon[1], signal.SIGHUP)
                         break
-                    except (ConnectionResetError, BrokenPipeError):
+                    except ConnectionError:
                         if retry > 0:
                             sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM, 0)
                             sock.connect(daemon[0])
