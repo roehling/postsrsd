@@ -395,7 +395,7 @@ if __name__ == "__main__":
         execute_sighup_tests(
             sys.argv[1],
             when="1577836860",  # 2020-01-01 00:01:00 UTC
-            use_database=False,
+            use_database=True,
             queries=DATABASE_QUERIES,
         )
     sys.exit(0)
