@@ -174,6 +174,7 @@ cfg_t* config_defaults()
         CFG_STR("srs-domain", NULL, CFGF_NODEFAULT),
         CFG_STR_LIST("domains", "{}", CFGF_NONE),
         CFG_STR("domains-file", NULL, CFGF_NODEFAULT),
+        CFG_BOOL("domains-file-watch", cfg_false, CFGF_NONE),
         CFG_INT_CB("original-envelope", SRS_ENVELOPE_EMBEDDED, CFGF_NONE,
                    parse_original_envelope),
         CFG_STR("separator", "=", CFGF_NONE),

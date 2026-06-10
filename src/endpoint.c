@@ -61,7 +61,7 @@
 
 struct endpoint
 {
-    unsigned num_fds;
+    size_t num_fds;
     int fd[POSTSRSD_MAX_FDS];
     int lock;
     char* path;
@@ -297,11 +297,11 @@ void endpoint_close(endpoint_t* endpoint)
     free(endpoint);
 }
 
-unsigned endpoint_prepare_poll(endpoint_t* endpoint, struct pollfd* pollfds,
-                               unsigned max_fds)
+size_t endpoint_prepare_poll(endpoint_t* endpoint, struct pollfd* pollfds,
+                             size_t max_fds)
 {
-    unsigned count = 0;
-    for (unsigned i = 0; i < endpoint->num_fds && i < max_fds; ++i)
+    size_t count = 0;
+    for (size_t i = 0; i < endpoint->num_fds && i < max_fds; ++i)
     {
         pollfds[i].fd = endpoint->fd[i];
         pollfds[i].events = POLLIN;

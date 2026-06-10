@@ -31,6 +31,7 @@
 #define NONEMPTY_STRING(s)      ((s) != NULL && *(s) != 0)
 #define NULL_OR_EMPTY_STRING(s) ((s) == NULL || *(s) == 0)
 
+struct pollfd;
 struct domain_set;
 typedef struct domain_set domain_set_t;
 struct list;
@@ -40,12 +41,13 @@ typedef bool (*list_predicate_t)(const void*);
 typedef bool (*list_compare_t)(const void*, const void*);
 struct file_watch;
 typedef struct file_watch file_watch_t;
-typedef void (*file_watch_cb_t)(int, unsigned, const char*, size_t);
+typedef void (*file_watch_cb_t)(const char*, unsigned, size_t);
 
 #define FW_CREATED  1
 #define FW_MODIFIED 2
 #define FW_DELETED  4
 
+bool string_equal(const void* s1, const void* s2);
 void set_string(char** var, char* value);
 char* b32h_encode(const char* data, size_t length, char* buffer,
                   size_t bufsize);
@@ -69,9 +71,10 @@ void domain_set_destroy(domain_set_t* D);
 
 list_t* list_create();
 void* list_get(list_t* L, size_t i);
-bool list_append(list_t* L, void* data);
+int list_find(list_t* L, list_compare_t compare, const void* value);
+bool list_append(list_t* L, void* entry);
 size_t list_size(list_t* L);
-bool list_remove(list_t* L, size_t i, list_deleter_t deleter);
+bool list_remove_at(list_t* L, size_t i, list_deleter_t deleter);
 size_t list_remove_if(list_t* L, list_predicate_t predicate,
                       list_deleter_t deleter);
 size_t list_remove_if_value(list_t* L, list_compare_t compare,
@@ -81,9 +84,11 @@ void list_destroy(list_t* L, list_deleter_t deleter);
 
 file_watch_t* file_watch_create();
 int file_watch_poll_fd(file_watch_t* W);
+size_t file_watch_prepare_poll(file_watch_t* W, struct pollfd* pollfds,
+                               size_t max_fds);
 void file_watch_process_events(file_watch_t* W);
-int file_watch_if_modified(file_watch_t* W, const char* path,
-                           file_watch_cb_t callback);
+bool file_watch_if_modified(file_watch_t* W, const char* path,
+                            file_watch_cb_t callback);
 void file_watch_destroy(file_watch_t* W);
 
 char* endpoint_for_milter(const char* s);
@@ -98,6 +103,7 @@ enum log_priority
 };
 
 void log_enable_syslog();
+void log_disable_syslog();
 void log_set_verbosity(enum log_priority prio);
 void log_debug(const char* fmt, ...) ATTRIBUTE(format(printf, 1, 2));
 void log_info(const char* fmt, ...) ATTRIBUTE(format(printf, 1, 2));

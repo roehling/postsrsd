@@ -59,6 +59,7 @@
 
 static volatile sig_atomic_t timeout = 0;
 static volatile sig_atomic_t sig_hup_received = 0, sig_term_received = 0;
+static bool files_changed = false;
 
 static bool drop_privileges(cfg_t* cfg, int target_uid, int target_gid)
 {
@@ -281,10 +282,26 @@ static void handle_socketmap_client(cfg_t* cfg, srs_t* srs,
     database_disconnect(db);
 }
 
+void on_file_watch_event(const char* path, unsigned what, size_t cookie)
+{
+    MAYBE_UNUSED(path);
+    MAYBE_UNUSED(cookie);
+    if (what & FW_MODIFIED)
+    {
+        files_changed = true;
+    }
+}
+
 bool reload_srs_configuration(int argc, char** argv, cfg_t** cfg, srs_t** srs,
-                              char** srs_domain, domain_set_t** local_domains)
+                              char** srs_domain, domain_set_t** local_domains,
+                              file_watch_t** file_watch)
 {
     set_string(srs_domain, NULL);
+    if (*file_watch != NULL)
+    {
+        file_watch_destroy(*file_watch);
+        *file_watch = NULL;
+    }
     if (*local_domains != NULL)
     {
         domain_set_destroy(*local_domains);
@@ -300,13 +317,24 @@ bool reload_srs_configuration(int argc, char** argv, cfg_t** cfg, srs_t** srs,
         cfg_free(*cfg);
         *cfg = NULL;
     }
-    kill(0, SIGUSR1);
     *cfg = config_from_commandline(argc, argv);
     if (*cfg == NULL)
         return false;
+    if (cfg_getbool(*cfg, "syslog"))
+        log_enable_syslog();
+    else
+        log_disable_syslog();
+    log_set_verbosity(cfg_getbool(*cfg, "debug") ? LogDebug : LogInfo);
+    const char* domains_file = cfg_getstr(*cfg, "domains-file");
     *srs = srs_from_config(*cfg);
     if (*srs == NULL)
         return false;
+    if (cfg_getbool(*cfg, "domains-file-watch")
+        && NONEMPTY_STRING(domains_file))
+    {
+        *file_watch = file_watch_create();
+        file_watch_if_modified(*file_watch, domains_file, on_file_watch_event);
+    }
     if (!srs_domains_from_config(*cfg, srs_domain, local_domains))
         return false;
     return true;
@@ -318,6 +346,7 @@ int main(int argc, char** argv)
     srs_t* srs = NULL;
     endpoint_t* socketmap = NULL;
     domain_set_t* local_domains = NULL;
+    file_watch_t* file_watch = NULL;
     char* srs_domain = NULL;
     FILE* pf = NULL;
     int milter_pid = 0;
@@ -331,18 +360,10 @@ int main(int argc, char** argv)
 #endif
     signal(SIGALRM, SIG_IGN);
     signal(SIGUSR1, SIG_IGN);
-    cfg = config_from_commandline(argc, argv);
-    if (cfg == NULL)
+    if (!reload_srs_configuration(argc, argv, &cfg, &srs, &srs_domain,
+                                  &local_domains, &file_watch))
         goto shutdown;
-    if (cfg_getbool(cfg, "syslog"))
-        log_enable_syslog();
-    log_set_verbosity(cfg_getbool(cfg, "debug") ? LogDebug : LogInfo);
     if (!unprivileged_user_from_config(cfg, &target_uid, &target_gid))
-        goto shutdown;
-    srs = srs_from_config(cfg);
-    if (srs == NULL)
-        goto shutdown;
-    if (!srs_domains_from_config(cfg, &srs_domain, &local_domains))
         goto shutdown;
     if (!check_unprivileged_work(cfg, target_uid, target_gid))
         goto shutdown;
@@ -398,18 +419,37 @@ int main(int argc, char** argv)
         }
         signal(SIGHUP, on_sig_hup);
         signal(SIGTERM, on_sig_term);
-        struct pollfd fds[4];
+        struct pollfd fds[5];
         unsigned num_fds = endpoint_prepare_poll(
             socketmap, fds, sizeof(fds) / sizeof(struct pollfd));
+        num_fds += file_watch_prepare_poll(file_watch, fds + num_fds,
+                                           sizeof(fds) / sizeof(struct pollfd)
+                                               - num_fds);
         for (;;)
         {
-            if (sig_hup_received)
+            if (sig_hup_received || files_changed)
             {
-                sig_hup_received = 0;
-                log_info("SIGHUP received. Reloading SRS configuration.");
+                if (sig_hup_received)
+                {
+                    sig_hup_received = 0;
+                    log_info("SIGHUP received, reloading SRS configuration.");
+                }
+                if (files_changed)
+                {
+                    files_changed = false;
+                    log_info(
+                        "file change detected, reloading SRS configuration.");
+                }
+                kill(0, SIGUSR1);
                 if (!reload_srs_configuration(argc, argv, &cfg, &srs,
-                                              &srs_domain, &local_domains))
+                                              &srs_domain, &local_domains,
+                                              &file_watch))
                     goto shutdown;
+                num_fds = endpoint_prepare_poll(
+                    socketmap, fds, sizeof(fds) / sizeof(struct pollfd));
+                num_fds += file_watch_prepare_poll(
+                    file_watch, fds + num_fds,
+                    sizeof(fds) / sizeof(struct pollfd) - num_fds);
             }
             if (sig_term_received)
             {
@@ -428,24 +468,31 @@ int main(int argc, char** argv)
             {
                 if (fds[i].revents)
                 {
-                    int conn = accept(fds[i].fd, NULL, NULL);
-                    if (conn < 0)
+                    if (fds[i].fd == file_watch_poll_fd(file_watch))
                     {
-                        log_perror(errno, "accept");
-                        continue;
+                        file_watch_process_events(file_watch);
                     }
-                    pid_t pid = fork();
-                    if (pid == 0)
+                    else
                     {
-                        handle_socketmap_client(cfg, srs, srs_domain,
-                                                local_domains, conn);
-                        exit(EXIT_SUCCESS);
+                        int conn = accept(fds[i].fd, NULL, NULL);
+                        if (conn < 0)
+                        {
+                            log_perror(errno, "accept");
+                            continue;
+                        }
+                        pid_t pid = fork();
+                        if (pid == 0)
+                        {
+                            handle_socketmap_client(cfg, srs, srs_domain,
+                                                    local_domains, conn);
+                            exit(EXIT_SUCCESS);
+                        }
+                        if (pid < 0)
+                        {
+                            log_perror(errno, "fork");
+                        }
+                        close(conn);
                     }
-                    if (pid < 0)
-                    {
-                        log_perror(errno, "fork");
-                    }
-                    close(conn);
                 }
             }
             waitpid(0, NULL, WNOHANG);

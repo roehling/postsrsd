@@ -27,6 +27,9 @@
 #ifdef HAVE_FCNTL_H
 #    include <fcntl.h>
 #endif
+#ifdef HAVE_POLL_H
+#    include <poll.h>
+#endif
 #ifdef HAVE_SYS_FILE_H
 #    include <sys/file.h>
 #endif
@@ -58,6 +61,11 @@
 #ifndef O_CLOEXEC
 #    define O_CLOEXEC 0
 #endif
+
+bool string_equal(const void* s1, const void* s2)
+{
+    return strcmp(s1, s2) == 0;
+}
 
 void set_string(char** var, char* value)
 {
@@ -377,6 +385,17 @@ void* list_get(list_t* L, size_t i)
     return NULL;
 }
 
+int list_find(list_t* L, list_compare_t compare, const void* value)
+{
+    if (L != NULL)
+    {
+        for (size_t i = 0; i < L->size; ++i)
+            if (compare(L->entries[i], value))
+                return i;
+    }
+    return -1;
+}
+
 bool list_append(list_t* L, void* entry)
 {
     if (L == NULL)
@@ -404,7 +423,7 @@ bool list_append(list_t* L, void* entry)
     return true;
 }
 
-bool list_remove(list_t* L, size_t i, list_deleter_t deleter)
+bool list_remove_at(list_t* L, size_t i, list_deleter_t deleter)
 {
     if (L == NULL)
         return false;
@@ -503,6 +522,8 @@ void list_destroy(list_t* L, list_deleter_t deleter)
 struct file_watch_entry
 {
     int wd;
+    char* path;
+    char* filter;
     file_watch_cb_t cb;
 };
 
@@ -515,6 +536,21 @@ struct file_watch
 static bool file_watch__is_matching_wd(const void* value1, const void* value2)
 {
     return ((const struct file_watch_entry*)value1)->wd == *(const int*)value2;
+}
+
+static bool file_watch__same_path(const void* value1, const void* value2)
+{
+    return strcmp(((const struct file_watch_entry*)value1)->path,
+                  (const char*)value2)
+           == 0;
+}
+
+static void file_watch__delete_entry(void* value)
+{
+    struct file_watch_entry* entry = (struct file_watch_entry*)value;
+    free(entry->path);
+    free(entry->filter);
+    free(entry);
 }
 
 file_watch_t* file_watch_create()
@@ -537,12 +573,27 @@ int file_watch_poll_fd(file_watch_t* W)
     return W != NULL ? W->fd : -1;
 }
 
+size_t file_watch_prepare_poll(file_watch_t* W, struct pollfd* pollfds,
+                               size_t max_fds)
+{
+    if (W != NULL && max_fds >= 1)
+    {
+        pollfds[0].fd = W->fd;
+        pollfds[0].events = POLLIN;
+        pollfds[0].revents = 0;
+        return 1;
+    }
+    return 0;
+}
+
 void file_watch_process_events(file_watch_t* W)
 {
     if (W != NULL)
     {
 #ifdef HAVE_SYS_INOTIFY_H
         char buf[4096] ATTRIBUTE(aligned(__alignof__(struct inotify_event)));
+        char filepath[1024];
+        filepath[sizeof(filepath) - 1] = 0;
         const struct inotify_event* event;
         ssize_t size = read(W->fd, buf, sizeof(buf));
         if (size <= 0)
@@ -555,7 +606,7 @@ void file_watch_process_events(file_watch_t* W)
             unsigned what = 0;
             if (event->mask & IN_CREATE)
                 what |= FW_CREATED;
-            if (event->mask & IN_CLOSE_WRITE)
+            if (event->mask & (IN_CLOSE_WRITE | IN_MOVED_TO))
                 what |= FW_MODIFIED;
             if (event->mask & (IN_DELETE | IN_DELETE_SELF))
                 what |= FW_DELETED;
@@ -567,58 +618,91 @@ void file_watch_process_events(file_watch_t* W)
                         (const struct file_watch_entry*)list_get(W->entries, i);
                     if (entry->wd == event->wd)
                     {
-                        entry->cb(entry->wd, what,
-                                  event->len ? event->name : NULL,
-                                  event->cookie);
+                        if (entry->filter != NULL
+                            && (event->len == 0
+                                || strcmp(entry->filter, event->name) != 0))
+                            continue;
+                        strncpy(filepath, entry->path, sizeof(filepath) - 1);
+                        if (event->len > 0)
+                        {
+                            strcat(filepath, "/");
+                            strcat(filepath, event->name);
+                            if (list_find(W->entries, file_watch__same_path,
+                                          filepath)
+                                < 0)
+                            {
+                                struct file_watch_entry* new_entry =
+                                    (struct file_watch_entry*)malloc(
+                                        sizeof(struct file_watch_entry));
+                                if (new_entry != NULL)
+                                {
+                                    new_entry->wd = inotify_add_watch(
+                                        W->fd, filepath,
+                                        IN_CLOSE_WRITE | IN_DELETE_SELF);
+                                    new_entry->path = strdup(filepath);
+                                    new_entry->filter = NULL;
+                                    new_entry->cb = entry->cb;
+                                    list_append(W->entries, new_entry);
+                                }
+                            }
+                        }
+                        entry->cb(filepath, what, event->cookie);
                         break;
                     }
                 }
             }
             if (event->mask & IN_IGNORED)
             {
-                num_wd -= list_remove_if_value(
-                    W->entries, file_watch__is_matching_wd, &event->wd, free);
+                num_wd -=
+                    list_remove_if_value(W->entries, file_watch__is_matching_wd,
+                                         &event->wd, file_watch__delete_entry);
             }
         }
 #endif
     }
 }
 
-int file_watch_if_modified(file_watch_t* W, const char* path,
-                           file_watch_cb_t callback)
+bool file_watch_if_modified(file_watch_t* W, const char* path,
+                            file_watch_cb_t callback)
 {
     if (W != NULL && path != NULL && callback != NULL)
     {
 #ifdef HAVE_SYS_INOTIFY_H
         struct file_watch_entry* entry =
             (struct file_watch_entry*)malloc(sizeof(struct file_watch_entry));
-        if (entry != NULL)
+        if (entry == NULL)
+            return false;
+        entry->wd =
+            inotify_add_watch(W->fd, path, IN_CLOSE_WRITE | IN_DELETE_SELF);
+        entry->path = strdup(path);
+        entry->filter = NULL;
+        entry->cb = callback;
+        list_append(W->entries, entry);
+        const char* slash = strrchr(path, '/');
+        if (slash != NULL)
         {
+            entry = (struct file_watch_entry*)malloc(
+                sizeof(struct file_watch_entry));
+            entry->path = strndup(path, slash - path);
             entry->wd =
-                inotify_add_watch(W->fd, path, IN_CLOSE_WRITE | IN_DELETE_SELF);
+                inotify_add_watch(W->fd, entry->path, IN_MOVED_TO | IN_CREATE);
+            entry->filter = strdup(slash + 1);
             entry->cb = callback;
             list_append(W->entries, entry);
-            return entry->wd;
         }
+        return true;
 #endif
     }
-    return -1;
+    return false;
 }
 
 bool file_watch_remove(file_watch_t* W, int wd)
 {
     if (W != NULL && wd >= 0)
     {
-        if (list_remove_if_value(W->entries, file_watch__is_matching_wd, &wd,
-                                 free)
-            > 0)
-        {
 #ifdef HAVE_SYS_INOTIFY_H
-            return inotify_rm_watch(W->fd, wd) == 0;
-#else
-            return true;
+        return inotify_rm_watch(W->fd, wd) == 0;
 #endif
-        }
     }
     return false;
 }
@@ -627,7 +711,7 @@ void file_watch_destroy(file_watch_t* W)
 {
     if (W != NULL)
     {
-        list_destroy(W->entries, free);
+        list_destroy(W->entries, file_watch__delete_entry);
         close(W->fd);
         free(W);
     }
@@ -724,13 +808,27 @@ static void vlog(enum log_priority prio, const char* fmt, va_list ap)
 void log_enable_syslog()
 {
 #ifdef HAVE_SYSLOG_H
-    time_t now;
-    openlog("postsrsd", LOG_PID | LOG_NDELAY, LOG_MAIL);
-    now = time(NULL);
-    localtime(&now);
-    use_syslog = true;
+    if (!use_syslog)
+    {
+        time_t now;
+        openlog("postsrsd", LOG_PID | LOG_NDELAY, LOG_MAIL);
+        now = time(NULL);
+        localtime(&now);
+        use_syslog = true;
+    }
 #else
     log_warn("syslog facility is not available");
+#endif
+}
+
+void log_disable_syslog()
+{
+#ifdef HAVE_SYSLOG_H
+    if (use_syslog)
+    {
+        closelog();
+        use_syslog = false;
+    }
 #endif
 }
 

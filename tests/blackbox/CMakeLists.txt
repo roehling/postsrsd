@@ -23,6 +23,12 @@ if(Python3_EXECUTABLE)
             "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/socketmap.py"
             "$<TARGET_FILE:postsrsd>" "$<BOOL:${WITH_SQLITE}>"
     )
+    add_test(
+        NAME test_inotify
+        COMMAND
+            "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/inotify.py"
+            "$<TARGET_FILE:postsrsd>"
+    )
     if(WITH_MILTER)
         add_test(
             NAME test_milter

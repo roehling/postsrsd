@@ -18,6 +18,7 @@
 #define ENDPOINT_H
 
 #include <stdbool.h>
+#include <stddef.h>
 
 struct pollfd;
 struct endpoint;
@@ -25,7 +26,7 @@ typedef struct endpoint endpoint_t;
 
 endpoint_t* endpoint_create(const char* s);
 void endpoint_close(endpoint_t* endpoint);
-unsigned endpoint_prepare_poll(endpoint_t* endpoint, struct pollfd* pollfds,
-                               unsigned max_fds);
+size_t endpoint_prepare_poll(endpoint_t* endpoint, struct pollfd* pollfds,
+                             size_t max_fds);
 
 #endif
