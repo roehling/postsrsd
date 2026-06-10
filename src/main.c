@@ -505,6 +505,11 @@ int main(int argc, char** argv)
 shutdown:
     if (pf != NULL)
         fclose(pf);
+    if (file_watch != NULL)
+    {
+        file_watch_destroy(file_watch);
+        file_watch = NULL;
+    }
     if (socketmap != NULL)
     {
         endpoint_close(socketmap);

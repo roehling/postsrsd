@@ -522,6 +522,7 @@ void list_destroy(list_t* L, list_deleter_t deleter)
 struct file_watch_entry
 {
     int wd;
+    unsigned mask;
     char* path;
     char* filter;
     file_watch_cb_t cb;
@@ -533,6 +534,7 @@ struct file_watch
     list_t* entries;
 };
 
+#ifdef HAVE_SYS_INOTIFY_H
 static bool file_watch__is_matching_wd(const void* value1, const void* value2)
 {
     return ((const struct file_watch_entry*)value1)->wd == *(const int*)value2;
@@ -544,6 +546,7 @@ static bool file_watch__same_path(const void* value1, const void* value2)
                   (const char*)value2)
            == 0;
 }
+#endif
 
 static void file_watch__delete_entry(void* value)
 {
@@ -588,112 +591,112 @@ size_t file_watch_prepare_poll(file_watch_t* W, struct pollfd* pollfds,
 
 void file_watch_process_events(file_watch_t* W)
 {
-    if (W != NULL)
-    {
+    if (W == NULL)
+        return;
 #ifdef HAVE_SYS_INOTIFY_H
-        char buf[4096] ATTRIBUTE(aligned(__alignof__(struct inotify_event)));
-        char filepath[1024];
-        filepath[sizeof(filepath) - 1] = 0;
-        const struct inotify_event* event;
-        ssize_t size = read(W->fd, buf, sizeof(buf));
-        if (size <= 0)
-            return;
-        size_t num_wd = list_size(W->entries);
-        for (char* ptr = buf; ptr < buf + size;
-             ptr += sizeof(struct inotify_event) + event->len)
+    char buf[4096] ATTRIBUTE(aligned(__alignof__(struct inotify_event)));
+    char filepath[1024];
+    filepath[sizeof(filepath) - 1] = 0;
+    const struct inotify_event* event;
+    ssize_t size = read(W->fd, buf, sizeof(buf));
+    if (size <= 0)
+        return;
+    size_t num_wd = list_size(W->entries);
+    for (char* ptr = buf; ptr < buf + size;
+         ptr += sizeof(struct inotify_event) + event->len)
+    {
+        event = (const struct inotify_event*)ptr;
+        unsigned what = 0;
+        if (event->mask & (IN_CREATE | IN_MOVED_TO))
+            what |= FW_CREATED;
+        if (event->mask & (IN_CLOSE_WRITE | IN_MOVED_TO))
+            what |= FW_MODIFIED;
+        if (event->mask & (IN_DELETE | IN_DELETE_SELF | IN_MOVED_FROM))
+            what |= FW_DELETED;
+        if (what != 0)
         {
-            event = (const struct inotify_event*)ptr;
-            unsigned what = 0;
-            if (event->mask & IN_CREATE)
-                what |= FW_CREATED;
-            if (event->mask & (IN_CLOSE_WRITE | IN_MOVED_TO))
-                what |= FW_MODIFIED;
-            if (event->mask & (IN_DELETE | IN_DELETE_SELF))
-                what |= FW_DELETED;
-            if (what != 0)
+            for (size_t i = 0; i < num_wd; ++i)
             {
-                for (size_t i = 0; i < num_wd; ++i)
+                const struct file_watch_entry* entry =
+                    (const struct file_watch_entry*)list_get(W->entries, i);
+                if (entry->wd == event->wd)
                 {
-                    const struct file_watch_entry* entry =
-                        (const struct file_watch_entry*)list_get(W->entries, i);
-                    if (entry->wd == event->wd)
+                    if (entry->filter != NULL
+                        && (event->len == 0
+                            || strcmp(entry->filter, event->name) != 0))
+                        continue;
+                    strncpy(filepath, entry->path, sizeof(filepath) - 1);
+                    if (event->len > 0)
                     {
-                        if (entry->filter != NULL
-                            && (event->len == 0
-                                || strcmp(entry->filter, event->name) != 0))
-                            continue;
-                        strncpy(filepath, entry->path, sizeof(filepath) - 1);
-                        if (event->len > 0)
+                        strcat(filepath, "/");
+                        strcat(filepath, event->name);
+                        if (entry->mask
+                            && list_find(W->entries, file_watch__same_path,
+                                         filepath)
+                                   < 0)
                         {
-                            strcat(filepath, "/");
-                            strcat(filepath, event->name);
-                            if (list_find(W->entries, file_watch__same_path,
-                                          filepath)
-                                < 0)
+                            struct file_watch_entry* new_entry =
+                                (struct file_watch_entry*)malloc(
+                                    sizeof(struct file_watch_entry));
+                            if (new_entry != NULL)
                             {
-                                struct file_watch_entry* new_entry =
-                                    (struct file_watch_entry*)malloc(
-                                        sizeof(struct file_watch_entry));
-                                if (new_entry != NULL)
-                                {
-                                    new_entry->wd = inotify_add_watch(
-                                        W->fd, filepath,
-                                        IN_CLOSE_WRITE | IN_DELETE_SELF);
-                                    new_entry->path = strdup(filepath);
-                                    new_entry->filter = NULL;
-                                    new_entry->cb = entry->cb;
-                                    list_append(W->entries, new_entry);
-                                }
+                                new_entry->wd = inotify_add_watch(
+                                    W->fd, filepath, entry->mask);
+                                new_entry->path = strdup(filepath);
+                                new_entry->mask = 0;
+                                new_entry->filter = NULL;
+                                new_entry->cb = entry->cb;
+                                list_append(W->entries, new_entry);
                             }
                         }
-                        entry->cb(filepath, what, event->cookie);
-                        break;
                     }
+                    entry->cb(filepath, what, event->cookie);
+                    break;
                 }
             }
-            if (event->mask & IN_IGNORED)
-            {
-                num_wd -=
-                    list_remove_if_value(W->entries, file_watch__is_matching_wd,
-                                         &event->wd, file_watch__delete_entry);
-            }
         }
-#endif
+        if (event->mask & IN_IGNORED)
+        {
+            num_wd -=
+                list_remove_if_value(W->entries, file_watch__is_matching_wd,
+                                     &event->wd, file_watch__delete_entry);
+        }
     }
+#endif
 }
 
 bool file_watch_if_modified(file_watch_t* W, const char* path,
                             file_watch_cb_t callback)
 {
-    if (W != NULL && path != NULL && callback != NULL)
-    {
+    if (W == NULL || path == NULL || callback == NULL)
+        return false;
 #ifdef HAVE_SYS_INOTIFY_H
-        struct file_watch_entry* entry =
+    struct file_watch_entry* entry =
+        (struct file_watch_entry*)malloc(sizeof(struct file_watch_entry));
+    if (entry == NULL)
+        return false;
+    entry->wd = inotify_add_watch(W->fd, path, IN_CLOSE_WRITE | IN_DELETE_SELF);
+    entry->mask = 0;
+    entry->path = strdup(path);
+    entry->filter = NULL;
+    entry->cb = callback;
+    list_append(W->entries, entry);
+    const char* slash = strrchr(path, '/');
+    if (slash != NULL)
+    {
+        entry =
             (struct file_watch_entry*)malloc(sizeof(struct file_watch_entry));
-        if (entry == NULL)
-            return false;
-        entry->wd =
-            inotify_add_watch(W->fd, path, IN_CLOSE_WRITE | IN_DELETE_SELF);
-        entry->path = strdup(path);
-        entry->filter = NULL;
+        entry->path = strndup(path, slash - path);
+        entry->wd = inotify_add_watch(W->fd, entry->path, IN_MOVE | IN_CREATE);
+        entry->mask = IN_CLOSE_WRITE | IN_DELETE_SELF;
+        entry->filter = strdup(slash + 1);
         entry->cb = callback;
         list_append(W->entries, entry);
-        const char* slash = strrchr(path, '/');
-        if (slash != NULL)
-        {
-            entry = (struct file_watch_entry*)malloc(
-                sizeof(struct file_watch_entry));
-            entry->path = strndup(path, slash - path);
-            entry->wd =
-                inotify_add_watch(W->fd, entry->path, IN_MOVED_TO | IN_CREATE);
-            entry->filter = strdup(slash + 1);
-            entry->cb = callback;
-            list_append(W->entries, entry);
-        }
-        return true;
-#endif
     }
+    return true;
+#else
     return false;
+#endif
 }
 
 bool file_watch_remove(file_watch_t* W, int wd)
