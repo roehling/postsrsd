@@ -33,7 +33,7 @@ static char tmpdir[sizeof(pwd) + 7];
 
 void setup_fs()
 {
-    ck_assert_ptr_nonnull(getcwd(pwd, sizeof(pwd)));
+    ck_assert_ptr_eq(getcwd(pwd, sizeof(pwd)), pwd);
     strcpy(tmpdir, pwd);
     strcat(tmpdir, "/XXXXXX");
     ck_assert_ptr_eq(mkdtemp(tmpdir), tmpdir);
@@ -86,6 +86,60 @@ START_TEST(util_directory_exists)
 }
 END_TEST
 
+#ifdef HAVE_SYS_INOTIFY_H
+static unsigned util_file_watch__expected_wd = -1;
+static unsigned util_file_watch__expected_what = 0;
+static const char* util_file_watch__expected_path = NULL;
+static size_t util_file_watch__callback_count = 0;
+
+static void util_file_watch__callback(int wd, unsigned what, const char* path,
+                                      size_t cookie)
+{
+    ++util_file_watch__callback_count;
+    MAYBE_UNUSED(cookie);
+    ck_assert_int_eq(wd, util_file_watch__expected_wd);
+    ck_assert_uint_eq(what, util_file_watch__expected_what);
+    if (util_file_watch__expected_path != NULL)
+        ck_assert_str_eq(path, util_file_watch__expected_path);
+    else
+        ck_assert_ptr_null(path);
+}
+#endif
+
+START_TEST(util_file_watch)
+{
+#ifdef HAVE_SYS_INOTIFY_H
+    static const char* TEST_FILE = "testfile";
+
+    file_watch_t* W = file_watch_create();
+    ck_assert_ptr_nonnull(W);
+    FILE* f = fopen(TEST_FILE, "w");
+    fwrite("Test", 4, 1, f);
+    fclose(f);
+    int wd = file_watch_if_modified(W, TEST_FILE, util_file_watch__callback);
+    ck_assert_int_gt(wd, 0);
+    util_file_watch__expected_wd = wd;
+    util_file_watch__expected_what = FW_MODIFIED;
+    ck_assert_uint_eq(util_file_watch__callback_count, 0);
+    f = fopen(TEST_FILE, "w+");
+    fseek(f, 0, SEEK_SET);
+    file_watch_process_events(W);
+    ck_assert_uint_eq(util_file_watch__callback_count, 0);
+    fwrite("New", 3, 1, f);
+    file_watch_process_events(W);
+    ck_assert_uint_eq(util_file_watch__callback_count, 0);
+    fclose(f);
+    file_watch_process_events(W);
+    ck_assert_uint_eq(util_file_watch__callback_count, 1);
+    unlink(TEST_FILE);
+    util_file_watch__expected_what = FW_DELETED;
+    file_watch_process_events(W);
+    ck_assert_uint_eq(util_file_watch__callback_count, 2);
+    file_watch_destroy(W);
+#endif
+}
+END_TEST
+
 START_TEST(util_set_string)
 {
     char* s = NULL;
@@ -127,11 +181,11 @@ START_TEST(util_strip_brackets)
 {
     char* result;
     result = strip_brackets("test@example.com");
-    ck_assert_ptr_eq(result, NULL);
+    ck_assert_ptr_null(result);
     result = strip_brackets("<test@example.com");
-    ck_assert_ptr_eq(result, NULL);
+    ck_assert_ptr_null(result);
     result = strip_brackets("test@example.com>");
-    ck_assert_ptr_eq(result, NULL);
+    ck_assert_ptr_null(result);
     result = strip_brackets("<test@example.com>");
     ck_assert_str_eq(result, "test@example.com");
     free(result);
@@ -141,20 +195,31 @@ START_TEST(util_strip_brackets)
 }
 END_TEST
 
+static bool util_list__is_not_b(const void* value)
+{
+    return strcmp((const char*)value, "b") != 0;
+}
+
+static bool util_list__is_equal_to(const void* value1, const void* value2)
+{
+    return strcmp((const char*)value1, (const char*)value2) == 0;
+}
+
 START_TEST(util_list)
 {
     list_t* L = list_create();
+    ck_assert_ptr_nonnull(L);
     ck_assert_uint_eq(list_size(L), 0);
     ck_assert_ptr_null(list_get(L, 0));
-    ck_assert_uint_eq(list_append(L, strdup("0")), true);
+    ck_assert(list_append(L, strdup("0")));
     ck_assert_uint_eq(list_size(L), 1);
     ck_assert_str_eq((char*)list_get(L, 0), "0");
     ck_assert_ptr_null(list_get(L, 1));
-    ck_assert_uint_eq(list_append(L, strdup("1")), true);
-    ck_assert_uint_eq(list_append(L, strdup("2")), true);
-    ck_assert_uint_eq(list_append(L, strdup("3")), true);
-    ck_assert_uint_eq(list_append(L, strdup("4")), true);
-    ck_assert_uint_eq(list_append(L, strdup("5")), true);
+    ck_assert(list_append(L, strdup("1")));
+    ck_assert(list_append(L, strdup("2")));
+    ck_assert(list_append(L, strdup("3")));
+    ck_assert(list_append(L, strdup("4")));
+    ck_assert(list_append(L, strdup("5")));
     ck_assert_uint_eq(list_size(L), 6);
     ck_assert_str_eq((char*)list_get(L, 0), "0");
     ck_assert_str_eq((char*)list_get(L, 1), "1");
@@ -163,10 +228,59 @@ START_TEST(util_list)
     ck_assert_str_eq((char*)list_get(L, 4), "4");
     ck_assert_str_eq((char*)list_get(L, 5), "5");
     ck_assert_ptr_null(list_get(L, 6));
+    ck_assert(!list_remove(L, 6, free));
+    ck_assert(list_remove(L, 0, free));
+    ck_assert_uint_eq(list_size(L), 5);
+    ck_assert_str_eq((char*)list_get(L, 0), "1");
+    ck_assert_str_eq((char*)list_get(L, 1), "2");
+    ck_assert_str_eq((char*)list_get(L, 2), "3");
+    ck_assert_str_eq((char*)list_get(L, 3), "4");
+    ck_assert_str_eq((char*)list_get(L, 4), "5");
+    ck_assert_ptr_null(list_get(L, 5));
+    ck_assert(list_remove(L, 2, free));
+    ck_assert_uint_eq(list_size(L), 4);
+    ck_assert_str_eq((char*)list_get(L, 0), "1");
+    ck_assert_str_eq((char*)list_get(L, 1), "2");
+    ck_assert_str_eq((char*)list_get(L, 2), "4");
+    ck_assert_str_eq((char*)list_get(L, 3), "5");
+    ck_assert_ptr_null(list_get(L, 4));
+    ck_assert(!list_remove(L, 4, free));
+    ck_assert_uint_eq(list_size(L), 4);
+    ck_assert_str_eq((char*)list_get(L, 0), "1");
+    ck_assert_str_eq((char*)list_get(L, 1), "2");
+    ck_assert_str_eq((char*)list_get(L, 2), "4");
+    ck_assert_str_eq((char*)list_get(L, 3), "5");
+    ck_assert_ptr_null(list_get(L, 4));
+    ck_assert(list_remove(L, 3, free));
+    ck_assert_uint_eq(list_size(L), 3);
+    ck_assert_str_eq((char*)list_get(L, 0), "1");
+    ck_assert_str_eq((char*)list_get(L, 1), "2");
+    ck_assert_str_eq((char*)list_get(L, 2), "4");
+    ck_assert_ptr_null(list_get(L, 3));
     list_clear(L, free);
     ck_assert_uint_eq(list_size(L), 0);
-    ck_assert_uint_eq(list_append(L, strdup("a")), true);
+    ck_assert(list_append(L, strdup("a")));
+    ck_assert(list_append(L, strdup("b")));
+    ck_assert(list_append(L, strdup("c")));
     ck_assert_str_eq((char*)list_get(L, 0), "a");
+    ck_assert_str_eq((char*)list_get(L, 1), "b");
+    ck_assert_str_eq((char*)list_get(L, 2), "c");
+    ck_assert_ptr_null(list_get(L, 3));
+    ck_assert_uint_eq(list_remove_if(L, util_list__is_not_b, free), 2);
+    ck_assert_uint_eq(list_size(L), 1);
+    ck_assert_str_eq((char*)list_get(L, 0), "b");
+    ck_assert_ptr_null(list_get(L, 1));
+    ck_assert(list_append(L, strdup("d")));
+    ck_assert(list_append(L, strdup("e")));
+    ck_assert(list_append(L, strdup("f")));
+    ck_assert_uint_eq(
+        list_remove_if_value(L, util_list__is_equal_to, "b", free), 1);
+    ck_assert_uint_eq(
+        list_remove_if_value(L, util_list__is_equal_to, "e", free), 1);
+    ck_assert_uint_eq(list_size(L), 2);
+    ck_assert_str_eq((char*)list_get(L, 0), "d");
+    ck_assert_str_eq((char*)list_get(L, 1), "f");
+    ck_assert_ptr_null(list_get(L, 2));
     list_destroy(L, free);
     list_destroy(NULL, free);
 }
@@ -313,6 +427,7 @@ ADD_TEST_CASE_WITH_UNCHECKED_FIXTURE(fs, setup_fs, teardown_fs)
 ADD_TEST_TO_TEST_CASE(fs, util_file_exists)
 ADD_TEST_TO_TEST_CASE(fs, util_directory_exists)
 ADD_TEST_TO_TEST_CASE(fs, util_dotlock)
+ADD_TEST_TO_TEST_CASE(fs, util_file_watch)
 ADD_TEST(util_set_string)
 ADD_TEST(util_argvdup);
 ADD_TEST(util_strip_brackets);

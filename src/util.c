@@ -30,6 +30,9 @@
 #ifdef HAVE_SYS_FILE_H
 #    include <sys/file.h>
 #endif
+#ifdef HAVE_SYS_INOTIFY_H
+#    include <sys/inotify.h>
+#endif
 #ifdef HAVE_SYS_TYPES_H
 #    include <sys/types.h>
 #endif
@@ -401,6 +404,70 @@ bool list_append(list_t* L, void* entry)
     return true;
 }
 
+bool list_remove(list_t* L, size_t i, list_deleter_t deleter)
+{
+    if (L == NULL)
+        return false;
+    if (i >= L->size)
+        return false;
+    if (deleter != NULL)
+        deleter(L->entries[i]);
+    for (size_t j = i; j < L->size - 1; ++j)
+        L->entries[j] = L->entries[j + 1];
+    --L->size;
+    return true;
+}
+
+size_t list_remove_if(list_t* L, list_predicate_t predicate,
+                      list_deleter_t deleter)
+{
+    if (L == NULL)
+        return 0;
+    if (predicate == NULL)
+        return 0;
+    size_t j = 0, removed = 0;
+    for (size_t i = 0; i < L->size; ++i)
+    {
+        if (predicate(L->entries[i]))
+        {
+            if (deleter != NULL)
+                deleter(L->entries[i]);
+            ++removed;
+        }
+        else
+        {
+            L->entries[j++] = L->entries[i];
+        }
+    }
+    L->size = j;
+    return removed;
+}
+
+size_t list_remove_if_value(list_t* L, list_compare_t compare,
+                            const void* value, list_deleter_t deleter)
+{
+    if (L == NULL)
+        return 0;
+    if (compare == NULL)
+        return 0;
+    size_t j = 0, removed = 0;
+    for (size_t i = 0; i < L->size; ++i)
+    {
+        if (compare(L->entries[i], value))
+        {
+            if (deleter != NULL)
+                deleter(L->entries[i]);
+            ++removed;
+        }
+        else
+        {
+            L->entries[j++] = L->entries[i];
+        }
+    }
+    L->size = j;
+    return removed;
+}
+
 size_t list_size(list_t* L)
 {
     if (L != NULL)
@@ -431,19 +498,38 @@ void list_destroy(list_t* L, list_deleter_t deleter)
     free(L);
 }
 
+#define MAX_WD 16
+
+struct file_watch_entry
+{
+    int wd;
+    file_watch_cb_t cb;
+};
+
 struct file_watch
 {
     int fd;
+    list_t* entries;
 };
+
+static bool file_watch__is_matching_wd(const void* value1, const void* value2)
+{
+    return ((const struct file_watch_entry*)value1)->wd == *(const int*)value2;
+}
 
 file_watch_t* file_watch_create()
 {
+#ifdef HAVE_SYS_INOTIFY_H
     file_watch_t* W = malloc(sizeof(file_watch_t));
     if (W != NULL)
     {
-        W->fd = -1;
+        W->fd = inotify_init1(IN_NONBLOCK | IN_CLOEXEC);
+        W->entries = list_create();
     }
     return W;
+#else
+    return NULL;
+#endif
 }
 
 int file_watch_poll_fd(file_watch_t* W)
@@ -453,13 +539,95 @@ int file_watch_poll_fd(file_watch_t* W)
 
 void file_watch_process_events(file_watch_t* W)
 {
-    MAYBE_UNUSED(W);
+    if (W != NULL)
+    {
+#ifdef HAVE_SYS_INOTIFY_H
+        char buf[4096] ATTRIBUTE(aligned(__alignof__(struct inotify_event)));
+        const struct inotify_event* event;
+        ssize_t size = read(W->fd, buf, sizeof(buf));
+        if (size <= 0)
+            return;
+        size_t num_wd = list_size(W->entries);
+        for (char* ptr = buf; ptr < buf + size;
+             ptr += sizeof(struct inotify_event) + event->len)
+        {
+            event = (const struct inotify_event*)ptr;
+            unsigned what = 0;
+            if (event->mask & IN_CREATE)
+                what |= FW_CREATED;
+            if (event->mask & IN_CLOSE_WRITE)
+                what |= FW_MODIFIED;
+            if (event->mask & (IN_DELETE | IN_DELETE_SELF))
+                what |= FW_DELETED;
+            if (what != 0)
+            {
+                for (size_t i = 0; i < num_wd; ++i)
+                {
+                    const struct file_watch_entry* entry =
+                        (const struct file_watch_entry*)list_get(W->entries, i);
+                    if (entry->wd == event->wd)
+                    {
+                        entry->cb(entry->wd, what,
+                                  event->len ? event->name : NULL,
+                                  event->cookie);
+                        break;
+                    }
+                }
+            }
+            if (event->mask & IN_IGNORED)
+            {
+                num_wd -= list_remove_if_value(
+                    W->entries, file_watch__is_matching_wd, &event->wd, free);
+            }
+        }
+#endif
+    }
+}
+
+int file_watch_if_modified(file_watch_t* W, const char* path,
+                           file_watch_cb_t callback)
+{
+    if (W != NULL && path != NULL && callback != NULL)
+    {
+#ifdef HAVE_SYS_INOTIFY_H
+        struct file_watch_entry* entry =
+            (struct file_watch_entry*)malloc(sizeof(struct file_watch_entry));
+        if (entry != NULL)
+        {
+            entry->wd =
+                inotify_add_watch(W->fd, path, IN_CLOSE_WRITE | IN_DELETE_SELF);
+            entry->cb = callback;
+            list_append(W->entries, entry);
+            return entry->wd;
+        }
+#endif
+    }
+    return -1;
+}
+
+bool file_watch_remove(file_watch_t* W, int wd)
+{
+    if (W != NULL && wd >= 0)
+    {
+        if (list_remove_if_value(W->entries, file_watch__is_matching_wd, &wd,
+                                 free)
+            > 0)
+        {
+#ifdef HAVE_SYS_INOTIFY_H
+            return inotify_rm_watch(W->fd, wd) == 0;
+#else
+            return true;
+#endif
+        }
+    }
+    return false;
 }
 
 void file_watch_destroy(file_watch_t* W)
 {
     if (W != NULL)
     {
+        list_destroy(W->entries, free);
         close(W->fd);
         free(W);
     }

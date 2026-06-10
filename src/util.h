@@ -36,8 +36,15 @@ typedef struct domain_set domain_set_t;
 struct list;
 typedef struct list list_t;
 typedef void (*list_deleter_t)(void*);
+typedef bool (*list_predicate_t)(const void*);
+typedef bool (*list_compare_t)(const void*, const void*);
 struct file_watch;
 typedef struct file_watch file_watch_t;
+typedef void (*file_watch_cb_t)(int, unsigned, const char*, size_t);
+
+#define FW_CREATED  1
+#define FW_MODIFIED 2
+#define FW_DELETED  4
 
 void set_string(char** var, char* value);
 char* b32h_encode(const char* data, size_t length, char* buffer,
@@ -64,12 +71,19 @@ list_t* list_create();
 void* list_get(list_t* L, size_t i);
 bool list_append(list_t* L, void* data);
 size_t list_size(list_t* L);
+bool list_remove(list_t* L, size_t i, list_deleter_t deleter);
+size_t list_remove_if(list_t* L, list_predicate_t predicate,
+                      list_deleter_t deleter);
+size_t list_remove_if_value(list_t* L, list_compare_t compare,
+                            const void* value, list_deleter_t deleter);
 void list_clear(list_t* L, list_deleter_t deleter);
 void list_destroy(list_t* L, list_deleter_t deleter);
 
 file_watch_t* file_watch_create();
 int file_watch_poll_fd(file_watch_t* W);
 void file_watch_process_events(file_watch_t* W);
+int file_watch_if_modified(file_watch_t* W, const char* path,
+                           file_watch_cb_t callback);
 void file_watch_destroy(file_watch_t* W);
 
 char* endpoint_for_milter(const char* s);
