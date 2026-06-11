@@ -70,7 +70,7 @@ START_TEST(config_domains_file)
 END_TEST
 
 BEGIN_TEST_SUITE(config)
-ADD_TEST_CASE_WITH_FIXTURE(fs, setup_fs, teardown_fs)
+ADD_TEST_CASE_WITH_UNCHECKED_FIXTURE(fs, setup_fs, teardown_fs)
 ADD_TEST_TO_TEST_CASE(fs, config_domains_file)
 END_TEST_SUITE()
 TEST_MAIN(config)
