@@ -189,6 +189,7 @@ cfg_t* config_defaults()
         CFG_STR("pid-file", NULL, CFGF_NODEFAULT),
         CFG_STR("unprivileged-user", DEFAULT_POSTSRSD_USER, CFGF_NONE),
         CFG_STR("chroot-dir", DEFAULT_CHROOT_DIR, CFGF_NONE),
+        CFG_BOOL("seccomp", cfg_true, CFGF_NONE),
         CFG_BOOL("daemonize", cfg_false, CFGF_NONE),
         CFG_BOOL("syslog", cfg_false, CFGF_NONE),
         CFG_BOOL("debug", cfg_false, CFGF_NONE),

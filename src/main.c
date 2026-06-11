@@ -334,7 +334,8 @@ static void handle_socketmap_client(postsrsd_t* state, int conn)
     signal(SIGTERM, SIG_DFL);
     int keep_alive = cfg_getint(state->cfg, "keep-alive");
 #ifdef HAVE_SECCOMP
-    if (scmp_ctx != NULL && seccomp_load(scmp_ctx) < 0)
+    if (cfg_getbool(state->cfg, "seccomp") && scmp_ctx != NULL
+        && seccomp_load(scmp_ctx) < 0)
     {
         log_error("failed to activate seccomp sandboxing");
         exit(EXIT_FAILURE);
@@ -522,7 +523,7 @@ int main(int argc, char** argv)
 {
     postsrsd_t state;
     init_state(&state);
-    if (!init_seccomp())
+    if (!init_seccomp() && cfg_getbool(state.cfg, "seccomp"))
         log_warn("seccomp sandboxing is unavailable");
     FILE* pf = NULL;
     int milter_pid = 0;
