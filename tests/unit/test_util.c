@@ -414,7 +414,7 @@ START_TEST(util_log)
 END_TEST
 
 BEGIN_TEST_SUITE(util)
-ADD_TEST_CASE_WITH_UNCHECKED_FIXTURE(fs, setup_fs, teardown_fs)
+ADD_TEST_CASE_WITH_FIXTURE(fs, setup_fs, teardown_fs)
 ADD_TEST_TO_TEST_CASE(fs, util_file_exists)
 ADD_TEST_TO_TEST_CASE(fs, util_directory_exists)
 ADD_TEST_TO_TEST_CASE(fs, util_dotlock)

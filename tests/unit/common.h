@@ -30,8 +30,8 @@
     TCase* tcase = tcase_create(#tcase); \
     suite_add_tcase(ts, tcase);
 
-#define ADD_TEST_CASE_WITH_UNCHECKED_FIXTURE(tcase, setup, teardown) \
-    ADD_TEST_CASE(tcase)                                             \
+#define ADD_TEST_CASE_WITH_FIXTURE(tcase, setup, teardown) \
+    ADD_TEST_CASE(tcase)                                   \
     tcase_add_checked_fixture(tcase, setup, teardown);
 
 #define ADD_TEST_TO_TEST_CASE(tcase, testfunc) tcase_add_test(tcase, testfunc);

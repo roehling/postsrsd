@@ -73,8 +73,14 @@ option(WITH_REDIS
        OFF
 )
 add_feature_info(WITH_REDIS WITH_REDIS "use Redis as database backend")
-option(TESTS_WITH_ASAN "Run test suite with AddressSanitizer" OFF)
 option(DEVELOPER_BUILD "Add strict compiler options for development only" OFF)
+option(EXECUTABLE_WITH_ASAN "Build main executable with AddressSanitizer"
+       ${DEVELOPER_BUILD}
+)
+option(TESTS_WITH_ASAN "Run test suite with AddressSanitizer"
+       ${DEVELOPER_BUILD}
+)
+
 option(GENERATE_SRS_SECRET "Generate and install a postsrsd.secret" ON)
 add_feature_info(
     GENERATE_SRS_SECRET
@@ -380,6 +386,10 @@ target_link_libraries(
             ${LIBSOCKET}
             ${LIBNSL}
 )
+if(EXECUTABLE_WITH_ASAN)
+    target_compile_options(postsrsd PRIVATE -fsanitize=address,undefined)
+    target_link_options(postsrsd PRIVATE -fsanitize=address,undefined)
+endif()
 
 configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/data/postsrsd.conf.in"
