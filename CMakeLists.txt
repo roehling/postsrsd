@@ -351,6 +351,11 @@ if(WITH_SQLITE)
     endif()
 endif()
 
+find_package(seccomp)
+if(TARGET seccomp::seccomp)
+    set(HAVE_SECCOMP ON)
+endif()
+
 configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/src/postsrsd_build_config.h.in"
     "${CMAKE_CURRENT_BINARY_DIR}/postsrsd_build_config.h"
@@ -383,6 +388,7 @@ target_link_libraries(
             $<$<BOOL:${WITH_SQLITE}>:sqlite3::sqlite3>
             $<$<BOOL:${WITH_REDIS}>:${HIREDIS_TARGET}>
             $<$<BOOL:${WITH_MILTER}>:LibMilter::LibMilter>
+            $<TARGET_NAME_IF_EXISTS:seccomp::seccomp>
             ${LIBSOCKET}
             ${LIBNSL}
 )

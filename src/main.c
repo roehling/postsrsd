@@ -61,6 +61,12 @@ static volatile sig_atomic_t timeout = 0;
 static volatile sig_atomic_t sig_hup_received = 0, sig_term_received = 0;
 static bool files_changed = false;
 
+#ifdef HAVE_SECCOMP
+#    include <seccomp.h>
+
+static scmp_filter_ctx scmp_ctx;
+#endif
+
 struct postsrsd
 {
     cfg_t* cfg;
@@ -83,6 +89,79 @@ static void init_state(postsrsd_t* state)
     state->file_watch = NULL;
     state->target_uid = 0;
     state->target_gid = 0;
+}
+
+static bool init_seccomp()
+{
+#ifdef HAVE_SECCOMP
+    scmp_ctx = seccomp_init(SCMP_ACT_KILL_PROCESS);
+    if (scmp_ctx == NULL)
+        return false;
+    /* Syscalls without database access */
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(fstat), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(read), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(write), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(alarm), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(sigreturn), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(rt_sigreturn), 0)
+        < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(close), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(exit), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(exit_group), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(gettimeofday), 0)
+        < 0)
+        goto fail;
+#    ifdef WITH_SQLITE
+    /* Syscalls for SQlite database access */
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(brk), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(getpid), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(geteuid), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(lseek), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(newfstatat), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(fcntl), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(openat), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(pread64), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(pwrite64), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(fdatasync), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(unlink), 0) < 0)
+        goto fail;
+#    endif
+    return true;
+fail:
+    seccomp_release(scmp_ctx);
+    scmp_ctx = NULL;
+    return false;
+#else
+    return false;
+#endif
+}
+
+static void finalize_seccomp()
+{
+#ifdef HAVE_SECCOMP
+    if (scmp_ctx != NULL)
+        seccomp_release(scmp_ctx);
+    scmp_ctx = NULL;
+#endif
 }
 
 static void finalize_state(postsrsd_t* state)
@@ -254,6 +333,13 @@ static void handle_socketmap_client(postsrsd_t* state, int conn)
     signal(SIGUSR1, on_sig_hup);
     signal(SIGTERM, SIG_DFL);
     int keep_alive = cfg_getint(state->cfg, "keep-alive");
+#ifdef HAVE_SECCOMP
+    if (scmp_ctx != NULL && seccomp_load(scmp_ctx) < 0)
+    {
+        log_error("failed to activate seccomp sandboxing");
+        exit(EXIT_FAILURE);
+    }
+#endif
     for (;;)
     {
         char buffer[1024];
@@ -436,6 +522,8 @@ int main(int argc, char** argv)
 {
     postsrsd_t state;
     init_state(&state);
+    if (!init_seccomp())
+        log_warn("seccomp sandboxing is unavailable");
     FILE* pf = NULL;
     int milter_pid = 0;
     int exit_code = EXIT_FAILURE;
@@ -585,6 +673,7 @@ shutdown:
     if (pf != NULL)
         fclose(pf);
     finalize_state(&state);
+    finalize_seccomp();
     kill(0, SIGUSR1);
     if (milter_pid > 0)
     {
