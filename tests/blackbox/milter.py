@@ -88,7 +88,6 @@ def postsrsd_instance(postsrsd: str, when: str):
                 f'socketmap = ""\n'
                 f'milter = unix:{tmpdir / "postsrsd.sock"}\n'
                 f'secrets-file = {tmpdir / "postsrsd.secret"}\n'
-                f'envelope-database = sqlite:{tmpdir / "postsrsd.db"}\n'
             )
         with open(tmpdir / "postsrsd.secret", "w") as f:
             f.write("tops3cr3t\n")

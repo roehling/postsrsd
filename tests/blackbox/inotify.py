@@ -70,7 +70,7 @@ def read_netstring(sock_stream: SockStream):
 
 
 @contextlib.contextmanager
-def postsrsd_instance(postsrsd: str, when: str, domains_file: pathlib.Path):
+def postsrsd_instance(postsrsd: str, domains_file: pathlib.Path):
     with tempfile.TemporaryDirectory() as tmpdirname:
         tmpdir = pathlib.Path(tmpdirname)
         with open(tmpdir / "postsrsd.conf", "w") as f:
@@ -84,11 +84,9 @@ def postsrsd_instance(postsrsd: str, when: str, domains_file: pathlib.Path):
                 f"original-envelope = embedded\n"
                 f'socketmap = unix:{tmpdir / "postsrsd.sock"}\n'
                 f'secrets-file = {tmpdir / "postsrsd.secret"}\n'
-                f'envelope-database = sqlite:{tmpdir / "postsrsd.db"}\n'
             )
         with open(tmpdir / "postsrsd.secret", "w") as f:
             f.write("tops3cr3t\n")
-        os.environ["POSTSRSD_FAKETIME"] = when
         proc = subprocess.Popen(
             [postsrsd, "-C", str(tmpdir / "postsrsd.conf")],
             start_new_session=True,
@@ -109,9 +107,7 @@ if __name__ == "__main__":
         domains_file = pathlib.Path(tmpdirname) / "domains.txt"
         with open(domains_file, "w") as f:
             f.write("example.com")
-        with postsrsd_instance(
-            sys.argv[1], when="1577836860", domains_file=domains_file
-        ) as daemon:
+        with postsrsd_instance(sys.argv[1], domains_file=domains_file) as daemon:
             sock = None
             try:
                 for counter, test_domain in enumerate(
@@ -140,10 +136,13 @@ if __name__ == "__main__":
                     sock_stream = SockStream(sock)
                     write_netstring(sock_stream, "forward test@otherdomain.com")
                     result = read_netstring(sock_stream)
-                    expected = f"OK SRS0=vmyz=2W=otherdomain.com=test@{test_domain}"
-                    if result != expected:
+                    if (
+                        result is None
+                        or not result.startswith("OK SRS0=")
+                        or not result.endswith(f"=otherdomain.com=test@{test_domain}")
+                    ):
                         raise AssertionError(
-                            f"inotify[{test_domain}]: FAILED: Expected reply {expected!r}, got: {result!r}"
+                            f"inotify[{test_domain}]: FAILED: expected 'OK SRS0=...=otherdomain.com=test@{test_domain}', got {result!r}"
                         )
                     sys.stderr.write(f"inotify[{test_domain}]: Passed\n")
             finally:

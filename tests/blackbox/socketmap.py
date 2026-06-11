@@ -71,19 +71,26 @@ def read_netstring(sock_stream: SockStream):
 
 
 @contextlib.contextmanager
-def postsrsd_instance(postsrsd: str, when: str, use_database: bool):
+def postsrsd_instance(
+    postsrsd: str, when: str, with_sqlite: bool = False, with_redis: bool = False
+):
     with tempfile.TemporaryDirectory() as tmpdirname:
         tmpdir = pathlib.Path(tmpdirname)
         with open(tmpdir / "postsrsd.conf", "w") as f:
+            db_uri = '""'
+            if with_sqlite:
+                db_uri = f'sqlite:{tmpdir / "postsrsd.db"}'
+            if with_redis:
+                db_uri = "redis:localhost:6379"
             f.write(
                 'domains = {"example.com"}\n'
                 "keep-alive = 10\n"
                 'chroot-dir = ""\n'
                 'unprivileged-user = ""\n'
-                f'original-envelope = {"database" if use_database else "embedded"}\n'
+                f'original-envelope = {"database" if with_sqlite or with_redis else "embedded"}\n'
                 f'socketmap = unix:{tmpdir / "postsrsd.sock"}\n'
                 f'secrets-file = {tmpdir / "postsrsd.secret"}\n'
-                f'envelope-database = sqlite:{tmpdir / "postsrsd.db"}\n'
+                f"envelope-database = {db_uri}\n"
             )
         with open(tmpdir / "postsrsd.secret", "w") as f:
             f.write("tops3cr3t\n")
@@ -104,9 +111,15 @@ def postsrsd_instance(postsrsd: str, when: str, use_database: bool):
 
 
 def execute_queries(
-    postsrsd: str, when: str, use_database: bool, queries: Iterable[tuple[str, str]]
+    postsrsd: str,
+    when: str,
+    queries: Iterable[tuple[str, str]],
+    with_sqlite: bool = False,
+    with_redis: bool = False,
 ):
-    with postsrsd_instance(postsrsd, when, use_database) as daemon:
+    with postsrsd_instance(
+        postsrsd, when, with_sqlite=with_sqlite, with_redis=with_redis
+    ) as daemon:
         st = os.stat(daemon[0])
         assert st.st_mode & 0o777 == 0o666
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM, 0)
@@ -118,17 +131,17 @@ def execute_queries(
                 result = read_netstring(sock_stream)
                 if result != query[1]:
                     raise AssertionError(
-                        f"query[{query[0]}]: FAILED: Expected reply {query[1]!r}, got: {result!r}"
+                        f"query[{query[0]!r},sqlite={with_sqlite},redis={with_redis}]: FAILED: Expected reply {query[1]!r}, got: {result!r}"
                     )
-                sys.stderr.write(f"query[{query[0]}]: Passed\n")
+                sys.stderr.write(
+                    f"query[{query[0]!r},sqlite={with_sqlite},redis={with_redis}]: Passed\n"
+                )
         finally:
             sock.close()
 
 
-def execute_death_tests(
-    postsrsd: str, when: str, use_database: bool, queries: Iterable[bytes]
-):
-    with postsrsd_instance(postsrsd, when, use_database) as daemon:
+def execute_death_tests(postsrsd: str, when: str, queries: Iterable[bytes]):
+    with postsrsd_instance(postsrsd, when) as daemon:
         for query in queries:
             sock = None
             try:
@@ -151,16 +164,22 @@ def execute_death_tests(
                 except ConnectionError:
                     # Expected behavior
                     pass
-                sys.stderr.write(f"death_test[{query}]: Passed\n")
+                sys.stderr.write(f"death_test[{query!r}]: Passed\n")
             finally:
                 if sock is not None:
                     sock.close()
 
 
 def execute_sighup_tests(
-    postsrsd: str, when: str, use_database: bool, queries: Iterable[tuple[str, str]]
+    postsrsd: str,
+    when: str,
+    queries: Iterable[tuple[str, str]],
+    with_sqlite: bool = False,
+    with_redis: bool = False,
 ):
-    with postsrsd_instance(postsrsd, when, use_database) as daemon:
+    with postsrsd_instance(
+        postsrsd, when, with_sqlite=with_sqlite, with_redis=with_redis
+    ) as daemon:
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM, 0)
         sock.connect(daemon[0])
         sock_stream = SockStream(sock)
@@ -173,9 +192,11 @@ def execute_sighup_tests(
                         result = read_netstring(sock_stream)
                         if result != query[1]:
                             raise AssertionError(
-                                f"sighup_test[{query[0]}]: FAILED: Expected reply {query[1]!r}, got: {result!r}"
+                                f"sighup_test[{query[0]!r},sqlite={with_sqlite},redis={with_redis}]: FAILED: Expected reply {query[1]!r}, got: {result!r}"
                             )
-                        sys.stderr.write(f"sighup_test[{query[0]}]: Passed\n")
+                        sys.stderr.write(
+                            f"sighup_test[{query[0]!r},sqlite={with_sqlite},redis={with_redis}]: Passed\n"
+                        )
                         os.kill(daemon[1], signal.SIGHUP)
                         break
                     except ConnectionError:
@@ -360,13 +381,12 @@ if __name__ == "__main__":
     execute_queries(
         sys.argv[1],
         when="1577836860",  # 2020-01-01 00:01:00 UTC
-        use_database=False,
+        with_sqlite=False,
         queries=STATELESS_QUERIES,
     )
     execute_death_tests(
         sys.argv[1],
         when="1577836860",  # 2020-01-01 00:01:00 UTC
-        use_database=False,
         queries=[
             # Empty query
             b"0:,",
@@ -383,20 +403,33 @@ if __name__ == "__main__":
     execute_sighup_tests(
         sys.argv[1],
         when="1577836860",  # 2020-01-01 00:01:00 UTC
-        use_database=False,
+        with_sqlite=False,
         queries=STATELESS_QUERIES,
     )
     if sys.argv[2] == "1":
         execute_queries(
             sys.argv[1],
             when="1577836860",  # 2020-01-01 00:01:00 UTC
-            use_database=True,
+            with_sqlite=True,
             queries=DATABASE_QUERIES,
         )
         execute_sighup_tests(
             sys.argv[1],
             when="1577836860",  # 2020-01-01 00:01:00 UTC
-            use_database=True,
+            with_sqlite=True,
+            queries=DATABASE_QUERIES,
+        )
+    if sys.argv[3] == "1":
+        execute_queries(
+            sys.argv[1],
+            when="1577836860",  # 2020-01-01 00:01:00 UTC
+            with_redis=True,
+            queries=DATABASE_QUERIES,
+        )
+        execute_sighup_tests(
+            sys.argv[1],
+            when="1577836860",  # 2020-01-01 00:01:00 UTC
+            with_redis=True,
             queries=DATABASE_QUERIES,
         )
     sys.exit(0)

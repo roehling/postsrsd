@@ -22,6 +22,7 @@ if(Python3_EXECUTABLE)
         COMMAND
             "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/socketmap.py"
             "$<TARGET_FILE:postsrsd>" "$<BOOL:${WITH_SQLITE}>"
+            "$<AND:$<BOOL:${WITH_REDIS}>,$<BOOL:${TESTS_WITH_REDIS}>>"
     )
     add_test(
         NAME test_inotify
