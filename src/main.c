@@ -60,6 +60,7 @@
 static volatile sig_atomic_t timeout = 0;
 static volatile sig_atomic_t sig_hup_received = 0, sig_term_received = 0;
 static bool files_changed = false;
+static bool sd_notify_support = false;
 
 #ifdef HAVE_SECCOMP
 #    include <seccomp.h>
@@ -591,6 +592,7 @@ int main(int argc, char** argv)
         }
         signal(SIGHUP, on_sig_hup);
         signal(SIGTERM, on_sig_term);
+        sd_notify_support = sd_notify("READY=1\nMAINPID=%d", getpid());
         struct pollfd fds[5];
         unsigned num_fds = endpoint_prepare_poll(
             state.socketmap, fds, sizeof(fds) / sizeof(struct pollfd));
@@ -601,6 +603,13 @@ int main(int argc, char** argv)
         {
             if (sig_hup_received || files_changed)
             {
+                if (sd_notify_support)
+                {
+                    struct timespec tp;
+                    clock_gettime(CLOCK_MONOTONIC, &tp);
+                    sd_notify("RELOADING=1\nMONOTONIC_USEC=%ld",
+                              1000000l * tp.tv_sec + tp.tv_nsec / 1000l);
+                }
                 if (sig_hup_received)
                 {
                     sig_hup_received = 0;
@@ -625,6 +634,8 @@ int main(int argc, char** argv)
                 {
                     log_error("configuration error, keeping the old one");
                 }
+                if (sd_notify_support)
+                    sd_notify("READY=1");
             }
             if (sig_term_received)
             {
@@ -674,6 +685,7 @@ int main(int argc, char** argv)
     }
     else if (NONEMPTY_STRING(milter_endpoint))
     {
+        sd_notify_support = sd_notify("READY=1\nMAINPID=%d", getpid());
         milter_main(state.cfg, state.srs, state.srs_domain,
                     state.local_domains);
     }

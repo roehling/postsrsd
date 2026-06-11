@@ -24,6 +24,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#ifdef HAVE_ERRNO_H
+#    include <errno.h>
+#endif
 #ifdef HAVE_FCNTL_H
 #    include <fcntl.h>
 #endif
@@ -45,13 +48,21 @@
 #ifdef HAVE_SYSLOG_H
 #    include <syslog.h>
 #endif
+#ifdef HAVE_SYS_SOCKET_H
+#    include <sys/socket.h>
+#endif
 #ifdef HAVE_SYS_TIME_H
 #    include <sys/time.h>
+#endif
+#ifdef HAVE_SYS_UN_H
+#    include <sys/un.h>
 #endif
 #ifdef HAVE_TIME_H
 #    include <time.h>
 #endif
-#include <unistd.h>
+#ifdef HAVE_UNISTD_H
+#    include <unistd.h>
+#endif
 
 #ifndef HAVE_STRNCASECMP
 #    ifdef HAVE__STRNICMP
@@ -888,4 +899,55 @@ void log_fatal(const char* fmt, ...)
     vlog(LogError, fmt, ap);
     va_end(ap);
     exit(1);
+}
+
+bool sd_notify(const char* fmt, ...)
+{
+    char message[128];
+    if (fmt == NULL)
+        return false;
+    va_list ap;
+    va_start(ap, fmt);
+    ssize_t message_len = vsnprintf(message, sizeof(message), fmt, ap);
+    if (message_len <= 0)
+        return false;
+#if defined(AF_UNIX)
+    const char* notify_socket = getenv("NOTIFY_SOCKET");
+    if (notify_socket == NULL)
+        return false;
+    struct sockaddr_un sa;
+    size_t sock_len = strlen(notify_socket);
+    if (sock_len >= sizeof(sa.sun_path))
+    {
+        log_error("NOTIFY_SOCKET path is too big");
+        return false;
+    }
+    sa.sun_family = AF_UNIX;
+    memcpy(sa.sun_path, notify_socket, sock_len);
+    if (sa.sun_path[0] == '@')
+        sa.sun_path[0] = 0;
+    int fd = socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+    if (fd < 0)
+    {
+        log_perror(errno, "sd_notify socket");
+        return false;
+    }
+    if (connect(fd, (const struct sockaddr*)&sa,
+                offsetof(struct sockaddr_un, sun_path) + sock_len)
+        < 0)
+    {
+        log_perror(errno, "sd_notify connect");
+        close(fd);
+        return false;
+    }
+    ssize_t written = write(fd, message, message_len);
+    if (written != (ssize_t)message_len)
+    {
+        log_perror(EPROTO, "sd_notify write");
+        close(fd);
+        return false;
+    }
+    close(fd);
+    return true;
+#endif
 }

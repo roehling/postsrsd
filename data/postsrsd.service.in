@@ -11,7 +11,9 @@ Before=postfix.service
 After=network.target
 
 [Service]
+Type=notify-reload
 ExecStart=@CMAKE_INSTALL_FULL_SBINDIR@/postsrsd -C @POSTSRSD_CONFIGDIR@/@PROJECT_NAME@.conf
+NotifyAccess=main
 
 [Install]
 WantedBy=multi-user.target

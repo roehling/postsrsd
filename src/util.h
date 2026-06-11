@@ -112,4 +112,6 @@ void log_error(const char* fmt, ...) ATTRIBUTE(format(printf, 1, 2));
 void log_perror(int errno, const char* prefix);
 void log_fatal(const char* fmt, ...) ATTRIBUTE(noreturn);
 
+bool sd_notify(const char* fmt, ...) ATTRIBUTE(format(printf, 1, 2));
+
 #endif
