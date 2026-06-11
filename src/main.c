@@ -400,7 +400,7 @@ static bool setup_state(int argc, char** argv, postsrsd_t* state)
     if (config_changed_str(state->cfg, new_state.cfg, "socketmap"))
     {
         const char* value = cfg_getstr(new_state.cfg, "socketmap");
-        if (value != NULL)
+        if (NONEMPTY_STRING(value))
         {
             new_state.socketmap = endpoint_create(value);
             if (new_state.socketmap == NULL)
