@@ -61,9 +61,63 @@ static volatile sig_atomic_t timeout = 0;
 static volatile sig_atomic_t sig_hup_received = 0, sig_term_received = 0;
 static bool files_changed = false;
 
-static bool drop_privileges(cfg_t* cfg, int target_uid, int target_gid)
+struct postsrsd
 {
-    const char* chroot_dir = cfg_getstr(cfg, "chroot-dir");
+    cfg_t* cfg;
+    srs_t* srs;
+    endpoint_t* socketmap;
+    char* srs_domain;
+    domain_set_t* local_domains;
+    file_watch_t* file_watch;
+    int target_uid, target_gid;
+};
+typedef struct postsrsd postsrsd_t;
+
+static void init_state(postsrsd_t* state)
+{
+    state->cfg = NULL;
+    state->srs = NULL;
+    state->socketmap = NULL;
+    state->srs_domain = NULL;
+    state->local_domains = NULL;
+    state->file_watch = NULL;
+    state->target_uid = 0;
+    state->target_gid = 0;
+}
+
+static void finalize_state(postsrsd_t* state)
+{
+    if (state->file_watch != NULL)
+    {
+        file_watch_destroy(state->file_watch);
+        state->file_watch = NULL;
+    }
+    if (state->socketmap != NULL)
+    {
+        endpoint_close(state->socketmap);
+        state->socketmap = NULL;
+    }
+    set_string(&state->srs_domain, NULL);
+    if (state->local_domains != NULL)
+    {
+        domain_set_destroy(state->local_domains);
+        state->local_domains = NULL;
+    }
+    if (state->srs != NULL)
+    {
+        srs_free(state->srs);
+        state->srs = NULL;
+    }
+    if (state->cfg != NULL)
+    {
+        cfg_free(state->cfg);
+        state->cfg = NULL;
+    }
+}
+
+static bool drop_privileges(postsrsd_t* state)
+{
+    const char* chroot_dir = cfg_getstr(state->cfg, "chroot-dir");
     if (NONEMPTY_STRING(chroot_dir))
     {
 #ifdef HAVE_CHROOT
@@ -83,7 +137,7 @@ static bool drop_privileges(cfg_t* cfg, int target_uid, int target_gid)
         return false;
 #endif
     }
-    if (target_uid != 0 || target_gid != 0)
+    if (state->target_uid != 0 || state->target_gid != 0)
     {
 #ifdef HAVE_SETGROUPS
         if (setgroups(0, NULL) < 0)
@@ -92,12 +146,12 @@ static bool drop_privileges(cfg_t* cfg, int target_uid, int target_gid)
             return false;
         }
 #endif
-        if (setgid(target_gid) < 0)
+        if (setgid(state->target_gid) < 0)
         {
             log_perror(errno, "cannot drop privileges: setgid");
             return false;
         }
-        if (setuid(target_uid) < 0)
+        if (setuid(state->target_uid) < 0)
         {
             log_perror(errno, "cannot drop privileges: setuid");
             return false;
@@ -106,7 +160,7 @@ static bool drop_privileges(cfg_t* cfg, int target_uid, int target_gid)
     return true;
 }
 
-static bool check_unprivileged_work(cfg_t* cfg, int target_uid, int target_gid)
+static bool check_unprivileged_work(postsrsd_t* state)
 {
     int status;
     pid_t worker_pid = fork();
@@ -117,12 +171,13 @@ static bool check_unprivileged_work(cfg_t* cfg, int target_uid, int target_gid)
     }
     if (worker_pid == 0)
     {
-        if (!drop_privileges(cfg, target_uid, target_gid))
+        if (!drop_privileges(state))
             exit(EXIT_FAILURE);
-        if (cfg_getint(cfg, "original-envelope") == SRS_ENVELOPE_DATABASE)
+        if (cfg_getint(state->cfg, "original-envelope")
+            == SRS_ENVELOPE_DATABASE)
         {
-            database_t* db =
-                database_connect(cfg_getstr(cfg, "envelope-database"), true);
+            database_t* db = database_connect(
+                cfg_getstr(state->cfg, "envelope-database"), true);
             if (db == NULL)
                 exit(EXIT_FAILURE);
             database_expire(db);
@@ -138,9 +193,9 @@ static bool check_unprivileged_work(cfg_t* cfg, int target_uid, int target_gid)
     return (WEXITSTATUS(status) == EXIT_SUCCESS);
 }
 
-static bool daemonize(cfg_t* cfg)
+static bool daemonize(postsrsd_t* state)
 {
-    if (!cfg_getbool(cfg, "daemonize"))
+    if (!cfg_getbool(state->cfg, "daemonize"))
         return true;
     close(0);
     close(1);
@@ -168,9 +223,7 @@ static void on_sig_term(int signum)
     sig_term_received = signum;
 }
 
-static void handle_socketmap_client(cfg_t* cfg, srs_t* srs,
-                                    const char* srs_domain,
-                                    domain_set_t* local_domains, int conn)
+static void handle_socketmap_client(postsrsd_t* state, int conn)
 {
 #ifdef HAVE_FCNTL_H
     int flags = fcntl(conn, F_GETFL);
@@ -190,16 +243,17 @@ static void handle_socketmap_client(cfg_t* cfg, srs_t* srs,
     if (fp_read == NULL)
         return;
     database_t* db = NULL;
-    if (cfg_getint(cfg, "original-envelope") == SRS_ENVELOPE_DATABASE)
+    if (cfg_getint(state->cfg, "original-envelope") == SRS_ENVELOPE_DATABASE)
     {
-        db = database_connect(cfg_getstr(cfg, "envelope-database"), false);
+        db = database_connect(cfg_getstr(state->cfg, "envelope-database"),
+                              false);
         if (db == NULL)
             return;
     }
     signal(SIGALRM, on_sigalrm);
     signal(SIGUSR1, on_sig_hup);
     signal(SIGTERM, SIG_DFL);
-    int keep_alive = cfg_getint(cfg, "keep-alive");
+    int keep_alive = cfg_getint(state->cfg, "keep-alive");
     for (;;)
     {
         char buffer[1024];
@@ -243,12 +297,13 @@ static void handle_socketmap_client(cfg_t* cfg, srs_t* srs,
         const char* info = NULL;
         if (strcmp(query_type, "forward") == 0)
         {
-            rewritten = postsrsd_forward(addr, srs_domain, srs, db,
-                                         local_domains, &error, &info);
+            rewritten =
+                postsrsd_forward(addr, state->srs_domain, state->srs, db,
+                                 state->local_domains, &error, &info);
         }
         else if (strcmp(query_type, "reverse") == 0)
         {
-            rewritten = postsrsd_reverse(addr, srs, db, &error, &info);
+            rewritten = postsrsd_reverse(addr, state->srs, db, &error, &info);
         }
         else
         {
@@ -282,7 +337,7 @@ static void handle_socketmap_client(cfg_t* cfg, srs_t* srs,
     database_disconnect(db);
 }
 
-void on_file_watch_event(const char* path, unsigned what, size_t cookie)
+static void on_file_watch_event(const char* path, unsigned what, size_t cookie)
 {
     MAYBE_UNUSED(path);
     MAYBE_UNUSED(cookie);
@@ -292,66 +347,98 @@ void on_file_watch_event(const char* path, unsigned what, size_t cookie)
     }
 }
 
-bool reload_srs_configuration(int argc, char** argv, cfg_t** cfg, srs_t** srs,
-                              char** srs_domain, domain_set_t** local_domains,
-                              file_watch_t** file_watch)
+static bool config_changed_str(cfg_t* old_cfg, cfg_t* new_cfg, const char* name)
 {
-    set_string(srs_domain, NULL);
-    if (*file_watch != NULL)
-    {
-        file_watch_destroy(*file_watch);
-        *file_watch = NULL;
-    }
-    if (*local_domains != NULL)
-    {
-        domain_set_destroy(*local_domains);
-        *local_domains = NULL;
-    }
-    if (*srs != NULL)
-    {
-        srs_free(*srs);
-        *srs = NULL;
-    }
-    if (*cfg != NULL)
-    {
-        cfg_free(*cfg);
-        *cfg = NULL;
-    }
-    *cfg = config_from_commandline(argc, argv);
-    if (*cfg == NULL)
-        return false;
-    if (cfg_getbool(*cfg, "syslog"))
+    if (old_cfg == NULL)
+        return new_cfg != NULL;
+    const char* old_value = cfg_getstr(old_cfg, name);
+    const char* new_value = cfg_getstr(new_cfg, name);
+    if (old_value == NULL)
+        return new_value != NULL;
+    if (new_value != NULL)
+        return strcmp(old_value, new_value) != 0;
+    return true;
+}
+
+static bool setup_state(int argc, char** argv, postsrsd_t* state)
+{
+    postsrsd_t new_state;
+    bool socketmap_rollback = false;
+    init_state(&new_state);
+    new_state.cfg = config_from_commandline(argc, argv);
+    if (new_state.cfg == NULL)
+        goto fail;
+    if (cfg_getbool(new_state.cfg, "syslog"))
         log_enable_syslog();
     else
         log_disable_syslog();
-    log_set_verbosity(cfg_getbool(*cfg, "debug") ? LogDebug : LogInfo);
-    const char* domains_file = cfg_getstr(*cfg, "domains-file");
-    *srs = srs_from_config(*cfg);
-    if (*srs == NULL)
-        return false;
-    if (cfg_getbool(*cfg, "domains-file-watch")
+    log_set_verbosity(cfg_getbool(new_state.cfg, "debug") ? LogDebug : LogInfo);
+    new_state.srs = srs_from_config(new_state.cfg);
+    if (new_state.srs == NULL)
+        goto fail;
+    const char* domains_file = cfg_getstr(new_state.cfg, "domains-file");
+    if (cfg_getbool(new_state.cfg, "domains-file-watch")
         && NONEMPTY_STRING(domains_file))
     {
-        *file_watch = file_watch_create();
-        file_watch_if_modified(*file_watch, domains_file, on_file_watch_event);
+        new_state.file_watch = file_watch_create();
+        if (new_state.file_watch == NULL)
+        {
+            log_error("failed to setup inotify watch");
+            goto fail;
+        }
+        file_watch_if_modified(new_state.file_watch, domains_file,
+                               on_file_watch_event);
     }
-    if (!srs_domains_from_config(*cfg, srs_domain, local_domains))
-        return false;
+    if (!srs_domains_from_config(new_state.cfg, &new_state.srs_domain,
+                                 &new_state.local_domains))
+        goto fail;
+    if (!unprivileged_user_from_config(new_state.cfg, &new_state.target_uid,
+                                       &new_state.target_gid))
+        goto fail;
+    if (!check_unprivileged_work(&new_state))
+        goto fail;
+    if (config_changed_str(state->cfg, new_state.cfg, "socketmap"))
+    {
+        const char* value = cfg_getstr(new_state.cfg, "socketmap");
+        if (value != NULL)
+        {
+            new_state.socketmap = endpoint_create(value);
+            if (new_state.socketmap == NULL)
+                goto fail;
+        }
+    }
+    else
+    {
+        /* We want to keep the socketmap, so we move it from the old state
+           before we actually commit to the new state. This needs to be
+           rolled back if a configuration error occurs later. */
+        new_state.socketmap = state->socketmap;
+        state->socketmap = NULL;
+        socketmap_rollback = true;
+    }
+    /* If we reached this point, the new configuration is valid, so we commit */
+    finalize_state(state);
+    *state = new_state;
     return true;
+fail:
+    /* If a configuration error occurs and the daemon was configured already, we
+       want to keep the old functional configuration. */
+    if (socketmap_rollback)
+    {
+        state->socketmap = new_state.socketmap;
+        new_state.socketmap = NULL;
+    }
+    finalize_state(&new_state);
+    return false;
 }
 
 int main(int argc, char** argv)
 {
-    cfg_t* cfg = NULL;
-    srs_t* srs = NULL;
-    endpoint_t* socketmap = NULL;
-    domain_set_t* local_domains = NULL;
-    file_watch_t* file_watch = NULL;
-    char* srs_domain = NULL;
+    postsrsd_t state;
+    init_state(&state);
     FILE* pf = NULL;
     int milter_pid = 0;
     int exit_code = EXIT_FAILURE;
-    int target_uid = 0, target_gid = 0;
 #ifdef HAVE_CLOSE_RANGE
     close_range(3, ~0U, 0);
 #else
@@ -360,21 +447,9 @@ int main(int argc, char** argv)
 #endif
     signal(SIGALRM, SIG_IGN);
     signal(SIGUSR1, SIG_IGN);
-    if (!reload_srs_configuration(argc, argv, &cfg, &srs, &srs_domain,
-                                  &local_domains, &file_watch))
+    if (!setup_state(argc, argv, &state))
         goto shutdown;
-    if (!unprivileged_user_from_config(cfg, &target_uid, &target_gid))
-        goto shutdown;
-    if (!check_unprivileged_work(cfg, target_uid, target_gid))
-        goto shutdown;
-    const char* socketmap_endpoint = cfg_getstr(cfg, "socketmap");
-    if (NONEMPTY_STRING(socketmap_endpoint))
-    {
-        socketmap = endpoint_create(socketmap_endpoint);
-        if (socketmap == NULL)
-            goto shutdown;
-    }
-    const char* milter_endpoint = cfg_getstr(cfg, "milter");
+    const char* milter_endpoint = cfg_getstr(state.cfg, "milter");
     if (NONEMPTY_STRING(milter_endpoint))
     {
         if (!milter_create(milter_endpoint))
@@ -384,7 +459,7 @@ int main(int argc, char** argv)
     {
         milter_endpoint = NULL;
     }
-    const char* pid_file = cfg_getstr(cfg, "pid-file");
+    const char* pid_file = cfg_getstr(state.cfg, "pid-file");
     if (NONEMPTY_STRING(pid_file))
     {
         pf = fopen(pid_file, "w");
@@ -394,7 +469,7 @@ int main(int argc, char** argv)
             goto shutdown;
         }
     }
-    if (!daemonize(cfg))
+    if (!daemonize(&state))
         goto shutdown;
     if (pf != NULL)
     {
@@ -403,16 +478,17 @@ int main(int argc, char** argv)
         pf = NULL;
     }
     exit_code = EXIT_SUCCESS;
-    if (socketmap != NULL)
+    if (state.socketmap != NULL)
     {
         if (NONEMPTY_STRING(milter_endpoint))
         {
             milter_pid = fork();
             if (milter_pid == 0)
             {
-                if (drop_privileges(cfg, target_uid, target_gid))
+                if (drop_privileges(&state))
                 {
-                    milter_main(cfg, srs, srs_domain, local_domains);
+                    milter_main(state.cfg, state.srs, state.srs_domain,
+                                state.local_domains);
                 }
                 goto shutdown;
             }
@@ -421,8 +497,8 @@ int main(int argc, char** argv)
         signal(SIGTERM, on_sig_term);
         struct pollfd fds[5];
         unsigned num_fds = endpoint_prepare_poll(
-            socketmap, fds, sizeof(fds) / sizeof(struct pollfd));
-        num_fds += file_watch_prepare_poll(file_watch, fds + num_fds,
+            state.socketmap, fds, sizeof(fds) / sizeof(struct pollfd));
+        num_fds += file_watch_prepare_poll(state.file_watch, fds + num_fds,
                                            sizeof(fds) / sizeof(struct pollfd)
                                                - num_fds);
         for (;;)
@@ -432,24 +508,27 @@ int main(int argc, char** argv)
                 if (sig_hup_received)
                 {
                     sig_hup_received = 0;
-                    log_info("SIGHUP received, reloading SRS configuration.");
+                    log_info("SIGHUP received, reloading configuration.");
                 }
                 if (files_changed)
                 {
                     files_changed = false;
-                    log_info(
-                        "file change detected, reloading SRS configuration.");
+                    log_info("file change detected, reloading configuration.");
                 }
-                kill(0, SIGUSR1);
-                if (!reload_srs_configuration(argc, argv, &cfg, &srs,
-                                              &srs_domain, &local_domains,
-                                              &file_watch))
-                    goto shutdown;
-                num_fds = endpoint_prepare_poll(
-                    socketmap, fds, sizeof(fds) / sizeof(struct pollfd));
-                num_fds += file_watch_prepare_poll(
-                    file_watch, fds + num_fds,
-                    sizeof(fds) / sizeof(struct pollfd) - num_fds);
+                if (setup_state(argc, argv, &state))
+                {
+                    kill(0, SIGUSR1);
+                    num_fds = endpoint_prepare_poll(
+                        state.socketmap, fds,
+                        sizeof(fds) / sizeof(struct pollfd));
+                    num_fds += file_watch_prepare_poll(
+                        state.file_watch, fds + num_fds,
+                        sizeof(fds) / sizeof(struct pollfd) - num_fds);
+                }
+                else
+                {
+                    log_error("configuration error, keeping the old one");
+                }
             }
             if (sig_term_received)
             {
@@ -468,9 +547,9 @@ int main(int argc, char** argv)
             {
                 if (fds[i].revents)
                 {
-                    if (fds[i].fd == file_watch_poll_fd(file_watch))
+                    if (fds[i].fd == file_watch_poll_fd(state.file_watch))
                     {
-                        file_watch_process_events(file_watch);
+                        file_watch_process_events(state.file_watch);
                     }
                     else
                     {
@@ -483,8 +562,7 @@ int main(int argc, char** argv)
                         pid_t pid = fork();
                         if (pid == 0)
                         {
-                            handle_socketmap_client(cfg, srs, srs_domain,
-                                                    local_domains, conn);
+                            handle_socketmap_client(&state, conn);
                             exit(EXIT_SUCCESS);
                         }
                         if (pid < 0)
@@ -500,37 +578,13 @@ int main(int argc, char** argv)
     }
     else if (NONEMPTY_STRING(milter_endpoint))
     {
-        milter_main(cfg, srs, srs_domain, local_domains);
+        milter_main(state.cfg, state.srs, state.srs_domain,
+                    state.local_domains);
     }
 shutdown:
     if (pf != NULL)
         fclose(pf);
-    if (file_watch != NULL)
-    {
-        file_watch_destroy(file_watch);
-        file_watch = NULL;
-    }
-    if (socketmap != NULL)
-    {
-        endpoint_close(socketmap);
-        socketmap = NULL;
-    }
-    set_string(&srs_domain, NULL);
-    if (local_domains != NULL)
-    {
-        domain_set_destroy(local_domains);
-        local_domains = NULL;
-    }
-    if (srs != NULL)
-    {
-        srs_free(srs);
-        srs = NULL;
-    }
-    if (cfg != NULL)
-    {
-        cfg_free(cfg);
-        cfg = NULL;
-    }
+    finalize_state(&state);
     kill(0, SIGUSR1);
     if (milter_pid > 0)
     {
