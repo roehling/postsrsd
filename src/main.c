@@ -145,6 +145,13 @@ static bool init_seccomp()
     if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(unlink), 0) < 0)
         goto fail;
 #    endif
+#    ifdef WITH_REDIS
+    /* Syscalls for Redis database access */
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(sendto), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(recvfrom), 0) < 0)
+        goto fail;
+#    endif
     return true;
 fail:
     seccomp_release(scmp_ctx);
