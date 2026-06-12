@@ -61,6 +61,8 @@ PostSRSd has a few external build dependencies:
   enable it with ``-DWITH_SQLITE=ON`` as additional argument for ``cmake``.
 - hiredis_ is an optional alternative to store envelope senders in Redis;
   enable it with ``-DWITH_REDIS=ON``.
+- libseccomp_ is needed if you want to secure untrusted input handling
+  with additional sandboxing; enable it with ``-DWITH_SECCOMP=ON``.
 - libMilter_ is needed only if you wish to configure PostSRSd as milter;
   enable it with ``-DWITH_MILTER=ON``.
 - check_ is needed if you want to build and run the unit test suite;
@@ -78,6 +80,7 @@ discovery process.
 .. _sqlite3: https://sqlite.org
 .. _hiredis: https://github.com/redis/hiredis
 .. _libMilter: https://github.com/jons/libmilter
+.. _libseccomp: https://github.com/seccomp/libseccomp
 .. _check: https://github.com/libcheck/check
 .. _FetchContent: https://cmake.org/cmake/help/latest/module/FetchContent.html
 .. _Python: https://www.python.org
@@ -126,6 +129,9 @@ add the corresponding line to your ``etc/postfix/main.cf``::
 Note that the Milter code is less tested and should be considered experimental
 for now and not ready for production. Feel free to report bugs or open pull
 requests if you try it out, though.
+
+Also note that due to limitations in the libMilter library, PostSRSd cannot
+reload the Milter configuration via ``SIGHUP`` or ``domains-file-watch`` yet.
 
 Migrating from version 1.x
 --------------------------
