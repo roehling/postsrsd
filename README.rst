@@ -61,8 +61,8 @@ PostSRSd has a few external build dependencies:
   enable it with ``-DWITH_SQLITE=ON`` as additional argument for ``cmake``.
 - hiredis_ is an optional alternative to store envelope senders in Redis;
   enable it with ``-DWITH_REDIS=ON``.
-- libseccomp_ is needed if you want to secure untrusted input handling
-  with additional sandboxing; enable it with ``-DWITH_SECCOMP=ON``.
+- libseccomp_ and gperf_ are needed if you want to secure untrusted input
+  handling with additional sandboxing; enable it with ``-DWITH_SECCOMP=ON``.
 - libMilter_ is needed only if you wish to configure PostSRSd as milter;
   enable it with ``-DWITH_MILTER=ON``.
 - check_ is needed if you want to build and run the unit test suite;
@@ -81,6 +81,7 @@ discovery process.
 .. _hiredis: https://github.com/redis/hiredis
 .. _libMilter: https://github.com/jons/libmilter
 .. _libseccomp: https://github.com/seccomp/libseccomp
+.. _gperf: https://github.com/jwinarske/gperf
 .. _check: https://github.com/libcheck/check
 .. _FetchContent: https://cmake.org/cmake/help/latest/module/FetchContent.html
 .. _Python: https://www.python.org
