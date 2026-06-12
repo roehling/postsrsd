@@ -73,6 +73,10 @@ option(WITH_REDIS
        OFF
 )
 add_feature_info(WITH_REDIS WITH_REDIS "use Redis as database backend")
+option(WITH_SECCOMP "Enable additional sandboxing with seccomp" OFF)
+add_feature_info(
+    WITH_SECCOMP WITH_SECCOMP "use seccomp for additional sandboxing"
+)
 option(TESTS_WITH_ASAN "Run test suite with AddressSanitizer" OFF)
 option(TESTS_WITH_REDIS "Run test suite against Redis database backend" OFF)
 option(DEVELOPER_BUILD "Add strict compiler options for development only" OFF)
@@ -181,6 +185,14 @@ FetchContent_Declare(
     URL https://github.com/libcheck/check/releases/download/0.15.2/check-0.15.2.tar.gz
     URL_HASH
         SHA3_256=bfb856a68c0ea4d930803f6bd16c1eed38910a231c9e0f0009e69310e35e7a5d
+    FIND_PACKAGE_ARGS
+)
+
+FetchContent_Declare(
+    seccomp
+    URL https://github.com/seccomp/libseccomp/releases/download/v2.6.0/libseccomp-2.6.0.tar.gz
+    URL_HASH
+        SHA3_256=1bbae54d95e09cab6ea6b490a2f5e4d4e4ac72ff7c9ab568412533c19b1c4bd0
     FIND_PACKAGE_ARGS
 )
 
@@ -347,9 +359,12 @@ if(WITH_SQLITE)
     endif()
 endif()
 
-find_package(seccomp)
-if(TARGET seccomp::seccomp)
-    set(HAVE_SECCOMP ON)
+if(WITH_SECCOMP)
+    add_autotools_dependency(
+        seccomp
+        LIBRARY_NAME seccomp
+        EXPORTED_TARGET seccomp::seccomp
+    )
 endif()
 
 configure_file(
@@ -384,7 +399,7 @@ target_link_libraries(
             $<$<BOOL:${WITH_SQLITE}>:sqlite3::sqlite3>
             $<$<BOOL:${WITH_REDIS}>:${HIREDIS_TARGET}>
             $<$<BOOL:${WITH_MILTER}>:LibMilter::LibMilter>
-            $<TARGET_NAME_IF_EXISTS:seccomp::seccomp>
+            $<$<BOOL:${WITH_SECCOMP}>:seccomp::seccomp>
             ${LIBSOCKET}
             ${LIBNSL}
 )

@@ -152,7 +152,8 @@ static void show_help()
         ")\n"
         "  -v           show version number (" POSTSRSD_VERSION
         ")\n"
-#if defined(WITH_SQLITE) || defined(WITH_REDIS) || defined(WITH_MILTER)
+#if defined(WITH_SQLITE) || defined(WITH_REDIS) || defined(WITH_MILTER) \
+    || defined(WITH_SECCOMP)
         "\n"
         "This binary has been compiled with\n"
 #    ifdef WITH_SQLITE
@@ -160,6 +161,9 @@ static void show_help()
 #    endif
 #    ifdef WITH_REDIS
         "* Redis database storage support\n"
+#    endif
+#    ifdef WITH_SECCOMP
+        "* seccomp sandboxing support\n"
 #    endif
 #    ifdef WITH_MILTER
         "* Milter support (experimental)\n"

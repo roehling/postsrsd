@@ -62,7 +62,7 @@ static volatile sig_atomic_t sig_hup_received = 0, sig_term_received = 0;
 static bool files_changed = false;
 static bool sd_notify_support = false;
 
-#ifdef HAVE_SECCOMP
+#ifdef WITH_SECCOMP
 #    include <seccomp.h>
 
 static scmp_filter_ctx scmp_ctx;
@@ -94,7 +94,7 @@ static void init_state(postsrsd_t* state)
 
 static bool init_seccomp()
 {
-#ifdef HAVE_SECCOMP
+#ifdef WITH_SECCOMP
     scmp_ctx = seccomp_init(SCMP_ACT_KILL_PROCESS);
     if (scmp_ctx == NULL)
         return false;
@@ -118,8 +118,7 @@ static bool init_seccomp()
         goto fail;
     if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(exit_group), 0) < 0)
         goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(gettimeofday), 0)
-        < 0)
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(time), 0) < 0)
         goto fail;
 #    ifdef WITH_SQLITE
     /* Syscalls for SQlite database access */
@@ -165,7 +164,7 @@ fail:
 
 static void finalize_seccomp()
 {
-#ifdef HAVE_SECCOMP
+#ifdef WITH_SECCOMP
     if (scmp_ctx != NULL)
         seccomp_release(scmp_ctx);
     scmp_ctx = NULL;
@@ -341,7 +340,7 @@ static void handle_socketmap_client(postsrsd_t* state, int conn)
     signal(SIGUSR1, on_sig_hup);
     signal(SIGTERM, SIG_DFL);
     int keep_alive = cfg_getint(state->cfg, "keep-alive");
-#ifdef HAVE_SECCOMP
+#ifdef WITH_SECCOMP
     if (cfg_getbool(state->cfg, "seccomp") && scmp_ctx != NULL
         && seccomp_load(scmp_ctx) < 0)
     {
