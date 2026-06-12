@@ -90,7 +90,7 @@ users:
   be used for the test suite. It is disabled by default.
 
 - ``TESTS_WITH_REDIS``: If set to ``ON``, the test suite will assume that a
-  Redis instance is available at ``localhost:6397``, and run additional
+  Redis instance is available at ``localhost:6379``, and run additional
   database related tests. This is disabled by default and has no effect unless
   ``WITH_REDIS=ON`` is also set.
 
