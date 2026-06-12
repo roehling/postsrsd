@@ -20,12 +20,12 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y cmake musl-dev musl-tools
+          sudo apt-get install -y cmake musl-dev musl-tools dkpg-dev
       - name: Build PostSRSd
         run: |
           mkdir _build
           cd _build
-          cmake .. -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_C_COMPILER=musl-gcc -DCMAKE_EXE_LINKER_FLAGS=-static -DBUILD_TESTING=OFF -DWITH_SQLITE=ON -DWITH_REDIS=ON -DGENERATE_SRS_SECRET=OFF -DFETCHCONTENT_TRY_FIND_PACKAGE_MODE=NEVER
+          cmake .. -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_C_COMPILER=musl-gcc -DCMAKE_EXE_LINKER_FLAGS=-static -DCMAKE_C_FLAGS="-idirafter /usr/include -idirafter /usr/include/$(dpkg-architecture -qDEB_HOST_MULTIARCH)" -DBUILD_TESTING=OFF -DWITH_SQLITE=ON -DWITH_REDIS=ON -DWITH_SECCOMP=ON -DGENERATE_SRS_SECRET=OFF -DFETCHCONTENT_TRY_FIND_PACKAGE_MODE=NEVER
           make VERBOSE=ON
       - name: Install PostSRSd
         run: |
