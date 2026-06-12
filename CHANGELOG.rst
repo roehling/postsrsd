@@ -7,6 +7,19 @@
 Changelog
 #########
 
+2.1.0
+=====
+
+Added
+-----
+
+* Reload configuration on ``SIGHUP``.
+* inotify support to watch domains-file for changes and
+  reconfigure automatically.
+* Better integration with systemd via sd_notify.
+* SECCOMP support for better sandboxing while handling
+  untrusted input.
+
 2.0.12
 ======
 
