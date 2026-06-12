@@ -23,18 +23,31 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y cmake musl-dev musl-tools dpkg-dev gperf
+      - name: Determine build version
+        uses: proudust/gh-describe@v2
+        id: ghd
+        with:
+          match: "2.*"
       - name: Build PostSRSd
         run: |
           mkdir _build
           cd _build
-          cmake .. -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_C_COMPILER=musl-gcc -DCMAKE_EXE_LINKER_FLAGS=-static -DCMAKE_C_FLAGS="-idirafter /usr/include -idirafter /usr/include/$(dpkg-architecture -qDEB_HOST_MULTIARCH)" -DBUILD_TESTING=OFF -DWITH_SQLITE=ON -DWITH_REDIS=ON -DWITH_SECCOMP=ON -DGENERATE_SRS_SECRET=OFF -DFETCHCONTENT_TRY_FIND_PACKAGE_MODE=NEVER
+          cmake .. -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_C_COMPILER=musl-gcc -DCMAKE_EXE_LINKER_FLAGS=-static -DCMAKE_C_FLAGS="-idirafter /usr/include -idirafter /usr/include/$(dpkg-architecture -qDEB_HOST_MULTIARCH)" -DBUILD_TESTING=OFF -DWITH_SQLITE=ON -DWITH_REDIS=ON -DWITH_SECCOMP=ON -DGENERATE_SRS_SECRET=OFF -DFETCHCONTENT_TRY_FIND_PACKAGE_MODE=NEVER -DEXTRA_VERSION=${{ case(! startsWith(github.ref, 'refs/tags/'), format('+{0}.git.{1}', steps.ghd.outputs.distance, steps.ghd.outputs.short-sha), '') }}
           make VERBOSE=ON
       - name: Install PostSRSd
         run: |
           cd _build
           make install DESTDIR=$PWD/_install
-      - name: Create TAR
+      - name: Create tarball
         run: tar -C_build/_install -cvzf postsrsd-x86_64-musl.tar.gz ./
+      - name: Upload tarball
+        uses: actions/upload-artifact@v7
+        with:
+          name: tarball
+          path: postsrsd-x86_64-musl.tar.gz
+          archive: false
+          overwrite: true
+          if-no-files-found: error
       - name: Create release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
