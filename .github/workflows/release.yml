@@ -5,9 +5,11 @@
 # permitted in any medium without royalty provided the copyright notice and
 # this notice are preserved. This file is offered as-is, without any warranty.
 #
-name: Create Github release
+name: Build PostSRSd release
 on:
   push:
+    branches:
+      - main
     tags:
       - "2.*"
 permissions:
@@ -20,7 +22,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y cmake musl-dev musl-tools dkpg-dev gperf
+          sudo apt-get install -y cmake musl-dev musl-tools dpkg-dev gperf
       - name: Build PostSRSd
         run: |
           mkdir _build
@@ -34,6 +36,7 @@ jobs:
       - name: Create TAR
         run: tar -C_build/_install -cvzf postsrsd-x86_64-musl.tar.gz ./
       - name: Create release
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
           files: postsrsd-x86_64-musl.tar.gz
