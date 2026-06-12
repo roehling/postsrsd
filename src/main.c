@@ -685,8 +685,11 @@ int main(int argc, char** argv)
     else if (NONEMPTY_STRING(milter_endpoint))
     {
         sd_notify_support = sd_notify("READY=1\nMAINPID=%d", getpid());
-        milter_main(state.cfg, state.srs, state.srs_domain,
-                    state.local_domains);
+        if (drop_privileges(&state))
+        {
+            milter_main(state.cfg, state.srs, state.srs_domain,
+                        state.local_domains);
+        }
     }
 shutdown:
     if (pf != NULL)
