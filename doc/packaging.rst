@@ -22,13 +22,13 @@ Third-Party Dependencies
 
 PostSRSd has gained a few external dependencies with its 2.0 rewrite, and it
 uses the CMake FetchContent_ module to manage those. By default, PostSRSd will
-download the sources of its dependencies at configure time, build them, and
-link them statically into the executable.
+look for installed system libraries and fall back to downloading the sources of
+its dependencies at configure time, building them, and linking them statically
+into the executable.
 
-Starting with CMake 3.24, it is possible to tweak this process and use system
-libraries by passing ``-DFETCHCONTENT_TRY_FIND_PACKAGE_MODE=ALWAYS`` to the
-CMake invocation.
-
+For self-contained builds, you may want to pass the additional CMake options
+``-DFETCHCONTENT_FULLY_DISCONNECTED -DFETCHCONTENT_TRY_FIND_PACKAGE_MODE=ALWAYS``
+to make sure that no attempts to download anything are made.
 
 .. _FetchContent: https://cmake.org/cmake/help/latest/module/FetchContent.html
 
@@ -66,6 +66,10 @@ users:
   unit will be installed to allow starting PostSRSd via systemd. You can disable
   this if your distribution uses a different init system.
 
+- ``INSTALL_SYSTEMD_SYSUSERS``: If set to ``ON``, a sysusers.d config snippet
+  will be installed which instructs systemd to create the ``POSTSRSD_USER`` system
+  user if it not exists. This is disabled by default.
+
 - ``SYSTEMD_UNITDIR``: the intended install destination for the
   ``postsrsd.service`` file. The default should be fine for most systems, but
   you can override it if the auto-detected location is wrong.
@@ -80,5 +84,14 @@ users:
   will not do much for you except likely break your package build each time a
   new compiler version is released.
 
+- ``TESTS_WITH_ASAN``: If set to ``ON``, the unit tests will be linked against
+  the AddressSanitizer and LeakSanitizer libraries to catch common memory handling
+  bugs. Enabling this option does not affect the PostSRSd binary, it will only
+  be used for the test suite. It is disabled by default.
+
+- ``TESTS_WITH_REDIS``: If set to ``ON``, the test suite will assume that a
+  Redis instance is available at ``localhost:6397``, and run additional
+  database related tests. This is disabled by default and has no effect unless
+  ``WITH_REDIS=ON`` is also set.
 
 .. _GNUInstallDirs: https://cmake.org/cmake/help/latest/module/GNUInstallDirs.html
