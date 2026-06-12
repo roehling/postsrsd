@@ -94,7 +94,7 @@ ADD_TEST(invalid_database)
 ADD_TEST(database_sqlite_key_value)
 ADD_TEST(database_sqlite_expiry)
 #endif
-#ifdef WITH_REDIS
+#if defined(WITH_REDIS) && defined(TESTS_WITH_REDIS)
 ADD_TEST(database_redis_key_value)
 ADD_TEST(database_redis_expiry)
 #endif
