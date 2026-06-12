@@ -53,7 +53,7 @@ and run::
 
 PostSRSd has a few external build dependencies:
 
-- CMake_ version 3.14 or newer
+- CMake_ version 3.24 or newer
 - gcc_ or a similar C99 capable C compiler.
 - pkgconf_ or pkg-config is optional to improve detection of system settings
 - libConfuse_ is required to parse the configuration file.
