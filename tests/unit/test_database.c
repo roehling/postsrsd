@@ -59,12 +59,11 @@ START_TEST(database_sqlite_expiry)
 END_TEST
 #endif
 
-#ifdef WITH_REDIS
+#if defined(WITH_REDIS) && defined(TESTS_WITH_REDIS)
 START_TEST(database_redis_key_value)
 {
     database_t* db = database_connect("redis:localhost:6379", true);
-    if (db == NULL)
-        return; /* skip test if no redis server is available */
+    ck_assert_ptr_nonnull(db);
     database_write(db, "mykey", "myvalue", 1);
     char* value = database_read(db, "mykey");
     ck_assert_str_eq(value, "myvalue");
@@ -76,8 +75,7 @@ END_TEST
 START_TEST(database_redis_expiry)
 {
     database_t* db = database_connect("redis:localhost:6379", true);
-    if (db == NULL)
-        return; /* skip test if no redis server is available */
+    ck_assert_ptr_nonnull(db);
     database_write(db, "mykey", "myvalue", 1);
     char* value = database_read(db, "mykey");
     ck_assert_str_eq(value, "myvalue");

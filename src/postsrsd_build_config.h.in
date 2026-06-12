@@ -31,6 +31,8 @@
 #cmakedefine WITH_SQLITE 1
 #cmakedefine WITH_SECCOMP 1
 
+#cmakedefine TESTS_WITH_REDIS 1
+
 #cmakedefine HAVE_BIG_ENDIAN 1
 #cmakedefine HAVE_CHROOT 1
 #cmakedefine HAVE_CLOSE_RANGE 1
