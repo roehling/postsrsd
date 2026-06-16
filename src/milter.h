@@ -76,7 +76,7 @@
 #define MILTER_DO_PROGRESS    'p'
 #define MILTER_DO_SETSYMLIST  'l'
 
-int milter_receive(FILE* fp, void* buffer, size_t size);
+size_t milter_receive(FILE* fp, void* buffer, size_t size, size_t* truncated);
 bool milter_send(FILE* fp, char action);
 bool milter_send_bytes(FILE* fp, char action, const void* value, size_t length);
 bool milter_send_str(FILE* fp, char action, const char* value);

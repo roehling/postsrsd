@@ -460,7 +460,7 @@ static void handle_milter_client(postsrsd_t* state, int conn)
     FILE *fp_read, *fp_write;
     database_t* db;
     char buffer[512];
-    ssize_t len;
+    size_t len, truncated;
     if (!prepare_client(state, conn, &fp_read, &fp_write, &db))
         exit(EXIT_FAILURE);
     if (sig_hup_received)
@@ -474,17 +474,9 @@ static void handle_milter_client(postsrsd_t* state, int conn)
     {
         timeout = 0;
         alarm(keep_alive);
-        len = milter_receive(fp_read, buffer, sizeof(buffer));
+        len = milter_receive(fp_read, buffer, sizeof(buffer), &truncated);
         if (len == 0 || timeout)
             break;
-        if (len < 0)
-        {
-            int err = errno;
-            log_perror(err, "milter_receive");
-            milter_send(fp_write, err == EMSGSIZE ? MILTER_DO_REJECT
-                                                  : MILTER_DO_TEMPFAIL);
-            break;
-        }
         alarm(0);
         char action = buffer[0];
         const char* info = NULL;
@@ -507,8 +499,9 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                 milter_state = MS_READY;
                 break;
             case MILTER_CMD_MACRO:
-                set_string(&queue_id,
-                           milter_find_macro("i", buffer + 1, len - 1));
+                if (len > 2)
+                    set_string(&queue_id,
+                               milter_find_macro("i", buffer + 2, len - 2));
                 break;
             case MILTER_CMD_ABORT:
                 milter_state = MS_READY;
@@ -526,6 +519,13 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                     milter_send(fp_write, MILTER_DO_TEMPFAIL);
                     goto done;
                 }
+                if (truncated > 0)
+                {
+                    log_error("%s: MTA sent oversized milter MAIL command",
+                              queue_id != NULL ? queue_id : "NOQUEUE");
+                    milter_send(fp_write, MILTER_DO_REJECT);
+                    goto done;
+                }
                 milter_state = MS_PROCESSING;
                 sender = strip_brackets(buffer + 1);
                 if (!milter_send(fp_write, MILTER_DO_CONTINUE))
@@ -539,6 +539,13 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                     log_error("%s: MTA sent unexpected milter RCPT command",
                               queue_id != NULL ? queue_id : "NOQUEUE");
                     milter_send(fp_write, MILTER_DO_TEMPFAIL);
+                    goto done;
+                }
+                if (truncated > 0)
+                {
+                    log_error("%s: MTA sent oversized milter RCPT command",
+                              queue_id != NULL ? queue_id : "NOQUEUE");
+                    milter_send(fp_write, MILTER_DO_REJECT);
                     goto done;
                 }
                 list_append(recipients, strip_brackets(buffer + 1));

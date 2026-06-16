@@ -42,8 +42,8 @@ def mf_optneg(sock: socket.socket):
     return code == b"O"
 
 
-def mf_macro(sock: socket.socket):
-    send_milter(sock, b"D", b"foo\x00bar\x00i\x0001234567\x00")
+def mf_macro(sock: socket.socket, code: bytes):
+    send_milter(sock, b"D", code + b"i\x0001234567\x00")
 
 
 def mf_envfrom(sock: socket.socket, envfrom: str):
@@ -131,13 +131,15 @@ def execute_queries(
                 sock.settimeout(0.5)
                 sock.connect(endpoint)
                 assert mf_optneg(sock)
-                mf_macro(sock)
                 srs_from = None
                 srs_rcpt = None
+                mf_macro(sock, b"M")
                 srs_result = mf_envfrom(sock, orig_from)
                 if srs_result == b"c":
+                    mf_macro(sock, b"R")
                     srs_result = mf_rcptto(sock, orig_rcpt)
                     if srs_result == b"c":
+                        mf_macro(sock, b"E")
                         srs_result, srs_from, srs_rcpt = mf_eom(sock)
                 assert (
                     srs_result == result

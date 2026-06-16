@@ -38,18 +38,31 @@
 #    endif
 #endif
 
-int milter_receive(FILE* fp, void* buffer, size_t size)
+size_t milter_receive(FILE* fp, void* buffer, size_t size, size_t* truncated)
 {
+    static char discardpile[512];
     uint32_t len;
+    if (truncated != NULL)
+        *truncated = 0;
     if (fread(&len, 4, 1, fp) != 1)
         return 0;
     len = BE32(len);
-    if (len > size)
+    size_t result = fread(buffer, 1, len < size ? len : size, fp);
+    if (result == 0)
+        return result;
+    len -= result;
+    while (len > 0)
     {
-        errno = EMSGSIZE;
-        return -1;
+        size_t skip =
+            fread(discardpile, 1,
+                  len < sizeof(discardpile) ? len : sizeof(discardpile), fp);
+        len -= skip;
+        if (truncated != NULL)
+            *truncated += skip;
+        if (skip == 0)
+            break;
     }
-    return fread(buffer, 1, len, fp);
+    return result;
 }
 
 bool milter_send_bytes(FILE* fp, char action, const void* buffer, size_t length)
