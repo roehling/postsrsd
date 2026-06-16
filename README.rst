@@ -63,8 +63,6 @@ PostSRSd has a few external build dependencies:
   enable it with ``-DWITH_REDIS=ON``.
 - libseccomp_ and gperf_ are needed if you want to secure untrusted input
   handling with additional sandboxing; enable it with ``-DWITH_SECCOMP=ON``.
-- libMilter_ is needed only if you wish to configure PostSRSd as milter;
-  enable it with ``-DWITH_MILTER=ON``.
 - check_ is needed if you want to build and run the unit test suite;
   otherwise disable it with ``-DBUILD_TESTING=OFF``.
 - Python_ is needed for the optional blackbox tests.
@@ -79,7 +77,6 @@ discovery process.
 .. _libConfuse: https://github.com/libconfuse/libconfuse
 .. _sqlite3: https://sqlite.org
 .. _hiredis: https://github.com/redis/hiredis
-.. _libMilter: https://github.com/jons/libmilter
 .. _libseccomp: https://github.com/seccomp/libseccomp
 .. _gperf: https://github.com/jwinarske/gperf
 .. _check: https://github.com/libcheck/check
@@ -121,18 +118,16 @@ something like ``socketmap:inet:localhost:10003:forward``.
 Experimental Milter Support
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-PostSRSd 2.x has added optional support for the Milter protocol. If you enabled
-it at compile time, you can set the ``milter`` option in ``postsrsd.conf`` and
-add the corresponding line to your ``etc/postfix/main.cf``::
+PostSRSd 2.x has added optional support for the Milter protocol. You can set
+the ``milter`` option in ``postsrsd.conf`` and add the corresponding line to
+your ``etc/postfix/main.cf``::
 
     smtpd_milters = unix:srs_milter
 
 Note that the Milter code is less tested and should be considered experimental
 for now and not ready for production. Feel free to report bugs or open pull
-requests if you try it out, though.
-
-Also note that due to limitations in the libMilter library, PostSRSd cannot
-reload the Milter configuration via ``SIGHUP`` or ``domains-file-watch`` yet.
+requests if you try it out, though. Until PostSRSd 2.1, the milter support was
+implemented with the external libMilter library from Sendmail.
 
 Migrating from version 1.x
 --------------------------

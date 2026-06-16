@@ -17,14 +17,73 @@
 #ifndef MILTER_H
 #define MILTER_H
 
-#include "config.h"
-#include "srs2.h"
-#include "util.h"
-
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdio.h>
 
-bool milter_create(const char* uri);
-void milter_main(cfg_t* cfg, srs_t* srs, const char* srs_domain,
-                 domain_set_t* local_domains);
+#define MILTER_FL_ADDHDRS     0x000001
+#define MILTER_FL_CHGBODY     0x000002
+#define MILTER_FL_ADDRCPT     0x000004
+#define MILTER_FL_DELRCPT     0x000008
+#define MILTER_FL_CHGHDRS     0x000010
+#define MILTER_FL_QUARANTINE  0x000020
+#define MILTER_FL_CHGFROM     0x000040
+#define MILTER_FL_ADDRCPT_PAR 0x000080
+#define MILTER_FL_SETSYMLIST  0x000100
+
+#define MILTER_FL_NOCONNECT 0x000001
+#define MILTER_FL_NOHELO    0x000002
+#define MILTER_FL_NOMAIL    0x000004
+#define MILTER_FL_NORCPT    0x000008
+#define MILTER_FL_NOBODY    0x000010
+#define MILTER_FL_NOHDRS    0x000020
+#define MILTER_FL_NOEOH     0x000040
+#define MILTER_FL_NOUNKNOWN 0x000100
+#define MILTER_FL_NODATA    0x000200
+
+#define MILTER_CMD_ABORT   'A'
+#define MILTER_CMD_BODY    'B'
+#define MILTER_CMD_CONNECT 'C'
+#define MILTER_CMD_MACRO   'D'
+#define MILTER_CMD_EOB     'E'
+#define MILTER_CMD_HELO    'H'
+#define MILTER_CMD_HEADER  'L'
+#define MILTER_CMD_MAIL    'M'
+#define MILTER_CMD_EOH     'N'
+#define MILTER_CMD_OPTNEG  'O'
+#define MILTER_CMD_QUIT    'Q'
+#define MILTER_CMD_RCPT    'R'
+#define MILTER_CMD_DATA    'T'
+#define MILTER_CMD_UNKNOWN 'U'
+
+#define MILTER_DO_ACCEPT    'a'
+#define MILTER_DO_CONTINUE  'c'
+#define MILTER_DO_DISCARD   'd'
+#define MILTER_DO_REJECT    'r'
+#define MILTER_DO_TEMPFAIL  't'
+#define MILTER_DO_REPLYCODE 'y'
+#define MILTER_DO_SKIP      's'
+
+#define MILTER_DO_ADDRCPT     '+'
+#define MILTER_DO_DELRCPT     '-'
+#define MILTER_DO_ADDRCPT_PAR '2'
+#define MILTER_DO_REPLBODY    'b'
+#define MILTER_DO_CHGFROM     'e'
+#define MILTER_DO_ADDHEADER   'h'
+#define MILTER_DO_INSHEADER   'h'
+#define MILTER_DO_CHGHEADER   'm'
+#define MILTER_DO_QUARANTINE  'q'
+#define MILTER_DO_PROGRESS    'p'
+#define MILTER_DO_SETSYMLIST  'l'
+
+int milter_receive(FILE* fp, void* buffer, size_t size);
+bool milter_send(FILE* fp, char action);
+bool milter_send_bytes(FILE* fp, char action, const void* value, size_t length);
+bool milter_send_str(FILE* fp, char action, const char* value);
+bool milter_send_str_array(FILE* fp, char action, const char* const* value,
+                           size_t count);
+
+bool milter_handle_optneg(FILE* fp, const void* input, size_t length);
+char* milter_find_macro(const char* name, const char* buffer, size_t length);
 
 #endif

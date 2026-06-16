@@ -17,8 +17,10 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <postsrsd_build_config.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <string.h>
 
 #define MAYBE_UNUSED(x) (void)(x)
 
@@ -54,6 +56,10 @@ char* b32h_encode(const char* data, size_t length, char* buffer,
 
 char** argvdup(char** argv);
 void freeargv(char** argv);
+
+#ifndef HAVE_STPNCPY
+char* stpncpy(char* dst, const char* src, size_t len);
+#endif
 
 char* strip_brackets(const char* addr);
 char* add_brackets(const char* addr);
@@ -91,7 +97,6 @@ bool file_watch_if_modified(file_watch_t* W, const char* path,
                             file_watch_cb_t callback);
 void file_watch_destroy(file_watch_t* W);
 
-char* endpoint_for_milter(const char* s);
 char* endpoint_for_redis(const char* s, int* port);
 
 enum log_priority

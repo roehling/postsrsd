@@ -26,7 +26,6 @@
 #define DEFAULT_POSTSRSD_USER     "@POSTSRSD_USER@"
 /* clang-format on */
 
-#cmakedefine WITH_MILTER 1
 #cmakedefine WITH_REDIS 1
 #cmakedefine WITH_SQLITE 1
 #cmakedefine WITH_SECCOMP 1
@@ -38,12 +37,14 @@
 #cmakedefine HAVE_CLOSE_RANGE 1
 #cmakedefine HAVE_CLOSE_RANGE_GNU 1
 #cmakedefine HAVE_SETGROUPS 1
+#cmakedefine HAVE_STPNCPY 1
 #cmakedefine HAVE_STRCASECMP 1
 #cmakedefine HAVE__STRICMP 1
 #cmakedefine HAVE_STRNCASECMP 1
 #cmakedefine HAVE__STRNICMP 1
 
 #cmakedefine HAVE_ALLOCA_H 1
+#cmakedefine HAVE_ARPA_INET_H 1
 #cmakedefine HAVE_ERRNO_H 1
 #cmakedefine HAVE_FCNTL_H 1
 #cmakedefine HAVE_GRP_H 1

@@ -16,289 +16,190 @@
  */
 #include "milter.h"
 
-#include "database.h"
-#include "postsrsd_build_config.h"
-#include "srs.h"
 #include "util.h"
+
+#include <assert.h>
+#include <postsrsd_build_config.h>
+#include <stdint.h>
+#include <string.h>
 
 #ifdef HAVE_ERRNO_H
 #    include <errno.h>
 #endif
-#ifdef HAVE_FCNTL_H
-#    include <fcntl.h>
-#endif
-#ifdef HAVE_SYS_STAT_H
-#    include <sys/stat.h>
-#endif
 
-#ifdef WITH_MILTER
-#    include <libmilter/mfapi.h>
-#    ifdef HAVE_UNISTD_H
-#        include <unistd.h>
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#    define BE32(x) (x)
+#else
+#    ifdef __GNUC__
+#        define BE32(x) __builtin_bswap32(x)
+#    else
+#        include <byteswap.h>
+#        define BE32(x) bswap_32(x)
 #    endif
-#    include <string.h>
-#    include <strings.h>
-
-#    ifndef HAVE_STRNCASECMP
-#        ifdef HAVE__STRNICMP
-#            define strncasecmp _strnicmp
-#        endif
-#    endif
-
-static char* milter_uri = NULL;
-static char* milter_path = NULL;
-static int milter_lock = -1;
-
-static cfg_t* g_cfg = NULL;
-static srs_t* g_srs = NULL;
-static domain_set_t* g_local_domains = NULL;
-static const char* g_srs_domain = NULL;
-
-struct privdata
-{
-    char* envfrom;
-    list_t* envrcpt;
-};
-typedef struct privdata privdata_t;
 #endif
 
-#ifdef WITH_MILTER
-static void free_privdata(SMFICTX* ctx)
+int milter_receive(FILE* fp, void* buffer, size_t size)
 {
-    privdata_t* priv = smfi_getpriv(ctx);
-    if (priv == NULL)
-        return;
-    free(priv->envfrom);
-    list_destroy(priv->envrcpt, free);
-    free(priv);
-    smfi_setpriv(ctx, NULL);
+    uint32_t len;
+    if (fread(&len, 4, 1, fp) != 1)
+        return 0;
+    len = BE32(len);
+    if (len > size)
+    {
+        errno = EMSGSIZE;
+        return -1;
+    }
+    return fread(buffer, 1, len, fp);
 }
 
-static privdata_t* new_privdata(SMFICTX* ctx)
+bool milter_send_bytes(FILE* fp, char action, const void* buffer, size_t length)
 {
-    free_privdata(ctx);
-    privdata_t* priv = malloc(sizeof(privdata_t));
-    if (priv == NULL)
-        return NULL;
-    priv->envfrom = NULL;
-    priv->envrcpt = list_create();
-    if (priv->envrcpt == NULL)
-    {
-        free(priv);
-        return NULL;
-    }
-    smfi_setpriv(ctx, priv);
-    return priv;
-}
-
-static sfsistat on_envfrom(SMFICTX* ctx, char** argv)
-{
-    privdata_t* priv = new_privdata(ctx);
-    if (priv == NULL)
-        return SMFIS_TEMPFAIL;
-    priv->envfrom = strip_brackets(argv[0]);
-    if (priv->envfrom == NULL)
-    {
-        free_privdata(ctx);
-        return SMFIS_TEMPFAIL;
-    }
-    return SMFIS_CONTINUE;
-}
-
-static sfsistat on_envrcpt(SMFICTX* ctx, char** argv)
-{
-    privdata_t* priv = smfi_getpriv(ctx);
-    if (priv == NULL)
-        return SMFIS_TEMPFAIL;
-    char* rcpt = strip_brackets(argv[0]);
-    if (rcpt == NULL)
-    {
-        free_privdata(ctx);
-        return SMFIS_TEMPFAIL;
-    }
-    if (!list_append(priv->envrcpt, rcpt))
-    {
-        free(rcpt);
-        free_privdata(ctx);
-        return SMFIS_TEMPFAIL;
-    }
-    return SMFIS_CONTINUE;
-}
-
-static sfsistat on_eom(SMFICTX* ctx)
-{
-    sfsistat status = SMFIS_TEMPFAIL;
-    database_t* db = NULL;
-    privdata_t* priv = smfi_getpriv(ctx);
-    if (priv == NULL)
-        goto done;
-    if (cfg_getint(g_cfg, "original-envelope") == SRS_ENVELOPE_DATABASE)
-    {
-        db = database_connect(cfg_getstr(g_cfg, "envelope-database"), false);
-        if (db == NULL)
-            goto done;
-    }
-    size_t rcpt_size = list_size(priv->envrcpt);
-    bool error = false;
-    for (size_t i = 0; i < rcpt_size; ++i)
-    {
-        char* rcpt = (char*)list_get(priv->envrcpt, i);
-        char* rewritten = postsrsd_reverse(rcpt, g_srs, db, &error, NULL);
-        if (error)
-            goto done;
-        if (rewritten)
-        {
-            char* bracketed_old_rcpt = add_brackets(rcpt);
-            char* bracketed_new_rcpt = add_brackets(rewritten);
-            free(rewritten);
-            if (smfi_delrcpt(ctx, bracketed_old_rcpt) != MI_SUCCESS)
-            {
-                free(bracketed_old_rcpt);
-                free(bracketed_new_rcpt);
-                goto done;
-            }
-            if (smfi_addrcpt(ctx, bracketed_new_rcpt)
-                != MI_SUCCESS)  // TODO maybe add ESMTP arguments?
-            {
-                free(bracketed_old_rcpt);
-                free(bracketed_new_rcpt);
-                goto done;
-            }
-            free(bracketed_old_rcpt);
-            free(bracketed_new_rcpt);
-        }
-    }
-    if (*priv->envfrom)
-    {
-        // TODO check if mail is actually forwarded
-        char* rewritten = postsrsd_forward(priv->envfrom, g_srs_domain, g_srs,
-                                           db, g_local_domains, &error, NULL);
-        if (error)
-            goto done;
-        if (rewritten)
-        {
-            char* bracketed_from = add_brackets(rewritten);
-            free(rewritten);
-            if (smfi_chgfrom(ctx, bracketed_from,
-                             NULL)
-                != MI_SUCCESS)  // TODO maybe add ESMTP arguments?
-            {
-                free(bracketed_from);
-                goto done;
-            }
-            free(bracketed_from);
-        }
-    }
-    status = SMFIS_CONTINUE;
-done:
-    if (db)
-        database_disconnect(db);
-    free_privdata(ctx);
-    return status;
-}
-
-static sfsistat on_abort(SMFICTX* ctx)
-{
-    free_privdata(ctx);
-    return SMFIS_CONTINUE;
-}
-
-/* clang-format off */
-static struct smfiDesc smfilter = {
-    "PostSRSd", SMFI_VERSION, SMFIF_CHGFROM | SMFIF_ADDRCPT | SMFIF_DELRCPT,
-    NULL /* connect */,
-    NULL /* helo */,
-    on_envfrom,
-    on_envrcpt,
-    NULL /* header */,
-    NULL /* eoh */,
-    NULL /* body */,
-    on_eom,
-    on_abort,
-    NULL /* close */,
-    NULL /* unknown */,
-    NULL /* data */,
-    NULL /* negotiate */,
-};
-/* clang-format on */
-#endif
-
-bool milter_create(const char* uri)
-{
-#ifdef WITH_MILTER
-    milter_uri = endpoint_for_milter(uri);
-    if (milter_uri == NULL)
-    {
-        log_error("invalid milter endpoint: %s", uri);
+    if (buffer == NULL && length != 0)
         return false;
-    }
-    if (strncasecmp(milter_uri, "unix:", 5) == 0)
-        milter_path = milter_uri + 5;
-    else if (strncasecmp(milter_uri, "local:", 6) == 0)
-        milter_path = milter_uri + 6;
-    if (milter_path)
-        milter_lock = acquire_lock(milter_path);
-    if (milter_lock > 0)
-        unlink(milter_path);
-    if (smfi_setconn(milter_uri) == MI_FAILURE)
+    if (length > 0xfffffffe)
+        return false;
+    uint32_t packet_length = BE32(1 + length);
+    if (fwrite(&packet_length, 4, 1, fp) != 1)
+        return false;
+    if (fwrite(&action, 1, 1, fp) != 1)
+        return false;
+    if (length > 0)
+        return fwrite(buffer, 1, length, fp) == length;
+    else
+        return true;
+}
+
+bool milter_send_str(FILE* fp, char action, const char* value)
+{
+    size_t length = value != NULL ? strlen(value) : 0;
+    if (length > 0xfffffffd)
+        return false;
+    if (value != NULL)
+        ++length; /* include NUL byte */
+    uint32_t packet_length = BE32(1 + length);
+    if (fwrite(&packet_length, 4, 1, fp) != 1)
+        return false;
+    if (fwrite(&action, 1, 1, fp) != 1)
+        return false;
+    if (value != NULL)
+        return fwrite(value, 1, length, fp) == length;
+    else
+        return true;
+}
+
+bool milter_send(FILE* fp, char action)
+{
+    uint32_t packet_length = BE32(1);
+    if (fwrite(&packet_length, 4, 1, fp) != 1)
+        return false;
+    return fwrite(&action, 1, 1, fp) == 1;
+}
+
+bool milter_send_str_array(FILE* fp, char action, const char* const* value,
+                           size_t count)
+{
+    uint32_t packet_length = 1;
+    if (value != NULL)
     {
-        log_error("cannot start milter: smfi_setconn failed");
-        goto done;
-    }
-    if (smfi_register(smfilter) == MI_FAILURE)
-    {
-        log_error("cannot start milter: failed to register callbacks");
-        goto done;
-    }
-    if (smfi_opensocket(false) == MI_FAILURE)
-    {
-        log_error("cannot start milter: failed to open socket");
-        goto done;
-    }
-    if (milter_path != NULL)
-    {
-        if (chmod(milter_path, 0666) < 0)
+        for (size_t i = 0; i < count; ++i)
         {
-            log_perror(errno, "cannot start milter: cannot chmod() socket");
-            goto done;
+            if (value[i] != NULL)
+            {
+                size_t len = strlen(value[i]) + 1;
+                if (len > 0xffffffff - packet_length)
+                    return false;
+                packet_length += len;
+            }
+        }
+    }
+    packet_length = BE32(packet_length);
+    if (fwrite(&packet_length, 4, 1, fp) != 1)
+        return false;
+    if (fwrite(&action, 1, 1, fp) != 1)
+        return false;
+    if (value != NULL)
+    {
+        for (size_t i = 0; i < count; ++i)
+        {
+            if (value[i] != NULL)
+            {
+                size_t len = strlen(value[i]) + 1;
+                if (fwrite(value[i], 1, len, fp) != len)
+                    return false;
+            }
         }
     }
     return true;
-done:
-    if (milter_path != NULL && milter_lock > 0)
-    {
-        release_lock(milter_path, milter_lock);
-    }
-    milter_path = NULL;
-    milter_lock = 0;
-    free(milter_uri);
-    return false;
-#else
-    MAYBE_UNUSED(uri);
-    log_error("no milter support");
-    return false;
-#endif
 }
 
-void milter_main(cfg_t* cfg, srs_t* srs, const char* srs_domain,
-                 domain_set_t* local_domains)
+bool milter_handle_optneg(FILE* fp, const void* input, size_t length)
 {
-    MAYBE_UNUSED(cfg);
-    MAYBE_UNUSED(srs);
-    MAYBE_UNUSED(srs_domain);
-    MAYBE_UNUSED(local_domains);
-#ifdef WITH_MILTER
-    g_cfg = cfg;
-    g_srs = srs;
-    g_srs_domain = srs_domain;
-    g_local_domains = local_domains;
-    smfi_main();
-    if (milter_path != NULL && milter_lock > 0)
+    struct
     {
-        release_lock(milter_path, milter_lock);
+        uint32_t version, actions, protocol;
+    } ATTRIBUTE(packed) buf;
+    static_assert(sizeof(buf) == 12,
+                  "internal struct has unexpected alignment");
+
+    if (length < sizeof(buf))
+        return false;
+    memcpy(&buf, input, sizeof(buf));
+    buf.version = BE32(buf.version);
+    buf.actions = BE32(buf.actions);
+    buf.protocol = BE32(buf.protocol);
+
+    if (buf.version > 6)
+    {
+        log_error("unsupported milter protocol version %u", buf.version);
+        milter_send(fp, MILTER_DO_TEMPFAIL);
+        return false;
     }
-    milter_path = NULL;
-    milter_lock = 0;
-    free(milter_uri);
-#endif
+    buf.actions &= MILTER_FL_CHGFROM | MILTER_FL_ADDRCPT | MILTER_FL_DELRCPT;
+    if ((buf.actions & MILTER_FL_CHGFROM) == 0)
+    {
+        log_error("MTA does not support CHGFROM milter action");
+        milter_send(fp, MILTER_DO_TEMPFAIL);
+        return false;
+    }
+    if ((buf.actions & MILTER_FL_ADDRCPT) == 0)
+    {
+        log_error("MTA does not support ADDRCPT milter action");
+        milter_send(fp, MILTER_DO_TEMPFAIL);
+        return false;
+    }
+    if ((buf.actions & MILTER_FL_DELRCPT) == 0)
+    {
+        log_error("MTA does not support DELRCPT milter action");
+        milter_send(fp, MILTER_DO_TEMPFAIL);
+        return false;
+    }
+    buf.protocol &= (MILTER_FL_NOCONNECT | MILTER_FL_NOHELO | MILTER_FL_NOHDRS
+                     | MILTER_FL_NOBODY | MILTER_FL_NODATA | MILTER_FL_NOUNKNOWN
+                     | MILTER_FL_NOEOH);
+
+    buf.version = BE32(buf.version);
+    buf.actions = BE32(buf.actions);
+    buf.protocol = BE32(buf.protocol);
+    return milter_send_bytes(fp, MILTER_CMD_OPTNEG, &buf, sizeof(buf));
+}
+
+char* milter_find_macro(const char* name, const char* buffer, size_t length)
+{
+    while (length > 0)
+    {
+        const char* key = buffer;
+        size_t keylen = strnlen(key, length);
+        if (length == keylen)
+            return NULL;
+        length -= keylen + 1;
+        buffer += keylen + 1;
+        if (strcmp(key, name) == 0)
+            return strndup(buffer, length);
+        size_t vallen = strnlen(buffer, length);
+        if (length == vallen)
+            return NULL;
+        length -= vallen + 1;
+        buffer += vallen + 1;
+    }
+    return NULL;
 }

@@ -255,17 +255,17 @@ STATELESS_QUERIES = [
     # Reject valid SRS0 address with time stamp older than 6 months
     (
         "reverse SRS0=te87=T7=otherdomain.com=test@example.com",
-        "NOTFOUND Time stamp out of date.",
+        "PERM Time stamp out of date.",
     ),
-    # Reject valid SRS0 address with time stamp 6 month in the future
+    # Reject valid SRS0 address with time stamp 6 months in the future
     (
         "reverse SRS0=VcIb=7N=otherdomain.com=test@example.com",
-        "NOTFOUND Time stamp out of date.",
+        "PERM Time stamp out of date.",
     ),
     # Reject SRS0 address with invalid hash
     (
         "reverse SRS0=FAKE=2V=otherdomain.com=test@example.com",
-        "NOTFOUND Hash invalid in SRS address.",
+        "PERM Hash invalid in SRS address.",
     ),
     # Recover mail address from all-lowercase SRS0 address
     (
@@ -280,22 +280,22 @@ STATELESS_QUERIES = [
     # Reject SRS0 address without authenticating hash
     (
         "reverse SRS0=@example.com",
-        "NOTFOUND No hash in SRS0 address.",
+        "PERM No hash in SRS0 address.",
     ),
     # Reject SRS0 address without time stamp
     (
         "reverse SRS0=XjO9@example.com",
-        "NOTFOUND No timestamp in SRS0 address.",
+        "PERM No timestamp in SRS0 address.",
     ),
     # Reject SRS0 address without original domain
     (
         "reverse SRS0=XjO9=2V@example.com",
-        "NOTFOUND No host in SRS0 address.",
+        "PERM No host in SRS0 address.",
     ),
     # Reject SRS0 address without original localpart
     (
         "reverse SRS0=XjO9=2V=otherdomain.com@example.com",
-        "NOTFOUND No user in SRS0 address.",
+        "PERM No user in SRS0 address.",
     ),
     # Reject Database alias
     (

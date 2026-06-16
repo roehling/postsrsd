@@ -73,6 +73,7 @@ struct postsrsd
     cfg_t* cfg;
     srs_t* srs;
     endpoint_t* socketmap;
+    endpoint_t* milter;
     char* srs_domain;
     domain_set_t* local_domains;
     file_watch_t* file_watch;
@@ -85,6 +86,7 @@ static void init_state(postsrsd_t* state)
     state->cfg = NULL;
     state->srs = NULL;
     state->socketmap = NULL;
+    state->milter = NULL;
     state->srs_domain = NULL;
     state->local_domains = NULL;
     state->file_watch = NULL;
@@ -182,6 +184,11 @@ static void finalize_state(postsrsd_t* state)
     {
         endpoint_close(state->socketmap);
         state->socketmap = NULL;
+    }
+    if (state->milter != NULL)
+    {
+        endpoint_close(state->milter);
+        state->milter = NULL;
     }
     set_string(&state->srs_domain, NULL);
     if (state->local_domains != NULL)
@@ -309,8 +316,14 @@ static void on_sig_term(int signum)
     sig_term_received = signum;
 }
 
-static void handle_socketmap_client(postsrsd_t* state, int conn)
+static bool prepare_client(postsrsd_t* state, int conn, FILE** fp_read,
+                           FILE** fp_write, database_t** db)
 {
+    if (state == NULL || fp_read == NULL || fp_write == NULL || db == NULL)
+        return false;
+    *fp_read = NULL;
+    *fp_write = NULL;
+    *db = NULL;
 #ifdef HAVE_FCNTL_H
     int flags = fcntl(conn, F_GETFL);
     if (flags & O_NONBLOCK)
@@ -318,36 +331,44 @@ static void handle_socketmap_client(postsrsd_t* state, int conn)
         if (fcntl(conn, F_SETFL, flags & ~O_NONBLOCK) < 0)
         {
             log_error("failed to make socket connection blocking");
-            return;
+            return false;
         }
     }
 #endif
-    FILE* fp_write = fdopen(dup(conn), "w");
-    if (fp_write == NULL)
-        return;
-    FILE* fp_read = fdopen(conn, "r");
-    if (fp_read == NULL)
-        return;
-    database_t* db = NULL;
+    *fp_write = fdopen(dup(conn), "w");
+    if (*fp_write == NULL)
+        return false;
+    *fp_read = fdopen(conn, "r");
+    if (*fp_read == NULL)
+        return false;
     if (cfg_getint(state->cfg, "original-envelope") == SRS_ENVELOPE_DATABASE)
     {
-        db = database_connect(cfg_getstr(state->cfg, "envelope-database"),
-                              false);
-        if (db == NULL)
-            return;
+        *db = database_connect(cfg_getstr(state->cfg, "envelope-database"),
+                               false);
+        if (*db == NULL)
+            return false;
     }
     signal(SIGALRM, on_sigalrm);
     signal(SIGUSR1, on_sig_hup);
     signal(SIGTERM, SIG_DFL);
-    int keep_alive = cfg_getint(state->cfg, "keep-alive");
 #ifdef WITH_SECCOMP
     if (cfg_getbool(state->cfg, "seccomp") && scmp_ctx != NULL
         && seccomp_load(scmp_ctx) < 0)
     {
         log_error("failed to activate seccomp sandboxing");
-        exit(EXIT_FAILURE);
+        return false;
     }
 #endif
+    return true;
+}
+
+static void handle_socketmap_client(postsrsd_t* state, int conn)
+{
+    FILE *fp_read, *fp_write;
+    database_t* db;
+    if (!prepare_client(state, conn, &fp_read, &fp_write, &db))
+        exit(EXIT_FAILURE);
+    int keep_alive = cfg_getint(state->cfg, "keep-alive");
     for (;;)
     {
         char buffer[1024];
@@ -431,6 +452,197 @@ static void handle_socketmap_client(postsrsd_t* state, int conn)
     database_disconnect(db);
 }
 
+static void handle_milter_client(postsrsd_t* state, int conn)
+{
+#define MS_UNINITIALIZED 0
+#define MS_READY         1
+#define MS_PROCESSING    2
+    FILE *fp_read, *fp_write;
+    database_t* db;
+    char buffer[512];
+    ssize_t len;
+    if (!prepare_client(state, conn, &fp_read, &fp_write, &db))
+        exit(EXIT_FAILURE);
+    if (sig_hup_received)
+        return;
+    int keep_alive = cfg_getint(state->cfg, "keep-alive");
+    int milter_state = MS_UNINITIALIZED;
+    char* sender = NULL;
+    char* queue_id = NULL;
+    list_t* recipients = list_create();
+    for (;;)
+    {
+        timeout = 0;
+        alarm(keep_alive);
+        len = milter_receive(fp_read, buffer, sizeof(buffer));
+        if (len == 0 || timeout)
+            break;
+        if (len < 0)
+        {
+            int err = errno;
+            log_perror(err, "milter_receive");
+            milter_send(fp_write, err == EMSGSIZE ? MILTER_DO_REJECT
+                                                  : MILTER_DO_TEMPFAIL);
+            break;
+        }
+        alarm(0);
+        char action = buffer[0];
+        const char* info = NULL;
+        bool error = false;
+        bool is_local = false;
+        switch (action)
+        {
+            case MILTER_CMD_OPTNEG:
+                if (milter_state != MS_UNINITIALIZED)
+                {
+                    log_error(
+                        "%s: MTA initiated unexpected milter option "
+                        "negotiation",
+                        queue_id != NULL ? queue_id : "NOQUEUE");
+                    milter_send(fp_write, MILTER_DO_TEMPFAIL);
+                    break;
+                }
+                if (!milter_handle_optneg(fp_write, buffer + 1, len - 1))
+                    goto done;
+                milter_state = MS_READY;
+                break;
+            case MILTER_CMD_MACRO:
+                set_string(&queue_id,
+                           milter_find_macro("i", buffer + 1, len - 1));
+                break;
+            case MILTER_CMD_ABORT:
+                milter_state = MS_READY;
+                list_clear(recipients, free);
+                set_string(&sender, NULL);
+                set_string(&queue_id, NULL);
+                if (sig_hup_received)
+                    goto done;
+                break;
+            case MILTER_CMD_MAIL:
+                if (milter_state != MS_READY)
+                {
+                    log_error("%s: MTA sent unexpected milter MAIL command",
+                              queue_id != NULL ? queue_id : "NOQUEUE");
+                    milter_send(fp_write, MILTER_DO_TEMPFAIL);
+                    goto done;
+                }
+                milter_state = MS_PROCESSING;
+                sender = strip_brackets(buffer + 1);
+                if (!milter_send(fp_write, MILTER_DO_CONTINUE))
+                    goto done;
+                break;
+            case MILTER_CMD_QUIT:
+                goto done;
+            case MILTER_CMD_RCPT:
+                if (milter_state != MS_PROCESSING)
+                {
+                    log_error("%s: MTA sent unexpected milter RCPT command",
+                              queue_id != NULL ? queue_id : "NOQUEUE");
+                    milter_send(fp_write, MILTER_DO_TEMPFAIL);
+                    goto done;
+                }
+                list_append(recipients, strip_brackets(buffer + 1));
+                if (!milter_send(fp_write, MILTER_DO_CONTINUE))
+                    goto done;
+                break;
+            case MILTER_CMD_EOB:
+                if (milter_state != MS_PROCESSING)
+                {
+                    log_error("%s: MTA sent unexpected milter EOM command",
+                              queue_id != NULL ? queue_id : "NOQUEUE");
+                    milter_send(fp_write, MILTER_DO_TEMPFAIL);
+                    goto done;
+                }
+                is_local = true;
+                for (size_t i = 0; i < list_size(recipients); ++i)
+                {
+                    char* rcpt = list_get(recipients, i);
+                    char* rewritten =
+                        postsrsd_reverse(rcpt, state->srs, db, &error, &info);
+                    if (rewritten)
+                    {
+                        char* bracketed_old_rcpt = add_brackets(rcpt);
+                        char* bracketed_new_rcpt = add_brackets(rewritten);
+                        if (!milter_send_str(fp_write, MILTER_DO_DELRCPT,
+                                             bracketed_old_rcpt))
+                            goto done;
+                        if (!milter_send_str(fp_write, MILTER_DO_ADDRCPT,
+                                             bracketed_new_rcpt))
+                            goto done;
+                        free(bracketed_old_rcpt);
+                        free(bracketed_new_rcpt);
+                        char* domain = strchr(rewritten, '@');
+                        if (domain != NULL
+                            && !domain_set_contains(state->local_domains,
+                                                    domain + 1))
+                            is_local = false;
+                        free(rewritten);
+                    }
+                    else if (error)
+                    {
+                        if (!milter_send_str(fp_write, MILTER_DO_REJECT, info))
+                            goto done;
+                        goto cleanup;
+                    }
+                    else
+                    {
+                        char* domain = strchr(rcpt, '@');
+                        if (domain != NULL
+                            && !domain_set_contains(state->local_domains,
+                                                    domain + 1))
+                            is_local = false;
+                    }
+                }
+                if (!is_local)
+                {
+                    char* rewritten = postsrsd_forward(
+                        sender, state->srs_domain, state->srs, db,
+                        state->local_domains, &error, &info);
+                    if (rewritten)
+                    {
+                        char* bracketed_new_sender = add_brackets(rewritten);
+                        if (!milter_send_str(fp_write, MILTER_DO_CHGFROM,
+                                             bracketed_new_sender))
+                            goto done;
+                        free(bracketed_new_sender);
+                        free(rewritten);
+                    }
+                    else if (error)
+                    {
+                        if (!milter_send_str(fp_write, MILTER_DO_REJECT, info))
+                            goto done;
+                        goto cleanup;
+                    }
+                }
+                else
+                {
+                    log_info(
+                        "%s: <%s> not rewritten: all recipients are in local "
+                        "domains",
+                        queue_id != NULL ? queue_id : "NOQUEUE", sender);
+                }
+                if (!milter_send(fp_write, MILTER_DO_ACCEPT))
+                    goto done;
+cleanup:
+                set_string(&sender, NULL);
+                list_clear(recipients, free);
+                set_string(&queue_id, NULL);
+                milter_state = MS_READY;
+                break;
+            default:
+                log_warn("%s: MTA sent unexpected milter command '%c'",
+                         queue_id != NULL ? queue_id : "NOQUEUE", action);
+                if (!milter_send(fp_write, MILTER_DO_CONTINUE))
+                    goto done;
+                break;
+        }
+        fflush(fp_write);
+    }
+done:
+    fflush(fp_write);
+    database_disconnect(db);
+}
+
 static void on_file_watch_event(const char* path, unsigned what, size_t cookie)
 {
     MAYBE_UNUSED(path);
@@ -458,6 +670,7 @@ static bool setup_state(int argc, char** argv, postsrsd_t* state)
 {
     postsrsd_t new_state;
     bool socketmap_rollback = false;
+    bool milter_rollback = false;
     init_state(&new_state);
     new_state.cfg = config_from_commandline(argc, argv);
     if (new_state.cfg == NULL)
@@ -510,6 +723,23 @@ static bool setup_state(int argc, char** argv, postsrsd_t* state)
         state->socketmap = NULL;
         socketmap_rollback = true;
     }
+    if (config_changed_str(state->cfg, new_state.cfg, "milter"))
+    {
+        const char* value = cfg_getstr(new_state.cfg, "milter");
+        if (NONEMPTY_STRING(value))
+        {
+            new_state.milter = endpoint_create(value);
+            if (new_state.milter == NULL)
+                goto fail;
+        }
+    }
+    else
+    {
+        /* Same logic applies as with socketmap */
+        new_state.milter = state->milter;
+        state->milter = NULL;
+        milter_rollback = true;
+    }
     /* If we reached this point, the new configuration is valid, so we commit */
     finalize_state(state);
     *state = new_state;
@@ -522,6 +752,11 @@ fail:
         state->socketmap = new_state.socketmap;
         new_state.socketmap = NULL;
     }
+    if (milter_rollback)
+    {
+        state->milter = new_state.milter;
+        new_state.milter = NULL;
+    }
     finalize_state(&new_state);
     return false;
 }
@@ -533,7 +768,6 @@ int main(int argc, char** argv)
     if (!init_seccomp() && cfg_getbool(state.cfg, "seccomp"))
         log_warn("seccomp sandboxing is unavailable");
     FILE* pf = NULL;
-    int milter_pid = 0;
     int exit_code = EXIT_FAILURE;
 #ifdef HAVE_CLOSE_RANGE
     close_range(3, ~0U, 0);
@@ -545,16 +779,6 @@ int main(int argc, char** argv)
     signal(SIGUSR1, SIG_IGN);
     if (!setup_state(argc, argv, &state))
         goto shutdown;
-    const char* milter_endpoint = cfg_getstr(state.cfg, "milter");
-    if (NONEMPTY_STRING(milter_endpoint))
-    {
-        if (!milter_create(milter_endpoint))
-            goto shutdown;
-    }
-    else
-    {
-        milter_endpoint = NULL;
-    }
     const char* pid_file = cfg_getstr(state.cfg, "pid-file");
     if (NONEMPTY_STRING(pid_file))
     {
@@ -574,122 +798,113 @@ int main(int argc, char** argv)
         pf = NULL;
     }
     exit_code = EXIT_SUCCESS;
-    if (state.socketmap != NULL)
+    signal(SIGHUP, on_sig_hup);
+    signal(SIGTERM, on_sig_term);
+    sd_notify_support = sd_notify("READY=1\nMAINPID=%d", getpid());
+    struct pollfd fds[10];
+    unsigned remaining_fds = sizeof(fds) / sizeof(struct pollfd);
+    unsigned num_fds = 0;
+    unsigned num_socketmap_fds =
+        endpoint_prepare_poll(state.socketmap, fds + num_fds, remaining_fds);
+    remaining_fds -= num_socketmap_fds;
+    num_fds += num_socketmap_fds;
+    unsigned num_milter_fds =
+        endpoint_prepare_poll(state.milter, fds + num_fds, remaining_fds);
+    remaining_fds -= num_milter_fds;
+    num_fds += num_milter_fds;
+    num_fds +=
+        file_watch_prepare_poll(state.file_watch, fds + num_fds, remaining_fds);
+    for (;;)
     {
-        if (NONEMPTY_STRING(milter_endpoint))
+        if (sig_hup_received || files_changed)
         {
-            milter_pid = fork();
-            if (milter_pid == 0)
+            if (sd_notify_support)
             {
-                if (drop_privileges(&state))
-                {
-                    milter_main(state.cfg, state.srs, state.srs_domain,
-                                state.local_domains);
-                }
-                goto shutdown;
+                struct timespec tp;
+                clock_gettime(CLOCK_MONOTONIC, &tp);
+                sd_notify("RELOADING=1\nMONOTONIC_USEC=%ld",
+                          1000000l * tp.tv_sec + tp.tv_nsec / 1000l);
             }
-        }
-        signal(SIGHUP, on_sig_hup);
-        signal(SIGTERM, on_sig_term);
-        sd_notify_support = sd_notify("READY=1\nMAINPID=%d", getpid());
-        struct pollfd fds[5];
-        unsigned num_fds = endpoint_prepare_poll(
-            state.socketmap, fds, sizeof(fds) / sizeof(struct pollfd));
-        num_fds += file_watch_prepare_poll(state.file_watch, fds + num_fds,
-                                           sizeof(fds) / sizeof(struct pollfd)
-                                               - num_fds);
-        for (;;)
-        {
-            if (sig_hup_received || files_changed)
+            if (sig_hup_received)
             {
-                if (sd_notify_support)
+                sig_hup_received = 0;
+                log_info("SIGHUP received, reloading configuration.");
+            }
+            if (files_changed)
+            {
+                files_changed = false;
+                log_info("file change detected, reloading configuration.");
+            }
+            if (setup_state(argc, argv, &state))
+            {
+                kill(0, SIGUSR1);
+                num_fds = 0;
+                remaining_fds = sizeof(fds) / sizeof(struct pollfd);
+                num_socketmap_fds = endpoint_prepare_poll(
+                    state.socketmap, fds + num_fds, remaining_fds);
+                remaining_fds -= num_socketmap_fds;
+                num_fds += num_socketmap_fds;
+                num_milter_fds = endpoint_prepare_poll(
+                    state.milter, fds + num_fds, remaining_fds);
+                remaining_fds -= num_milter_fds;
+                num_fds += num_milter_fds;
+                num_fds += file_watch_prepare_poll(
+                    state.file_watch, fds + num_fds, remaining_fds);
+            }
+            else
+            {
+                log_error("configuration error, keeping the old one");
+            }
+            if (sd_notify_support)
+                sd_notify("READY=1");
+        }
+        if (sig_term_received)
+        {
+            sig_term_received = 0;
+            log_info("SIGTERM received. shutting down.");
+            goto shutdown;
+        }
+        if (poll(fds, num_fds, 1000) < 0)
+        {
+            if (errno == EINTR)
+                continue;
+            log_perror(errno, "poll");
+            goto shutdown;
+        }
+        for (unsigned i = 0; i < num_fds; ++i)
+        {
+            if (fds[i].revents)
+            {
+                if (fds[i].fd == file_watch_poll_fd(state.file_watch))
                 {
-                    struct timespec tp;
-                    clock_gettime(CLOCK_MONOTONIC, &tp);
-                    sd_notify("RELOADING=1\nMONOTONIC_USEC=%ld",
-                              1000000l * tp.tv_sec + tp.tv_nsec / 1000l);
-                }
-                if (sig_hup_received)
-                {
-                    sig_hup_received = 0;
-                    log_info("SIGHUP received, reloading configuration.");
-                }
-                if (files_changed)
-                {
-                    files_changed = false;
-                    log_info("file change detected, reloading configuration.");
-                }
-                if (setup_state(argc, argv, &state))
-                {
-                    kill(0, SIGUSR1);
-                    num_fds = endpoint_prepare_poll(
-                        state.socketmap, fds,
-                        sizeof(fds) / sizeof(struct pollfd));
-                    num_fds += file_watch_prepare_poll(
-                        state.file_watch, fds + num_fds,
-                        sizeof(fds) / sizeof(struct pollfd) - num_fds);
+                    file_watch_process_events(state.file_watch);
                 }
                 else
                 {
-                    log_error("configuration error, keeping the old one");
-                }
-                if (sd_notify_support)
-                    sd_notify("READY=1");
-            }
-            if (sig_term_received)
-            {
-                sig_term_received = 0;
-                log_info("SIGTERM received. shutting down.");
-                goto shutdown;
-            }
-            if (poll(fds, num_fds, 1000) < 0)
-            {
-                if (errno == EINTR)
-                    continue;
-                log_perror(errno, "poll");
-                goto shutdown;
-            }
-            for (unsigned i = 0; i < num_fds; ++i)
-            {
-                if (fds[i].revents)
-                {
-                    if (fds[i].fd == file_watch_poll_fd(state.file_watch))
+                    int conn = accept(fds[i].fd, NULL, NULL);
+                    if (conn < 0)
                     {
-                        file_watch_process_events(state.file_watch);
+                        log_perror(errno, "accept");
+                        continue;
                     }
-                    else
+                    pid_t pid = fork();
+                    if (pid == 0)
                     {
-                        int conn = accept(fds[i].fd, NULL, NULL);
-                        if (conn < 0)
-                        {
-                            log_perror(errno, "accept");
-                            continue;
-                        }
-                        pid_t pid = fork();
-                        if (pid == 0)
-                        {
+                        if (i < num_socketmap_fds)
                             handle_socketmap_client(&state, conn);
-                            exit(EXIT_SUCCESS);
-                        }
-                        if (pid < 0)
-                        {
-                            log_perror(errno, "fork");
-                        }
-                        close(conn);
+                        else
+                            handle_milter_client(&state, conn);
+                        exit(EXIT_SUCCESS);
                     }
+                    if (pid < 0)
+                    {
+                        log_perror(errno, "fork");
+                    }
+                    close(conn);
                 }
             }
-            waitpid(0, NULL, WNOHANG);
         }
-    }
-    else if (NONEMPTY_STRING(milter_endpoint))
-    {
-        sd_notify_support = sd_notify("READY=1\nMAINPID=%d", getpid());
-        if (drop_privileges(&state))
-        {
-            milter_main(state.cfg, state.srs, state.srs_domain,
-                        state.local_domains);
-        }
+        waitpid(0, NULL, WNOHANG);
     }
 shutdown:
     if (pf != NULL)
@@ -697,11 +912,5 @@ shutdown:
     finalize_state(&state);
     finalize_seccomp();
     kill(0, SIGUSR1);
-    if (milter_pid > 0)
-    {
-        kill(milter_pid, SIGTERM);
-        waitpid(milter_pid, NULL, 0);
-        milter_pid = 0;
-    }
     return exit_code;
 }

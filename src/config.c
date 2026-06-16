@@ -152,10 +152,9 @@ static void show_help()
         ")\n"
         "  -v           show version number (" POSTSRSD_VERSION
         ")\n"
-#if defined(WITH_SQLITE) || defined(WITH_REDIS) || defined(WITH_MILTER) \
-    || defined(WITH_SECCOMP)
+#if defined(WITH_SQLITE) || defined(WITH_REDIS) || defined(WITH_SECCOMP)
         "\n"
-        "This binary has been compiled with\n"
+        "This binary has been compiled with optional features:\n"
 #    ifdef WITH_SQLITE
         "* SQLite database storage support\n"
 #    endif
@@ -164,9 +163,6 @@ static void show_help()
 #    endif
 #    ifdef WITH_SECCOMP
         "* seccomp sandboxing support\n"
-#    endif
-#    ifdef WITH_MILTER
-        "* Milter support (experimental)\n"
 #    endif
 #endif
     );

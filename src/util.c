@@ -124,6 +124,16 @@ void freeargv(char** argv)
     free(argv);
 }
 
+#ifndef HAVE_STPNCPY
+char* stpncpy(char* dst, const char* src, size_t len)
+{
+    size_t n = strlen(src);
+    if (n > len)
+        n = len;
+    return strncpy(dst, src, len) + n;
+}
+#endif
+
 char* strip_brackets(const char* addr)
 {
     const char* lbrak = strchr(addr, '<');
@@ -729,45 +739,6 @@ void file_watch_destroy(file_watch_t* W)
         close(W->fd);
         free(W);
     }
-}
-
-static char* swap_host_port(const char* s, size_t prefix_len)
-{
-    char* port = strchr(s + prefix_len, ':');
-    if (port == NULL)
-        return NULL;
-    if (*(port + 1) == 0)
-        return NULL;
-    ptrdiff_t host_len = (port - s) - prefix_len;
-    if (host_len == 0)
-        return NULL;
-    char* result = strdup(s);
-    if (result == NULL)
-        return NULL;
-    strcpy(result + prefix_len, port + 1);
-    if (host_len > 1 || s[prefix_len] != '*')
-    {
-        strcat(result, "@");
-        strncat(result, s + prefix_len, host_len);
-    }
-    return result;
-}
-
-char* endpoint_for_milter(const char* s)
-{
-    if (s == NULL)
-        return NULL;
-    if (strncasecmp(s, "unix:", 5) == 0 || strncasecmp(s, "local:", 6) == 0)
-        return strdup(s);
-    if (strncasecmp(s, "inet:", 5) == 0)
-    {
-        return swap_host_port(s, 5);
-    }
-    if (strncasecmp(s, "inet6:", 6) == 0)
-    {
-        return swap_host_port(s, 6);
-    }
-    return NULL;
 }
 
 char* endpoint_for_redis(const char* s, int* port)

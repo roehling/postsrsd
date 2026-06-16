@@ -61,8 +61,6 @@ set(POSTSRSD_USER
     CACHE STRING "The default unprivileged user as which PostSRSd will run"
 )
 
-option(WITH_MILTER "Enable SRS rewrite via Milter (requires libmilter)" OFF)
-add_feature_info(WITH_MILTER WITH_MILTER "run PostSRSd as milter")
 option(WITH_SQLITE
        "Enable sqlite-based storage for opaque SRS tokens (requires sqlite3)"
        OFF
@@ -166,13 +164,6 @@ FetchContent_Declare(
 )
 
 FetchContent_Declare(
-    LibMilter
-    GIT_REPOSITORY https://github.com/roehling/libmilter
-    GIT_TAG 3661f3c5ac5e47205f26775031d2ac276d6d47ca
-    FIND_PACKAGE_ARGS
-)
-
-FetchContent_Declare(
     sqlite3
     URL https://sqlite.org/2026/sqlite-amalgamation-3530200.zip
     URL_HASH
@@ -225,6 +216,7 @@ check_symbol_exists(strcasecmp strings.h HAVE_STRCASECMP)
 check_symbol_exists(_stricmp string.h HAVE__STRICMP)
 check_symbol_exists(strncasecmp strings.h HAVE_STRNCASECMP)
 check_symbol_exists(_strnicmp string.h HAVE__STRNICMP)
+check_symbol_exists(stpncpy string.h HAVE_STPNCPY)
 check_type_size("unsigned long" SIZEOF_UNSIGNED_LONG)
 test_big_endian(HAVE_BIG_ENDIAN)
 
@@ -283,55 +275,6 @@ if(WITH_REDIS)
     endif()
 endif()
 
-if(WITH_MILTER)
-    FetchContent_MakeAvailable(LibMilter)
-    if(IS_DIRECTORY "${libmilter_SOURCE_DIR}")
-        string(TOLOWER "${CMAKE_SYSTEM_NAME}" lc_system)
-        set(SM_OS_H
-            "${libmilter_SOURCE_DIR}/include/sm/os/sm_os_${lc_system}.h"
-        )
-        if(EXISTS "${SM_OS_H}")
-            execute_process(
-                COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${SM_OS_H}"
-                        "${libmilter_SOURCE_DIR}/include/sm/sm_os.h"
-            )
-            add_library(
-                milter STATIC
-                "${libmilter_SOURCE_DIR}/errstring.c"
-                "${libmilter_SOURCE_DIR}/strl.c"
-                "${libmilter_SOURCE_DIR}/comm.c"
-                "${libmilter_SOURCE_DIR}/engine.c"
-                "${libmilter_SOURCE_DIR}/handler.c"
-                "${libmilter_SOURCE_DIR}/listener.c"
-                "${libmilter_SOURCE_DIR}/main.c"
-                "${libmilter_SOURCE_DIR}/monitor.c"
-                "${libmilter_SOURCE_DIR}/signal.c"
-                "${libmilter_SOURCE_DIR}/smfi.c"
-                "${libmilter_SOURCE_DIR}/sm_gethost.c"
-                "${libmilter_SOURCE_DIR}/worker.c"
-            )
-            target_compile_definitions(
-                milter PRIVATE NOT_SENDMAIL=1 sm_snprintf=snprintf
-            )
-            target_include_directories(
-                milter
-                PRIVATE "${libmilter_SOURCE_DIR}/smapp"
-                PUBLIC "${libmilter_SOURCE_DIR}/include"
-                INTERFACE "${libmilter_SOURCE_DIR}/include/libmilter"
-            )
-            if(TARGET Threads::Threads)
-                target_link_libraries(milter PRIVATE Threads::Threads)
-            endif()
-            add_library(LibMilter::LibMilter ALIAS milter)
-        else()
-            message(
-                FATAL_ERROR
-                    "Missing support for ${CMAKE_SYSTEM_NAME} for LibMilter"
-            )
-        endif()
-    endif()
-endif()
-
 if(WITH_SQLITE)
     FetchContent_MakeAvailable(sqlite3)
     if(IS_DIRECTORY "${sqlite3_SOURCE_DIR}")
@@ -340,7 +283,7 @@ if(WITH_SQLITE)
         target_compile_definitions(
             sqlite3
             PRIVATE SQLITE_DQS=0
-                    SQLITE_THREADSAFE=$<IF:$<BOOL:${WITH_MILTER}>,2,0>
+                    SQLITE_THREADSAFE=0
                     SQLITE_DEFAULT_MEMSTATUS=0
                     SQLITE_DEFAULT_WAL_SYNCHRONOUS=1
                     SQLITE_LIKE_DOESNT_MATCH_BLOBS
@@ -351,9 +294,6 @@ if(WITH_SQLITE)
                     SQLITE_OMIT_SHARED_CACHE
                     SQLITE_USE_ALLOCA
         )
-        if(WITH_MILTER AND TARGET Threads::Threads)
-            target_link_libraries(sqlite3 PRIVATE Threads::Threads)
-        endif()
         add_library(sqlite3::sqlite3 ALIAS sqlite3)
         target_link_libraries(sqlite3 PUBLIC ${CMAKE_DL_LIBS})
     endif()
@@ -395,13 +335,9 @@ target_include_directories(postsrsd PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 target_compile_features(postsrsd PRIVATE c_std_99)
 target_link_libraries(
     postsrsd
-    PRIVATE Confuse::Confuse
-            $<$<BOOL:${WITH_SQLITE}>:sqlite3::sqlite3>
+    PRIVATE Confuse::Confuse $<$<BOOL:${WITH_SQLITE}>:sqlite3::sqlite3>
             $<$<BOOL:${WITH_REDIS}>:${HIREDIS_TARGET}>
-            $<$<BOOL:${WITH_MILTER}>:LibMilter::LibMilter>
-            $<$<BOOL:${WITH_SECCOMP}>:seccomp::seccomp>
-            ${LIBSOCKET}
-            ${LIBNSL}
+            $<$<BOOL:${WITH_SECCOMP}>:seccomp::seccomp> ${LIBSOCKET} ${LIBNSL}
 )
 
 configure_file(

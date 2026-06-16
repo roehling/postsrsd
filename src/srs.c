@@ -92,6 +92,8 @@ char* postsrsd_forward(const char* addr, const char* domain, srs_t* srs,
         return output;
     }
     free(output);
+    if (error != NULL)
+        *error = result != SRS_ENOTREWRITTEN;
     if (info != NULL)
         *info = srs_strerror(result);
     log_info("<%s> not rewritten: %s", addr, srs_strerror(result));
@@ -109,6 +111,8 @@ char* postsrsd_reverse(const char* addr, srs_t* srs, database_t* db,
     int result = srs_reverse(srs, buffer, sizeof(buffer), addr);
     if (result != SRS_SUCCESS)
     {
+        if (error != NULL)
+            *error = result != SRS_ENOTSRSADDRESS;
         if (info != NULL)
             *info = srs_strerror(result);
         if (result != SRS_ENOTSRSADDRESS)

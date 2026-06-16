@@ -282,6 +282,8 @@ endpoint_t* endpoint_create(const char* s)
 
 void endpoint_close(endpoint_t* endpoint)
 {
+    if (endpoint == NULL)
+        return;
     if (endpoint->lock >= 0 && endpoint->path != NULL)
     {
         release_lock(endpoint->path, endpoint->lock);
@@ -300,6 +302,8 @@ void endpoint_close(endpoint_t* endpoint)
 size_t endpoint_prepare_poll(endpoint_t* endpoint, struct pollfd* pollfds,
                              size_t max_fds)
 {
+    if (endpoint == NULL)
+        return 0;
     size_t count = 0;
     for (size_t i = 0; i < endpoint->num_fds && i < max_fds; ++i)
     {

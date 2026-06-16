@@ -30,12 +30,11 @@ if(Python3_EXECUTABLE)
             "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/inotify.py"
             "$<TARGET_FILE:postsrsd>"
     )
-    if(WITH_MILTER)
-        add_test(
-            NAME test_milter
-            COMMAND
-                "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/milter.py"
-                "$<TARGET_FILE:postsrsd>"
-        )
-    endif()
+    add_test(
+        NAME test_milter
+        COMMAND
+            "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/milter.py"
+            "$<TARGET_FILE:postsrsd>" "$<BOOL:${WITH_SQLITE}>"
+            "$<AND:$<BOOL:${WITH_REDIS}>,$<BOOL:${TESTS_WITH_REDIS}>>"
+    )
 endif()

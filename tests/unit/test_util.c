@@ -369,38 +369,6 @@ START_TEST(util_domain_set)
     domain_set_destroy(D);
 }
 
-START_TEST(util_endpoint_for_milter)
-{
-    char* ep;
-    ck_assert_ptr_null(endpoint_for_milter(NULL));
-    ck_assert_ptr_null(endpoint_for_milter("invalid"));
-    ck_assert_ptr_null(
-        endpoint_for_milter("https://this.is.not.a.valid.endpoint.net"));
-    ck_assert_ptr_null(endpoint_for_milter("inet:host.but.no.port"));
-    ck_assert_ptr_null(endpoint_for_milter("inet:1234"));
-    ck_assert_ptr_null(endpoint_for_milter("inet:localhost:"));
-    ck_assert_ptr_null(endpoint_for_milter("inet::1234"));
-    ck_assert_ptr_null(endpoint_for_milter("inet6:1234"));
-    ck_assert_ptr_null(endpoint_for_milter("inet6:localhost:"));
-    ck_assert_ptr_null(endpoint_for_milter("inet6::1234"));
-    ep = endpoint_for_milter("unix:/some/path");
-    ck_assert_str_eq(ep, "unix:/some/path");
-    free(ep);
-    ep = endpoint_for_milter("inet:localhost:1234");
-    ck_assert_str_eq(ep, "inet:1234@localhost");
-    free(ep);
-    ep = endpoint_for_milter("inet:*:1234");
-    ck_assert_str_eq(ep, "inet:1234");
-    free(ep);
-    ep = endpoint_for_milter("inet6:localhost:1234");
-    ck_assert_str_eq(ep, "inet6:1234@localhost");
-    free(ep);
-    ep = endpoint_for_milter("inet6:*:1234");
-    ck_assert_str_eq(ep, "inet6:1234");
-    free(ep);
-}
-END_TEST
-
 START_TEST(util_log)
 {
     char buffer[2049];
@@ -425,7 +393,6 @@ ADD_TEST(util_strip_brackets);
 ADD_TEST(util_list);
 ADD_TEST(util_b32h_encode)
 ADD_TEST(util_domain_set)
-ADD_TEST(util_endpoint_for_milter)
 ADD_TEST(util_log)
 END_TEST_SUITE()
 TEST_MAIN(util)
