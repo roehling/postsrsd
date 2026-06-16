@@ -154,28 +154,11 @@ Frequently Asked Questions
 * **Can I configure PostSRSd so it will only rewrite the envelope sender if the
   email is not delivered locally?**
 
-  This is not supported currently but might be added to the milter at some
-  point in the future.
-
-  If PostSRSd is integrated with Postfix using the ``canonical`` maps, it is
-  almost impossible, because the canonicalization occurs before any routing
-  decision is made. Only if you happen to use separate Postfix server instances
-  for forwarding and local delivery, you can trivially configure PostSRSd this
-  way.
+  The PostSRSd milter will not rewrite sender addresses if all recipients are
+  in local domains.
 
 * **I am serving multiple domains with my MTA. Can I configure PostSRSd to
   rewrite addresses to the specific domain for which an email is forwarded?**
-
-  If PostSRSd is integrated with Postfix using the ``canonical`` maps, this is
-  not possible, because PostSRSd processes sender and recipient addresses
-  separately and never sees the email context.
-
-  If PostSRSd is configured as milter, it might be theoretically possible, but
-  it is not supported yet, for two reasons:
-
-  1. It is not trivial to implement and conflicts with other interesting
-     features such as rewriting only if the email is actually forwarded.
-  2. The SRS address is normally not visible to the recipient anyway.
 
   It is much simpler and more robust to have a dedicated SRS (sub-)domain. You
   need to pick a domain for the reverse DNS lookup of your MTA IP address
