@@ -150,6 +150,19 @@ secrets-file = "@POSTSRSD_CONFIGDIR@/@PROJECT_NAME@.secret"
 #
 #envelope-database = "sqlite:@CHROOTABLE_DATADIR@/senders.db"
 
+# Force milter SRS rewrite for local recipients
+# If PostSRSd is run as milter and finds that a particular mail has only
+# recipients in the configured local domains, it will assume that no
+# forwarding is required and never rewrite the envelope sender.
+#
+# If this option is enabled, the milter will process sender and recipients
+# independently like the socketmap implementation.
+#
+# Default:
+#     milter-rewrite-local = off
+#
+#milter-rewrite-local = off
+
 # SRS tag separator
 # This is the character following the initial SRS0 or SRS1 tag of a generated
 # sender address. Valid separators are "=", "+", and "-". Unless you have a

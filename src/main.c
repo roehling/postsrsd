@@ -482,6 +482,7 @@ static void handle_milter_client(postsrsd_t* state, int conn)
         exit(EXIT_FAILURE);
     if (sig_hup_received)
         return;
+    const bool rewrite_local = cfg_getbool(state->cfg, "milter-rewrite-local");
     int keep_alive = cfg_getint(state->cfg, "keep-alive");
     int milter_state = MS_UNINITIALIZED;
     char* queue_id = NULL;
@@ -645,7 +646,7 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                             is_local = false;
                     }
                 }
-                if (!is_local)
+                if (!is_local || rewrite_local)
                 {
                     char* unbracketed_sender =
                         strip_brackets(list_get(sender, 0));
