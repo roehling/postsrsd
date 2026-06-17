@@ -134,6 +134,14 @@ char* stpncpy(char* dst, const char* src, size_t len)
 }
 #endif
 
+#ifndef HAVE_STPCPY
+char* stpncpy(char* dst, const char* src)
+{
+    size_t n = strlen(src);
+    return strncpy(dst, src, len) + n;
+}
+#endif
+
 char* strip_brackets(const char* addr)
 {
     const char* lbrak = strchr(addr, '<');
@@ -441,6 +449,18 @@ bool list_append(list_t* L, void* entry)
         }
     }
     L->entries[L->size++] = entry;
+    return true;
+}
+
+bool list_replace_at(list_t* L, size_t i, void* entry, list_deleter_t deleter)
+{
+    if (L == NULL)
+        return false;
+    if (i >= L->size)
+        return false;
+    if (deleter != NULL)
+        deleter(L->entries[i]);
+    L->entries[i] = entry;
     return true;
 }
 

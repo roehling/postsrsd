@@ -37,6 +37,7 @@
 #cmakedefine HAVE_CLOSE_RANGE 1
 #cmakedefine HAVE_CLOSE_RANGE_GNU 1
 #cmakedefine HAVE_SETGROUPS 1
+#cmakedefine HAVE_STPCPY 1
 #cmakedefine HAVE_STPNCPY 1
 #cmakedefine HAVE_STRCASECMP 1
 #cmakedefine HAVE__STRICMP 1
@@ -54,6 +55,7 @@
 #cmakedefine HAVE_SIGNAL_H 1
 #cmakedefine HAVE_SYS_FILE_H 1
 #cmakedefine HAVE_SYS_INOTIFY_H 1
+#cmakedefine HAVE_SYS_MMAN_H 1
 #cmakedefine HAVE_SYS_SOCKET_H 1
 #cmakedefine HAVE_SYS_STAT_H 1
 #cmakedefine HAVE_SYS_TIME_H 1

@@ -21,11 +21,8 @@
 #include <assert.h>
 #include <postsrsd_build_config.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
-
-#ifdef HAVE_ERRNO_H
-#    include <errno.h>
-#endif
 
 #if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 #    define BE32(x) (x)
@@ -38,6 +35,16 @@
 #    endif
 #endif
 
+struct milter_packet
+{
+    uint32_t length;
+    char code;
+    char payload[];
+} ATTRIBUTE(packed);
+typedef struct milter_packet milter_packet_t;
+static_assert(sizeof(struct milter_packet) == 5,
+              "unexpected size of struct milter_packet");
+
 size_t milter_receive(FILE* fp, void* buffer, size_t size, size_t* truncated)
 {
     static char discardpile[512];
@@ -47,8 +54,9 @@ size_t milter_receive(FILE* fp, void* buffer, size_t size, size_t* truncated)
     if (fread(&len, 4, 1, fp) != 1)
         return 0;
     len = BE32(len);
-    size_t result = fread(buffer, 1, len < size ? len : size, fp);
-    if (result == 0)
+    size_t read_len = len < size ? len : size;
+    size_t result = fread(buffer, 1, read_len, fp);
+    if (result < read_len)
         return result;
     len -= result;
     while (len > 0)
@@ -65,84 +73,112 @@ size_t milter_receive(FILE* fp, void* buffer, size_t size, size_t* truncated)
     return result;
 }
 
-bool milter_send_bytes(FILE* fp, char action, const void* buffer, size_t length)
+bool milter_send_bytes(FILE* fp, char action, const void* data, size_t length)
 {
-    if (buffer == NULL && length != 0)
+    static char buffer[MILTER_PAYLOAD_SIZE + sizeof(milter_packet_t)];
+    const bool allocate = length > sizeof(buffer) - sizeof(milter_packet_t);
+    if (data == NULL && length != 0)
         return false;
     if (length > 0xfffffffe)
         return false;
-    uint32_t packet_length = BE32(1 + length);
-    if (fwrite(&packet_length, 4, 1, fp) != 1)
-        return false;
-    if (fwrite(&action, 1, 1, fp) != 1)
-        return false;
+    milter_packet_t* packet =
+        allocate ? malloc(sizeof(milter_packet_t) + length) : &buffer;
+    packet->length = BE32(1 + length);
+    packet->code = action;
     if (length > 0)
-        return fwrite(buffer, 1, length, fp) == length;
-    else
-        return true;
+        memcpy(packet->payload, data, length);
+    size_t written = fwrite(packet, 1, sizeof(milter_packet_t) + length, fp);
+    if (allocate)
+        free(packet);
+    return written == sizeof(milter_packet_t) + length;
 }
 
 bool milter_send_str(FILE* fp, char action, const char* value)
 {
-    size_t length = value != NULL ? strlen(value) : 0;
-    if (length > 0xfffffffd)
-        return false;
-    if (value != NULL)
-        ++length; /* include NUL byte */
-    uint32_t packet_length = BE32(1 + length);
-    if (fwrite(&packet_length, 4, 1, fp) != 1)
-        return false;
-    if (fwrite(&action, 1, 1, fp) != 1)
-        return false;
-    if (value != NULL)
-        return fwrite(value, 1, length, fp) == length;
-    else
-        return true;
+    return milter_send_bytes(fp, action, value,
+                             value != NULL ? strlen(value) + 1 : 0);
 }
 
 bool milter_send(FILE* fp, char action)
 {
-    uint32_t packet_length = BE32(1);
-    if (fwrite(&packet_length, 4, 1, fp) != 1)
-        return false;
-    return fwrite(&action, 1, 1, fp) == 1;
+    milter_packet_t packet;
+    packet.length = BE32(1);
+    packet.code = action;
+    return fwrite(&packet, 1, sizeof(milter_packet_t), fp)
+           == sizeof(milter_packet_t);
 }
 
-bool milter_send_str_array(FILE* fp, char action, const char* const* value,
-                           size_t count)
+bool milter_continue(FILE* fp)
 {
-    uint32_t packet_length = 1;
-    if (value != NULL)
+    return milter_send(fp, MILTER_DO_CONTINUE);
+}
+
+bool milter_tempfail(FILE* fp)
+{
+    return milter_send(fp, MILTER_DO_TEMPFAIL);
+}
+
+bool milter_accept(FILE* fp)
+{
+    return milter_send(fp, MILTER_DO_ACCEPT);
+}
+
+bool milter_reject(FILE* fp)
+{
+    return milter_send(fp, MILTER_DO_REJECT);
+}
+
+bool milter_send_str_list(FILE* fp, char action, list_t* L)
+{
+    static char buffer[MILTER_PAYLOAD_SIZE + sizeof(milter_packet_t)];
+    if (list_size(L) == 0)
+        return milter_send(fp, action);
+    size_t length = 0;
+    for (size_t i = 0; i < list_size(L); ++i)
     {
-        for (size_t i = 0; i < count; ++i)
+        const char* item = list_get(L, i);
+        if (item != NULL)
         {
-            if (value[i] != NULL)
-            {
-                size_t len = strlen(value[i]) + 1;
-                if (len > 0xffffffff - packet_length)
-                    return false;
-                packet_length += len;
-            }
+            size_t item_length = strlen(item) + 1;
+            if (length > 0xfffffffe - item_length)
+                return false;
+            length += item_length;
         }
     }
-    packet_length = BE32(packet_length);
-    if (fwrite(&packet_length, 4, 1, fp) != 1)
+    if (length > 0xfffffffe)
         return false;
-    if (fwrite(&action, 1, 1, fp) != 1)
-        return false;
-    if (value != NULL)
+    const bool allocate = length > sizeof(buffer) - sizeof(milter_packet_t);
+    milter_packet_t* packet =
+        allocate ? malloc(sizeof(milter_packet_t) + length) : &buffer;
+    packet->length = BE32(1 + length);
+    packet->code = action;
+    char* out = packet->payload;
+    for (size_t i = 0; i < list_size(L); ++i)
     {
-        for (size_t i = 0; i < count; ++i)
+        const char* item = list_get(L, i);
+        if (item != NULL)
         {
-            if (value[i] != NULL)
-            {
-                size_t len = strlen(value[i]) + 1;
-                if (fwrite(value[i], 1, len, fp) != len)
-                    return false;
-            }
+            out = stpcpy(out, item);
+            *out++ = 0;
         }
     }
-    return true;
+    size_t written = fwrite(packet, 1, sizeof(milter_packet_t) + length, fp);
+    if (allocate)
+        free(packet);
+    return written == sizeof(milter_packet_t) + length;
+}
+
+void milter_parse_str_list(list_t* L, const char* data, size_t length)
+{
+    while (length > 0)
+    {
+        size_t next_item_length = strnlen(data, length);
+        list_append(L, strndup(data, next_item_length));
+        if (next_item_length == length)
+            break;
+        data += next_item_length + 1;
+        length -= next_item_length + 1;
+    }
 }
 
 bool milter_handle_optneg(FILE* fp, const void* input, size_t length)
@@ -163,11 +199,9 @@ bool milter_handle_optneg(FILE* fp, const void* input, size_t length)
 
     if (buf.version > 6)
     {
-        log_error("unsupported milter protocol version %u", buf.version);
-        milter_send(fp, MILTER_DO_TEMPFAIL);
-        return false;
+        buf.version = 6;
     }
-    buf.actions &= MILTER_FL_CHGFROM | MILTER_FL_ADDRCPT | MILTER_FL_DELRCPT;
+    buf.actions &= (MILTER_FL_CHGFROM | MILTER_FL_ADDRCPT | MILTER_FL_DELRCPT);
     if ((buf.actions & MILTER_FL_CHGFROM) == 0)
     {
         log_error("MTA does not support CHGFROM milter action");

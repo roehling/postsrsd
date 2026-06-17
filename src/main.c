@@ -32,6 +32,9 @@
 #ifdef HAVE_ERRNO_H
 #    include <errno.h>
 #endif
+#ifdef HAVE_SYS_MMAN_H
+#    include <sys/mman.h>
+#endif
 #ifdef HAVE_SYS_SOCKET_H
 #    include <sys/socket.h>
 #endif
@@ -122,10 +125,24 @@ static bool init_seccomp()
         goto fail;
     if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(time), 0) < 0)
         goto fail;
-#    ifdef WITH_SQLITE
-    /* Syscalls for SQlite database access */
     if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(brk), 0) < 0)
         goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(madvise), 0) < 0)
+        goto fail;
+#    ifdef HAVE_SYS_MMAN_H
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(mprotect), 1,
+                         SCMP_A2(SCMP_CMP_MASKED_EQ, PROT_EXEC, 0))
+        < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(mmap), 1,
+                         SCMP_A2(SCMP_CMP_MASKED_EQ, PROT_EXEC, 0))
+        < 0)
+        goto fail;
+#    endif
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(munmap), 0) < 0)
+        goto fail;
+#    ifdef WITH_SQLITE
+    /* Syscalls for SQlite database access */
     if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(getpid), 0) < 0)
         goto fail;
     if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(geteuid), 0) < 0)
@@ -459,7 +476,7 @@ static void handle_milter_client(postsrsd_t* state, int conn)
 #define MS_PROCESSING    2
     FILE *fp_read, *fp_write;
     database_t* db;
-    char buffer[512];
+    char buffer[MILTER_PAYLOAD_SIZE];
     size_t len, truncated;
     if (!prepare_client(state, conn, &fp_read, &fp_write, &db))
         exit(EXIT_FAILURE);
@@ -467,8 +484,8 @@ static void handle_milter_client(postsrsd_t* state, int conn)
         return;
     int keep_alive = cfg_getint(state->cfg, "keep-alive");
     int milter_state = MS_UNINITIALIZED;
-    char* sender = NULL;
     char* queue_id = NULL;
+    list_t* sender = list_create();
     list_t* recipients = list_create();
     for (;;)
     {
@@ -491,7 +508,7 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                         "%s: MTA initiated unexpected milter option "
                         "negotiation",
                         queue_id != NULL ? queue_id : "NOQUEUE");
-                    milter_send(fp_write, MILTER_DO_TEMPFAIL);
+                    milter_tempfail(fp_write);
                     break;
                 }
                 if (!milter_handle_optneg(fp_write, buffer + 1, len - 1))
@@ -505,8 +522,8 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                 break;
             case MILTER_CMD_ABORT:
                 milter_state = MS_READY;
+                list_clear(sender, free);
                 list_clear(recipients, free);
-                set_string(&sender, NULL);
                 set_string(&queue_id, NULL);
                 if (sig_hup_received)
                     goto done;
@@ -516,19 +533,31 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                 {
                     log_error("%s: MTA sent unexpected milter MAIL command",
                               queue_id != NULL ? queue_id : "NOQUEUE");
-                    milter_send(fp_write, MILTER_DO_TEMPFAIL);
+                    milter_tempfail(fp_write);
                     goto done;
                 }
                 if (truncated > 0)
                 {
                     log_error("%s: MTA sent oversized milter MAIL command",
                               queue_id != NULL ? queue_id : "NOQUEUE");
-                    milter_send(fp_write, MILTER_DO_REJECT);
+                    milter_reject(fp_write);
                     goto done;
                 }
                 milter_state = MS_PROCESSING;
-                sender = strip_brackets(buffer + 1);
-                if (!milter_send(fp_write, MILTER_DO_CONTINUE))
+                milter_parse_str_list(sender, buffer + 1, len - 1);
+                if (list_size(sender) < 1)
+                {
+                    log_error("%s: MTA sent empty milter MAIL command",
+                              queue_id != NULL ? queue_id : "NOQUEUE");
+                    if (!milter_reject(fp_write))
+                        goto done;
+                    list_clear(sender, free);
+                    list_clear(recipients, free);
+                    set_string(&queue_id, NULL);
+                    milter_state = MS_READY;
+                    break;
+                }
+                if (!milter_continue(fp_write))
                     goto done;
                 break;
             case MILTER_CMD_QUIT:
@@ -538,27 +567,43 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                 {
                     log_error("%s: MTA sent unexpected milter RCPT command",
                               queue_id != NULL ? queue_id : "NOQUEUE");
-                    milter_send(fp_write, MILTER_DO_TEMPFAIL);
+                    milter_tempfail(fp_write);
                     goto done;
                 }
                 if (truncated > 0)
                 {
                     log_error("%s: MTA sent oversized milter RCPT command",
                               queue_id != NULL ? queue_id : "NOQUEUE");
-                    milter_send(fp_write, MILTER_DO_REJECT);
+                    milter_reject(fp_write);
                     goto done;
                 }
                 list_append(recipients, strip_brackets(buffer + 1));
-                if (!milter_send(fp_write, MILTER_DO_CONTINUE))
+                if (!milter_continue(fp_write))
                     goto done;
                 break;
-            case MILTER_CMD_EOB:
+            case MILTER_CMD_EOM:
                 if (milter_state != MS_PROCESSING)
                 {
                     log_error("%s: MTA sent unexpected milter EOM command",
                               queue_id != NULL ? queue_id : "NOQUEUE");
-                    milter_send(fp_write, MILTER_DO_TEMPFAIL);
+                    milter_tempfail(fp_write);
                     goto done;
+                }
+                if (list_size(sender) == 0)
+                {
+                    log_error(
+                        "%s: MTA failed to divulge sender envelope address",
+                        queue_id != NULL ? queue_id : "NOQUEUE");
+                    milter_reject(fp_write);
+                    goto cleanup;
+                }
+                if (list_size(recipients) == 0)
+                {
+                    log_error(
+                        "%s: MTA failed to divulge any recipient addresses",
+                        queue_id != NULL ? queue_id : "NOQUEUE");
+                    milter_reject(fp_write);
+                    goto cleanup;
                 }
                 is_local = true;
                 for (size_t i = 0; i < list_size(recipients); ++i)
@@ -587,7 +632,7 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                     }
                     else if (error)
                     {
-                        if (!milter_send_str(fp_write, MILTER_DO_REJECT, info))
+                        if (!milter_reject(fp_write))
                             goto done;
                         goto cleanup;
                     }
@@ -602,21 +647,24 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                 }
                 if (!is_local)
                 {
+                    char* unbracketed_sender =
+                        strip_brackets(list_get(sender, 0));
                     char* rewritten = postsrsd_forward(
-                        sender, state->srs_domain, state->srs, db,
+                        unbracketed_sender, state->srs_domain, state->srs, db,
                         state->local_domains, &error, &info);
+                    free(unbracketed_sender);
                     if (rewritten)
                     {
-                        char* bracketed_new_sender = add_brackets(rewritten);
-                        if (!milter_send_str(fp_write, MILTER_DO_CHGFROM,
-                                             bracketed_new_sender))
+                        list_replace_at(sender, 0, add_brackets(rewritten),
+                                        free);
+                        if (!milter_send_str_list(fp_write, MILTER_DO_CHGFROM,
+                                                  sender))
                             goto done;
-                        free(bracketed_new_sender);
                         free(rewritten);
                     }
                     else if (error)
                     {
-                        if (!milter_send_str(fp_write, MILTER_DO_REJECT, info))
+                        if (!milter_reject(fp_write))
                             goto done;
                         goto cleanup;
                     }
@@ -624,14 +672,15 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                 else
                 {
                     log_info(
-                        "%s: <%s> not rewritten: all recipients are in local "
+                        "%s: %s not rewritten: all recipients are in local "
                         "domains",
-                        queue_id != NULL ? queue_id : "NOQUEUE", sender);
+                        queue_id != NULL ? queue_id : "NOQUEUE",
+                        (char*)list_get(sender, 0));
                 }
-                if (!milter_send(fp_write, MILTER_DO_ACCEPT))
+                if (!milter_accept(fp_write))
                     goto done;
 cleanup:
-                set_string(&sender, NULL);
+                list_clear(sender, free);
                 list_clear(recipients, free);
                 set_string(&queue_id, NULL);
                 milter_state = MS_READY;
@@ -639,7 +688,7 @@ cleanup:
             default:
                 log_warn("%s: MTA sent unexpected milter command '%c'",
                          queue_id != NULL ? queue_id : "NOQUEUE", action);
-                if (!milter_send(fp_write, MILTER_DO_CONTINUE))
+                if (!milter_continue(fp_write))
                     goto done;
                 break;
         }

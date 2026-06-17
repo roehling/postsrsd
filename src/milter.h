@@ -17,6 +17,8 @@
 #ifndef MILTER_H
 #define MILTER_H
 
+#include "util.h"
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -45,7 +47,7 @@
 #define MILTER_CMD_BODY    'B'
 #define MILTER_CMD_CONNECT 'C'
 #define MILTER_CMD_MACRO   'D'
-#define MILTER_CMD_EOB     'E'
+#define MILTER_CMD_EOM     'E'
 #define MILTER_CMD_HELO    'H'
 #define MILTER_CMD_HEADER  'L'
 #define MILTER_CMD_MAIL    'M'
@@ -76,14 +78,19 @@
 #define MILTER_DO_PROGRESS    'p'
 #define MILTER_DO_SETSYMLIST  'l'
 
+#define MILTER_PAYLOAD_SIZE 512
+
 size_t milter_receive(FILE* fp, void* buffer, size_t size, size_t* truncated);
 bool milter_send(FILE* fp, char action);
-bool milter_send_bytes(FILE* fp, char action, const void* value, size_t length);
+bool milter_send_bytes(FILE* fp, char action, const void* data, size_t length);
 bool milter_send_str(FILE* fp, char action, const char* value);
-bool milter_send_str_array(FILE* fp, char action, const char* const* value,
-                           size_t count);
-
+bool milter_send_str_list(FILE* fp, char action, list_t* L);
+bool milter_tempfail(FILE* fp);
+bool milter_continue(FILE* fp);
+bool milter_accept(FILE* fp);
+bool milter_reject(FILE* fp);
+void milter_parse_str_list(list_t* L, const char* data, size_t length);
 bool milter_handle_optneg(FILE* fp, const void* input, size_t length);
-char* milter_find_macro(const char* name, const char* buffer, size_t length);
+char* milter_find_macro(const char* name, const char* data, size_t length);
 
 #endif

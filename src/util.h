@@ -60,6 +60,9 @@ void freeargv(char** argv);
 #ifndef HAVE_STPNCPY
 char* stpncpy(char* dst, const char* src, size_t len);
 #endif
+#ifndef HAVE_STPCPY
+char* stpcpy(char* dst, const char* src);
+#endif
 
 char* strip_brackets(const char* addr);
 char* add_brackets(const char* addr);
@@ -80,6 +83,7 @@ void* list_get(list_t* L, size_t i);
 int list_find(list_t* L, list_compare_t compare, const void* value);
 bool list_append(list_t* L, void* entry);
 size_t list_size(list_t* L);
+bool list_replace_at(list_t* L, size_t i, void* entry, list_deleter_t deleter);
 bool list_remove_at(list_t* L, size_t i, list_deleter_t deleter);
 size_t list_remove_if(list_t* L, list_predicate_t predicate,
                       list_deleter_t deleter);
