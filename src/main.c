@@ -385,7 +385,8 @@ static void handle_socketmap_client(postsrsd_t* state, int conn)
     database_t* db;
     if (!prepare_client(state, conn, &fp_read, &fp_write, &db))
         exit(EXIT_FAILURE);
-    int keep_alive = cfg_getint(state->cfg, "keep-alive");
+    const bool always_rewrite = cfg_getbool(state->cfg, "always-rewrite");
+    const int keep_alive = cfg_getint(state->cfg, "keep-alive");
     for (;;)
     {
         char buffer[1024];
@@ -429,9 +430,9 @@ static void handle_socketmap_client(postsrsd_t* state, int conn)
         const char* info = NULL;
         if (strcmp(query_type, "forward") == 0)
         {
-            rewritten =
-                postsrsd_forward(addr, state->srs_domain, state->srs, db,
-                                 state->local_domains, &error, &info);
+            rewritten = postsrsd_forward(
+                addr, state->srs_domain, state->srs, db,
+                always_rewrite ? NULL : state->local_domains, &error, &info);
         }
         else if (strcmp(query_type, "reverse") == 0)
         {
@@ -482,8 +483,9 @@ static void handle_milter_client(postsrsd_t* state, int conn)
         exit(EXIT_FAILURE);
     if (sig_hup_received)
         return;
+    const bool always_rewrite = cfg_getbool(state->cfg, "always-rewrite");
     const bool rewrite_local = cfg_getbool(state->cfg, "milter-rewrite-local");
-    int keep_alive = cfg_getint(state->cfg, "keep-alive");
+    const int keep_alive = cfg_getint(state->cfg, "keep-alive");
     int milter_state = MS_UNINITIALIZED;
     char* queue_id = NULL;
     list_t* sender = list_create();
@@ -646,13 +648,14 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                             is_local = false;
                     }
                 }
-                if (!is_local || rewrite_local)
+                if (!is_local || rewrite_local || always_rewrite)
                 {
                     char* unbracketed_sender =
                         strip_brackets(list_get(sender, 0));
                     char* rewritten = postsrsd_forward(
                         unbracketed_sender, state->srs_domain, state->srs, db,
-                        state->local_domains, &error, &info);
+                        always_rewrite ? NULL : state->local_domains, &error,
+                        &info);
                     free(unbracketed_sender);
                     if (rewritten)
                     {
