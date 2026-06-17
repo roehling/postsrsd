@@ -7,6 +7,21 @@
 Changelog
 #########
 
+2.2.0
+=====
+
+Changed
+-------
+
+* Reimplemented milter without external LibMilter dependency.
+* PostSRSd milter supports not rewriting locally delivered
+  mails now.
+
+Fixed
+-----
+
+* SECCOMP with MUSL.
+
 2.1.0
 =====
 
