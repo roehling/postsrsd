@@ -844,6 +844,7 @@ int main(int argc, char** argv)
     if (!init_seccomp() && cfg_getbool(state.cfg, "seccomp"))
         log_warn("seccomp sandboxing is unavailable");
     FILE* pf = NULL;
+    pid_set_t* P = NULL;
     int exit_code = EXIT_FAILURE;
 #ifdef HAVE_CLOSE_RANGE
     close_range(3, ~0U, 0);
@@ -865,6 +866,9 @@ int main(int argc, char** argv)
             goto shutdown;
         }
     }
+    P = pid_set_create();
+    if (P == NULL)
+        goto shutdown;
     if (!daemonize(&state))
         goto shutdown;
     if (pf != NULL)
@@ -890,6 +894,7 @@ int main(int argc, char** argv)
     num_fds += num_milter_fds;
     num_fds +=
         file_watch_prepare_poll(state.file_watch, fds + num_fds, remaining_fds);
+    pid_t pid;
     for (;;)
     {
         if (sig_hup_received || files_changed)
@@ -913,7 +918,7 @@ int main(int argc, char** argv)
             }
             if (setup_state(argc, argv, &state))
             {
-                kill(0, SIGUSR1);
+                pid_set_kill(P, SIGUSR1);
                 num_fds = 0;
                 remaining_fds = sizeof(fds) / sizeof(struct pollfd);
                 num_socketmap_fds = endpoint_prepare_poll(
@@ -963,7 +968,7 @@ int main(int argc, char** argv)
                         log_perror(errno, "accept");
                         continue;
                     }
-                    pid_t pid = fork();
+                    pid = fork();
                     if (pid == 0)
                     {
                         if (i < num_socketmap_fds)
@@ -976,17 +981,21 @@ int main(int argc, char** argv)
                     {
                         log_perror(errno, "fork");
                     }
+                    pid_set_add(P, pid);
                     close(conn);
                 }
             }
         }
-        waitpid(0, NULL, WNOHANG);
+        pid = waitpid(0, NULL, WNOHANG);
+        if (pid > 0)
+            pid_set_remove(P, pid);
     }
 shutdown:
     if (pf != NULL)
         fclose(pf);
     finalize_state(&state);
     finalize_seccomp();
-    kill(0, SIGUSR1);
+    pid_set_kill(P, SIGUSR1);
+    pid_set_destroy(P);
     return exit_code;
 }

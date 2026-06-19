@@ -33,6 +33,9 @@
 #ifdef HAVE_POLL_H
 #    include <poll.h>
 #endif
+#ifdef HAVE_SIGNAL_H
+#    include <signal.h>
+#endif
 #ifdef HAVE_SYS_FILE_H
 #    include <sys/file.h>
 #endif
@@ -388,6 +391,100 @@ bool domain_set_contains(domain_set_t* D, const char* domain)
     return walk_domain_set(D, buffer, DOMAIN_SET_PARENTS_MATCH);
 }
 
+struct pid_set
+{
+    size_t capacity;
+    size_t size;
+    pid_t* entries;
+};
+
+pid_set_t* pid_set_create()
+{
+    pid_set_t* P = malloc(sizeof(pid_set_t));
+    if (P != NULL)
+    {
+        P->capacity = 0;
+        P->size = 0;
+        P->entries = NULL;
+    }
+    return P;
+}
+
+bool pid_set_add(pid_set_t* P, pid_t pid)
+{
+    if (P == NULL)
+        return false;
+    if (P->capacity == P->size)
+    {
+        if (P->capacity == 0)
+        {
+            P->entries = malloc(16 * sizeof(pid_t));
+            if (P->entries == NULL)
+                return false;
+            P->capacity = 4;
+        }
+        else
+        {
+            pid_t* new_entries =
+                realloc(P->entries, 2 * P->capacity * sizeof(pid_t));
+            if (new_entries == NULL)
+                return false;
+            P->entries = new_entries;
+            P->capacity *= 2;
+        }
+    }
+    P->entries[P->size++] = pid;
+    return true;
+}
+
+bool pid_set_remove(pid_set_t* P, pid_t pid)
+{
+    if (P == NULL)
+        return false;
+    bool found = false;
+    for (size_t i = 0; i < P->size;)
+    {
+        if (P->entries[i] == pid)
+        {
+            --P->size;
+            P->entries[i] = P->entries[P->size];
+            found = true;
+            continue;
+        }
+        ++i;
+    }
+    return found;
+}
+
+bool pid_set_kill(pid_set_t* P, int signal)
+{
+    if (P == NULL)
+        return false;
+    for (size_t i = 0; i < P->size;)
+    {
+        if (kill(P->entries[i], signal) < 0)
+        {
+            if (errno == EINVAL)
+                return false;
+            if (errno == ESRCH || errno == EPERM)
+            {
+                --P->size;
+                P->entries[i] = P->entries[P->size];
+                continue;
+            }
+        }
+        ++i;
+    }
+    return true;
+}
+
+void pid_set_destroy(pid_set_t* P)
+{
+    if (P == NULL)
+        return;
+    free(P->entries);
+    free(P);
+}
 struct list
 {
     size_t capacity;

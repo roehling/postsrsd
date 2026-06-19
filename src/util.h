@@ -21,6 +21,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
+#include <unistd.h>
 
 #define MAYBE_UNUSED(x) (void)(x)
 
@@ -36,6 +37,8 @@
 struct pollfd;
 struct domain_set;
 typedef struct domain_set domain_set_t;
+struct pid_set;
+typedef struct pid_set pid_set_t;
 struct list;
 typedef struct list list_t;
 typedef void (*list_deleter_t)(void*);
@@ -77,6 +80,12 @@ domain_set_t* domain_set_create();
 bool domain_set_add(domain_set_t* D, const char* domain);
 bool domain_set_contains(domain_set_t* D, const char* domain);
 void domain_set_destroy(domain_set_t* D);
+
+pid_set_t* pid_set_create();
+bool pid_set_add(pid_set_t* P, pid_t pid);
+bool pid_set_remove(pid_set_t* P, pid_t pid);
+bool pid_set_kill(pid_set_t* P, int signal);
+void pid_set_destroy(pid_set_t* P);
 
 list_t* list_create();
 void* list_get(list_t* L, size_t i);
