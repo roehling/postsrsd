@@ -81,6 +81,12 @@ static bool create_unix_socket(const char* path, endpoint_t* endpoint)
         log_warn("too many endpoint sockets");
         return true;
     }
+    size_t path_len = strlen(path);
+    if (path_len > sizeof(sa.sun_path))
+    {
+        log_error("file path for unix socket is too long");
+        return false;
+    }
     endpoint->lock = acquire_lock(path);
     if (endpoint->lock >= 0)
         unlink(path);
@@ -89,8 +95,10 @@ static bool create_unix_socket(const char* path, endpoint_t* endpoint)
         goto fail;
     sa.sun_family = AF_UNIX;
     memset(sa.sun_path, 0, sizeof(sa.sun_path));
-    strncpy(sa.sun_path, path, sizeof(sa.sun_path) - 1);
-    if (bind(sock, (const struct sockaddr*)&sa, sizeof(struct sockaddr_un)) < 0)
+    memcpy(sa.sun_path, path, path_len);
+    if (bind(sock, (const struct sockaddr*)&sa,
+             offsetof(struct sockaddr_un, sun_path) + path_len)
+        < 0)
         goto fail;
     if (chmod(path, 0666) < 0)
         goto fail;
