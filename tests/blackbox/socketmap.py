@@ -131,13 +131,17 @@ def execute_queries(
                 result = read_netstring(sock_stream)
                 if result != query[1]:
                     raise AssertionError(
-                        f"query[{query[0]!r},sqlite={with_sqlite},redis={with_redis}]: FAILED: Expected reply {query[1]!r}, got: {result!r}"
+                        f"{query[0]!r},sqlite={with_sqlite},redis={with_redis}: expected reply {query[1]!r}, got: {result!r}"
                     )
                 sys.stderr.write(
-                    f"query[{query[0]!r},sqlite={with_sqlite},redis={with_redis}]: Passed\n"
+                    f"PASS: {query[0]!r},sqlite={with_sqlite},redis={with_redis}\n"
                 )
+        except AssertionError as e:
+            sys.stderr.write(f"*** FAIL: {str(e)}\n")
+            return False
         finally:
             sock.close()
+    return True
 
 
 def execute_death_tests(postsrsd: str, when: str, queries: Iterable[bytes]):
@@ -153,21 +157,23 @@ def execute_death_tests(postsrsd: str, when: str, queries: Iterable[bytes]):
                 result = read_netstring(sock_stream)
                 if result != "PERM Invalid query.":
                     raise AssertionError(
-                        f"death_test[{query}]: FAILED: Expected reply 'PERM Invalid query.', got: {result!r}"
+                        f"expected reply 'PERM Invalid query.', got: {result!r}"
                     )
                 try:
                     write_netstring(sock_stream, "forward test@example.com")
                     result = read_netstring(sock_stream)
-                    raise AssertionError(
-                        f"death_test[{query}]: FAILED: Expected connection closed, got: {result!r}"
-                    )
+                    raise AssertionError(f"expected connection closed, got: {result!r}")
                 except ConnectionError:
                     # Expected behavior
                     pass
-                sys.stderr.write(f"death_test[{query!r}]: Passed\n")
+                sys.stderr.write(f"PASS: {query!r}\n")
+            except AssertionError as e:
+                sys.stderr.write(f"*** FAIL: {query!r}: {str(e)}\n")
+                return False
             finally:
                 if sock is not None:
                     sock.close()
+    return True
 
 
 def execute_sighup_tests(
@@ -192,24 +198,30 @@ def execute_sighup_tests(
                         result = read_netstring(sock_stream)
                         if result != query[1]:
                             raise AssertionError(
-                                f"sighup_test[{query[0]!r},sqlite={with_sqlite},redis={with_redis}]: FAILED: Expected reply {query[1]!r}, got: {result!r}"
+                                f"{query[0]!r},sqlite={with_sqlite},redis={with_redis}]: expected reply {query[1]!r}, got: {result!r}"
                             )
                         sys.stderr.write(
-                            f"sighup_test[{query[0]!r},sqlite={with_sqlite},redis={with_redis}]: Passed\n"
+                            f"PASS: {query[0]!r},sqlite={with_sqlite},redis={with_redis}\n"
                         )
                         os.kill(daemon[1], signal.SIGHUP)
                         break
-                    except ConnectionError:
+                    except ConnectionError as e:
                         if retry > 0:
-                            sys.stderr.write("Reconnect after SIGHUP\n")
+                            sys.stderr.write("(reconnect after SIGHUP)\n")
                             sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM, 0)
                             sock.connect(daemon[0])
                             sock_stream = SockStream(sock)
                             retry -= 1
                         else:
-                            raise
+                            sys.stderr.write(
+                                f"FAIL: {query[0]!r},sqlite={with_sqlite},redis={with_redis}: "
+                            )
+        except AssertionError as e:
+            sys.stderr.write(f"*** FAIL: {str(e)}\n")
+            return False
         finally:
             sock.close()
+    return True
 
 
 STATELESS_QUERIES = [
@@ -378,13 +390,14 @@ DATABASE_QUERIES = [
 ]
 
 if __name__ == "__main__":
-    execute_queries(
+    if not execute_queries(
         sys.argv[1],
         when="1577836860",  # 2020-01-01 00:01:00 UTC
         with_sqlite=False,
         queries=STATELESS_QUERIES,
-    )
-    execute_death_tests(
+    ):
+        sys.exit(1)
+    if not execute_death_tests(
         sys.argv[1],
         when="1577836860",  # 2020-01-01 00:01:00 UTC
         queries=[
@@ -399,37 +412,43 @@ if __name__ == "__main__":
             # Invalid netstring terminator
             b"28:forward test@otherdomain.com;",
         ],
-    )
-    execute_sighup_tests(
+    ):
+        sys.exit(1)
+    if not execute_sighup_tests(
         sys.argv[1],
         when="1577836860",  # 2020-01-01 00:01:00 UTC
         with_sqlite=False,
         queries=STATELESS_QUERIES,
-    )
+    ):
+        sys.exit(1)
     if sys.argv[2] == "1":
-        execute_queries(
+        if not execute_queries(
             sys.argv[1],
             when="1577836860",  # 2020-01-01 00:01:00 UTC
             with_sqlite=True,
             queries=DATABASE_QUERIES,
-        )
-        execute_sighup_tests(
+        ):
+            sys.exit(1)
+        if not execute_sighup_tests(
             sys.argv[1],
             when="1577836860",  # 2020-01-01 00:01:00 UTC
             with_sqlite=True,
             queries=DATABASE_QUERIES,
-        )
+        ):
+            sys.exit(1)
     if sys.argv[3] == "1":
-        execute_queries(
+        if not execute_queries(
             sys.argv[1],
             when="1577836860",  # 2020-01-01 00:01:00 UTC
             with_redis=True,
             queries=DATABASE_QUERIES,
-        )
-        execute_sighup_tests(
+        ):
+            sys.exit(1)
+        if not execute_sighup_tests(
             sys.argv[1],
             when="1577836860",  # 2020-01-01 00:01:00 UTC
             with_redis=True,
             queries=DATABASE_QUERIES,
-        )
+        ):
+            sys.exit(1)
     sys.exit(0)

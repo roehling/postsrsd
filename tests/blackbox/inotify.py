@@ -142,9 +142,13 @@ if __name__ == "__main__":
                         or not result.endswith(f"=otherdomain.com=test@{test_domain}")
                     ):
                         raise AssertionError(
-                            f"inotify[{test_domain}]: FAILED: expected 'OK SRS0=...=otherdomain.com=test@{test_domain}', got {result!r}"
+                            f"expected 'OK SRS0=...=otherdomain.com=test@{test_domain}', got {result!r}"
                         )
-                    sys.stderr.write(f"inotify[{test_domain}]: Passed\n")
+                    sys.stderr.write(f"PASS: {test_domain}\n")
+            except AssertionError as e:
+                sys.stderr.write(f"*** FAIL: {str(e)}\n")
+                sys.exit(1)
             finally:
                 if sock is not None:
                     sock.close()
+    sys.exit(0)

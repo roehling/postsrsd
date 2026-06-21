@@ -143,16 +143,20 @@ def execute_queries(
                         srs_result, srs_from, srs_rcpt = mf_eom(sock)
                 assert (
                     srs_result == result
-                ), f"expected {result!r} and got {srs_result!r}"
+                ), f"expected action {result!r} and got {srs_result!r}"
                 assert (
                     srs_from == new_from
-                ), f"expected from: {new_from!r} and got {srs_from!r}"
+                ), f"expected from {new_from!r} and got {srs_from!r}"
                 assert (
                     srs_rcpt == new_rcpt
-                ), f"expected rcpt: {new_rcpt!r} and got {srs_rcpt!r}"
-                sys.stderr.write(f"query[{query[0]}]: Passed\n")
+                ), f"expected rcpt {new_rcpt!r} and got {srs_rcpt!r}"
+                sys.stderr.write(f"PASS: {query[0]}\n")
+            except AssertionError as e:
+                sys.stderr.write(f"*** FAIL: {query[0]}: {str(e)}\n")
+                return False
             finally:
                 sock.close()
+    return True
 
 
 STATELESS_QUERIES: list[
@@ -395,22 +399,26 @@ DATABASE_QUERIES: list[tuple[tuple[str, str], tuple[bytes, str | None, str | Non
 
 
 if __name__ == "__main__":
-    execute_queries(
+    if not execute_queries(
         sys.argv[1],
         when="1577836860",  # 2020-01-01 00:01:00 UTC
         queries=STATELESS_QUERIES,
-    )
+    ):
+        sys.exit(1)
     if sys.argv[2] == "1":
-        execute_queries(
+        if not execute_queries(
             sys.argv[1],
             when="1577836860",  # 2020-01-01 00:01:00 UTC
             with_sqlite=True,
             queries=DATABASE_QUERIES,
-        )
+        ):
+            sys.exit(1)
     if sys.argv[3] == "1":
-        execute_queries(
+        if not execute_queries(
             sys.argv[1],
             when="1577836860",  # 2020-01-01 00:01:00 UTC
             with_redis=True,
             queries=DATABASE_QUERIES,
-        )
+        ):
+            sys.exit(1)
+    sys.exit(0)
