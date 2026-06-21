@@ -383,6 +383,14 @@ DATABASE_QUERIES: list[tuple[tuple[str, str], tuple[bytes, str | None, str | Non
         ),
         (b"a", None, "sender@otherdomain.com"),
     ),
+    # Handle bounce mail
+    (
+        (
+            "",
+            "SRS0=9KJ+=2W=otherdomain.com=sender@example.com",
+        ),
+        (b"a", None, "sender@otherdomain.com"),
+    ),
 ]
 
 

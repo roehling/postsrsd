@@ -26,6 +26,8 @@ char* postsrsd_forward(const char* addr, const char* domain, srs_t* srs,
                        database_t* db, domain_set_t* local_domains, bool* error,
                        const char** info)
 {
+    if (addr == NULL)
+        return NULL;
     const char* at = strchr(addr, '@');
     if (error != NULL)
         *error = false;
@@ -104,6 +106,8 @@ char* postsrsd_reverse(const char* addr, srs_t* srs, database_t* db,
                        bool* error, const char** info)
 {
     char buffer[513];
+    if (addr == NULL)
+        return NULL;
     if (error != NULL)
         *error = false;
     if (info != NULL)
