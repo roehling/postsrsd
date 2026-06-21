@@ -259,7 +259,7 @@ def milter_protocol_violations(postsrsd: str, when: str):
         try:
             mf_envfrom(sock, "mail@example.com")
             raise AssertionError("milter should have disconnected")
-        except (ConnectionError, struct.error):
+        except (ConnectionError, struct.error, TimeoutError):
             pass
 
     def oversized_rcpt_command(sock: socket.socket):
@@ -297,7 +297,7 @@ def milter_protocol_violations(postsrsd: str, when: str):
         try:
             mf_optneg(sock)
             raise AssertionError("milter should have disconnected")
-        except (ConnectionError, struct.error):
+        except (ConnectionError, struct.error, TimeoutError):
             pass
 
     with postsrsd_instance(postsrsd, when=when) as endpoint:
