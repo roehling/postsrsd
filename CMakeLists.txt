@@ -78,6 +78,9 @@ add_feature_info(
 option(TESTS_WITH_ASAN "Run test suite with AddressSanitizer" OFF)
 option(TESTS_WITH_REDIS "Run test suite against Redis database backend" OFF)
 option(DEVELOPER_BUILD "Add strict compiler options for development only" OFF)
+option(EXECUTABLE_WITH_ASAN "Build PostSRSd executable with AddressSanitizer"
+       OFF
+)
 option(GENERATE_SRS_SECRET "Generate and install a postsrsd.secret" ON)
 add_feature_info(
     GENERATE_SRS_SECRET
@@ -341,6 +344,10 @@ target_link_libraries(
             $<$<BOOL:${WITH_REDIS}>:${HIREDIS_TARGET}>
             $<$<BOOL:${WITH_SECCOMP}>:seccomp::seccomp> ${LIBSOCKET} ${LIBNSL}
 )
+if(EXECUTABLE_WITH_ASAN)
+    target_compile_options(postsrsd PRIVATE -fsanitize=address,undefined)
+    target_link_options(postsrsd PRIVATE -fsanitize=address,undefined)
+endif()
 
 configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/data/postsrsd.conf.in"

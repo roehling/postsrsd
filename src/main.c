@@ -187,6 +187,42 @@ static bool init_seccomp()
     if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(recvfrom), 0) < 0)
         goto fail;
 #    endif
+#    ifdef __SANITIZE_ADDRESS__
+    /* These syscalls are used by the Address Sanitizer */
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(sigaltstack), 0)
+        < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(rt_sigprocmask), 0)
+        < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(rt_sigaction), 0)
+        < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(gettid), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(getppid), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(futex), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(prctl), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(clone), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(wait4), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(sched_yield), 0)
+        < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(ptrace), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(getdents64), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(readlink), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ERRNO(EINVAL), SCMP_SYS(ioctl), 0)
+        < 0)
+        goto fail;
+#    endif
     return true;
 fail:
     seccomp_release(scmp_ctx);
@@ -488,9 +524,10 @@ static void handle_socketmap_client(postsrsd_t* state, int conn)
 
 static void handle_milter_client(postsrsd_t* state, int conn)
 {
-#define MS_UNINITIALIZED 0
-#define MS_READY         1
-#define MS_PROCESSING    2
+#define MILTER_AWAIT_OPTNEG      0
+#define MILTER_AWAIT_MAIL        1
+#define MILTER_AWAIT_RCPT        2
+#define MILTER_AWAIT_RCPT_OR_EOM 3
     FILE *fp_read, *fp_write;
     database_t* db;
     char buffer[MILTER_PAYLOAD_SIZE];
@@ -502,7 +539,7 @@ static void handle_milter_client(postsrsd_t* state, int conn)
     const bool always_rewrite = cfg_getbool(state->cfg, "always-rewrite");
     const bool rewrite_local = cfg_getbool(state->cfg, "milter-rewrite-local");
     const int keep_alive = cfg_getint(state->cfg, "keep-alive");
-    int milter_state = MS_UNINITIALIZED;
+    int milter_state = MILTER_AWAIT_OPTNEG;
     char* queue_id = NULL;
     list_t* sender = list_create();
     list_t* recipients = list_create();
@@ -521,48 +558,43 @@ static void handle_milter_client(postsrsd_t* state, int conn)
         switch (action)
         {
             case MILTER_CMD_OPTNEG:
-                if (milter_state != MS_UNINITIALIZED)
+                if (milter_state != MILTER_AWAIT_OPTNEG)
                 {
                     log_error(
                         "%s: MTA initiated unexpected milter option "
                         "negotiation",
                         queue_id != NULL ? queue_id : "NOQUEUE");
-                    milter_tempfail(fp_write);
-                    break;
+                    if (!milter_tempfail(fp_write))
+                        goto done;
+                    goto cleanup;
                 }
                 if (!milter_handle_optneg(fp_write, buffer + 1, len - 1))
                     goto done;
-                milter_state = MS_READY;
+                milter_state = MILTER_AWAIT_MAIL;
                 break;
             case MILTER_CMD_MACRO:
                 if (len > 2)
                     set_string(&queue_id,
                                milter_find_macro("i", buffer + 2, len - 2));
                 break;
-            case MILTER_CMD_ABORT:
-                milter_state = MS_READY;
-                list_clear(sender, free);
-                list_clear(recipients, free);
-                set_string(&queue_id, NULL);
-                if (sig_hup_received)
-                    goto done;
-                break;
             case MILTER_CMD_MAIL:
-                if (milter_state != MS_READY)
+                if (milter_state != MILTER_AWAIT_MAIL)
                 {
                     log_error("%s: MTA sent unexpected milter MAIL command",
                               queue_id != NULL ? queue_id : "NOQUEUE");
-                    milter_tempfail(fp_write);
-                    goto done;
+                    if (!milter_tempfail(fp_write))
+                        goto done;
+                    goto cleanup;
                 }
                 if (truncated > 0)
                 {
                     log_error("%s: MTA sent oversized milter MAIL command",
                               queue_id != NULL ? queue_id : "NOQUEUE");
-                    milter_reject(fp_write);
-                    goto done;
+                    if (!milter_reject(fp_write))
+                        goto done;
+                    goto cleanup;
                 }
-                milter_state = MS_PROCESSING;
+                milter_state = MILTER_AWAIT_RCPT;
                 milter_parse_str_list(sender, buffer + 1, len - 1);
                 if (list_size(sender) < 1)
                 {
@@ -570,11 +602,7 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                               queue_id != NULL ? queue_id : "NOQUEUE");
                     if (!milter_reject(fp_write))
                         goto done;
-                    list_clear(sender, free);
-                    list_clear(recipients, free);
-                    set_string(&queue_id, NULL);
-                    milter_state = MS_READY;
-                    break;
+                    goto cleanup;
                 }
                 if (!milter_continue(fp_write))
                     goto done;
@@ -582,31 +610,33 @@ static void handle_milter_client(postsrsd_t* state, int conn)
             case MILTER_CMD_QUIT:
                 goto done;
             case MILTER_CMD_RCPT:
-                if (milter_state != MS_PROCESSING)
+                if (milter_state != MILTER_AWAIT_RCPT
+                    && milter_state != MILTER_AWAIT_RCPT_OR_EOM)
                 {
                     log_error("%s: MTA sent unexpected milter RCPT command",
                               queue_id != NULL ? queue_id : "NOQUEUE");
                     milter_tempfail(fp_write);
-                    goto done;
+                    goto cleanup;
                 }
                 if (truncated > 0)
                 {
                     log_error("%s: MTA sent oversized milter RCPT command",
                               queue_id != NULL ? queue_id : "NOQUEUE");
                     milter_reject(fp_write);
-                    goto done;
+                    goto cleanup;
                 }
                 list_append(recipients, strip_brackets(buffer + 1));
                 if (!milter_continue(fp_write))
                     goto done;
+                milter_state = MILTER_AWAIT_RCPT_OR_EOM;
                 break;
             case MILTER_CMD_EOM:
-                if (milter_state != MS_PROCESSING)
+                if (milter_state != MILTER_AWAIT_RCPT_OR_EOM)
                 {
                     log_error("%s: MTA sent unexpected milter EOM command",
                               queue_id != NULL ? queue_id : "NOQUEUE");
                     milter_tempfail(fp_write);
-                    goto done;
+                    goto cleanup;
                 }
                 if (list_size(sender) == 0)
                 {
@@ -699,11 +729,15 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                 }
                 if (!milter_accept(fp_write))
                     goto done;
+                goto cleanup;
+            case MILTER_CMD_ABORT:
 cleanup:
                 list_clear(sender, free);
                 list_clear(recipients, free);
                 set_string(&queue_id, NULL);
-                milter_state = MS_READY;
+                milter_state = MILTER_AWAIT_MAIL;
+                if (sig_hup_received)
+                    goto done;
                 break;
             default:
                 log_warn("%s: MTA sent unexpected milter command '%c'",
@@ -716,6 +750,9 @@ cleanup:
     }
 done:
     fflush(fp_write);
+    list_clear(sender, free);
+    list_clear(recipients, free);
+    set_string(&queue_id, NULL);
     database_disconnect(db);
 }
 
@@ -975,6 +1012,8 @@ int main(int argc, char** argv)
                             handle_socketmap_client(&state, conn);
                         else
                             handle_milter_client(&state, conn);
+                        finalize_state(&state);
+                        pid_set_destroy(P);
                         exit(EXIT_SUCCESS);
                     }
                     if (pid < 0)
