@@ -420,6 +420,11 @@ bool pid_set_add(pid_set_t* P, pid_t pid)
 {
     if (P == NULL)
         return false;
+    for (size_t i = 0; i < P->size; ++i)
+    {
+        if (P->entries[i] == pid)
+            return false;
+    }
     if (P->capacity == P->size)
     {
         if (P->capacity == 0)
@@ -447,19 +452,16 @@ bool pid_set_remove(pid_set_t* P, pid_t pid)
 {
     if (P == NULL)
         return false;
-    bool found = false;
-    for (size_t i = 0; i < P->size;)
+    for (size_t i = 0; i < P->size; ++i)
     {
         if (P->entries[i] == pid)
         {
             --P->size;
             P->entries[i] = P->entries[P->size];
-            found = true;
-            continue;
+            return true;
         }
-        ++i;
     }
-    return found;
+    return false;
 }
 
 bool pid_set_kill(pid_set_t* P, int signal)
