@@ -67,6 +67,7 @@ char* stpncpy(char* dst, const char* src, size_t len);
 char* stpcpy(char* dst, const char* src);
 #endif
 
+char* strip_brackets_n(const char* addr, size_t length);
 char* strip_brackets(const char* addr);
 char* add_brackets(const char* addr);
 

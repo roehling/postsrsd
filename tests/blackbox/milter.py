@@ -74,7 +74,10 @@ def mf_eom(sock: socket.socket):
 
 @contextlib.contextmanager
 def postsrsd_instance(
-    postsrsd: str, when: str, with_sqlite: bool = False, with_redis: bool = False
+    postsrsd: str,
+    when: str | None = None,
+    with_sqlite: bool = False,
+    with_redis: bool = False,
 ):
     with tempfile.TemporaryDirectory() as tmpdirname:
         tmpdir = pathlib.Path(tmpdirname)
@@ -86,7 +89,7 @@ def postsrsd_instance(
                 db_uri = "redis:localhost:6379"
             f.write(
                 'domains = {"example.com"}\n'
-                "keep-alive = 2\n"
+                "keep-alive = 1\n"
                 'chroot-dir = ""\n'
                 'unprivileged-user = ""\n'
                 f'original-envelope = {"database" if with_sqlite or with_redis else "embedded"}\n'
@@ -97,7 +100,8 @@ def postsrsd_instance(
             )
         with open(tmpdir / "postsrsd.secret", "w") as f:
             f.write("tops3cr3t\n")
-        os.environ["POSTSRSD_FAKETIME"] = when
+        if when is not None:
+            os.environ["POSTSRSD_FAKETIME"] = when
         proc = subprocess.Popen(
             [postsrsd, "-C", str(tmpdir / "postsrsd.conf")],
             start_new_session=True,
@@ -130,7 +134,7 @@ def execute_queries(
             try:
                 sock.settimeout(0.5)
                 sock.connect(endpoint)
-                assert mf_optneg(sock)
+                assert mf_optneg(sock), "milter option negotation failed"
                 srs_from = None
                 srs_rcpt = None
                 mf_macro(sock, b"M")
@@ -153,6 +157,176 @@ def execute_queries(
                 sys.stderr.write(f"PASS: {query[0]}\n")
             except AssertionError as e:
                 sys.stderr.write(f"*** FAIL: {query[0]}: {str(e)}\n")
+                return False
+            finally:
+                sock.close()
+    return True
+
+
+def milter_protocol_violations(postsrsd: str, when: str):
+
+    def duplicate_optneg(sock: socket.socket):
+        assert mf_optneg(sock), "initial milter option negotiation failed"
+        send_milter(sock, b"O", struct.pack(">LLL", 6, 0xFF, 0xFF))
+        code, _ = recv_milter(sock)
+        assert (
+            code == b"t"
+        ), "milter should have temp-failed on repeated option negotiation"
+
+    def no_optneg(sock: socket.socket):
+        code = mf_envfrom(sock, "sender@jumps-the-gun.com>")
+        assert code == b"t", "milter should have temp-failed"
+
+    def no_mail_command(sock: socket.socket):
+        assert mf_optneg(sock), "milter option negotiation failed"
+        code = mf_rcptto(sock, "somewhere@over-the-rainbow.com")
+        assert code == b"t", "milter should have temp-failed"
+
+    def no_rcpt_command(sock: socket.socket):
+        assert mf_optneg(sock), "milter option negotiation failed"
+        code = mf_envfrom(sock, "sender@jumps-the-gun.com>")
+        assert code == b"c", "milter should have continued"
+        code, _, _ = mf_eom(sock)
+        assert code == b"t", "milter should have temp-failed"
+
+    def unsupported_chgfrom_action(sock: socket.socket):
+        send_milter(sock, b"O", struct.pack(">LLL", 6, 0x3F, 0xFF))
+        code, _ = recv_milter(sock)
+        assert code == b"t", "milter should have temp-failed"
+
+    def unsupported_addrcpt_action(sock: socket.socket):
+        send_milter(sock, b"O", struct.pack(">LLL", 6, 0xFB, 0xFF))
+        code, _ = recv_milter(sock)
+        assert code == b"t", "milter should have temp-failed"
+
+    def unsupported_delrcpt_action(sock: socket.socket):
+        send_milter(sock, b"O", struct.pack(">LLL", 6, 0xF7, 0xFF))
+        code, _ = recv_milter(sock)
+        assert code == b"t", "milter should have temp-failed"
+
+    def missing_null_terminators(sock: socket.socket):
+        assert mf_optneg(sock), "milter option negotiation failed"
+        send_milter(sock, b"M", b"<sender@otherdomain.com>")
+        code, _ = recv_milter(sock)
+        assert code == b"c", "milter should have continued"
+        send_milter(sock, b"R", b"<SRS0=vmyz=2W=otherdomain.com=test@example.com>")
+        code, _ = recv_milter(sock)
+        assert code == b"c", "milter should have continued"
+        code, new_from, new_rcpt = mf_eom(sock)
+        assert code == b"a", f"milter should have accepted"
+        assert (
+            new_from == "SRS0=9KJ+=2W=otherdomain.com=sender@example.com"
+        ), f"unexpected rewrite of envelope sender: {new_from!r}"
+        assert (
+            new_rcpt == "test@otherdomain.com"
+        ), f"unexpected rewrite of recipient: {new_rcpt!r}"
+
+    def oversized_mail_command(sock: socket.socket):
+        assert mf_optneg(sock), "milter option negotiation failed"
+        send_milter(sock, b"M", b"<" + (b"a" * 509) + b">\x00")
+        code, _ = recv_milter(sock)
+        assert code == b"r", "milter should have rejected"
+
+    def malformed_mail_command(sock: socket.socket):
+        assert mf_optneg(sock), "milter option negotiation failed"
+        send_milter(sock, b"M", b">test@example.com<")
+        code, _ = recv_milter(sock)
+        assert code == b"r", "milter should have rejected"
+
+    def aborted_transaction(sock: socket.socket):
+        assert mf_optneg(sock), "milter option negotiation failed"
+        code = mf_envfrom(sock, "mail@example.com")
+        assert code == b"c", "milter should have continued"
+        code = mf_rcptto(sock, "recipient@example.com")
+        assert code == b"c", "milter should have continued"
+        send_milter(sock, b"A", b"")
+        code = mf_envfrom(sock, "sender@otherdomain.com")
+        assert code == b"c", "milter should have continued"
+        code = mf_rcptto(sock, "SRS0=vmyz=2W=otherdomain.com=test@example.com")
+        assert code == b"c", "milter should have continued"
+        code, new_from, new_rcpt = mf_eom(sock)
+        assert code == b"a", f"milter should have accepted"
+        assert (
+            new_from == "SRS0=9KJ+=2W=otherdomain.com=sender@example.com"
+        ), f"unexpected rewrite of envelope sender: {new_from!r}"
+        assert (
+            new_rcpt == "test@otherdomain.com"
+        ), f"unexpected rewrite of recipient: {new_rcpt!r}"
+
+    def close_on_quit(sock: socket.socket):
+        assert mf_optneg(sock), "milter option negotiation failed"
+        send_milter(sock, b"Q", b"")
+        try:
+            mf_envfrom(sock, "mail@example.com")
+            raise AssertionError("milter should have disconnected")
+        except (ConnectionError, struct.error):
+            pass
+
+    def oversized_rcpt_command(sock: socket.socket):
+        assert mf_optneg(sock), "milter option negotiation failed"
+        assert mf_envfrom(sock, "a" * 508), "milter MAIL command failed"
+        send_milter(sock, b"R", b"<" + (b"a" * 509) + b">\x00")
+        code, _ = recv_milter(sock)
+        assert code == b"r", "milter should have rejected"
+
+    def malformed_rcpt_command(sock: socket.socket):
+        assert mf_optneg(sock), "milter option negotiation failed"
+        assert mf_envfrom(sock, "a" * 508), "milter MAIL command failed"
+        send_milter(sock, b"R", b">recipient@otherdomain.com<")
+        code, _ = recv_milter(sock)
+        assert code == b"r", "milter should have rejected"
+
+    def send_garbage_first(sock: socket.socket):
+        sock.send(b"\x00\x00\xff\xff" + b"!" * 65535)
+        assert mf_optneg(sock), "milter option negotiation failed"
+        code = mf_envfrom(sock, "sender@otherdomain.com")
+        assert code == b"c", "milter should have continued"
+        code = mf_rcptto(sock, "SRS0=vmyz=2W=otherdomain.com=test@example.com")
+        assert code == b"c", "milter should have continued"
+        code, new_from, new_rcpt = mf_eom(sock)
+        assert code == b"a", f"milter should have accepted"
+        assert (
+            new_from == "SRS0=9KJ+=2W=otherdomain.com=sender@example.com"
+        ), f"unexpected rewrite of envelope sender: {new_from!r}"
+        assert (
+            new_rcpt == "test@otherdomain.com"
+        ), f"unexpected rewrite of recipient: {new_rcpt!r}"
+
+    def keep_alive_timeout(sock: socket.socket):
+        time.sleep(1.1)
+        try:
+            mf_optneg(sock)
+            raise AssertionError("milter should have disconnected")
+        except (ConnectionError, struct.error):
+            pass
+
+    with postsrsd_instance(postsrsd, when=when) as endpoint:
+        for test_func in [
+            duplicate_optneg,
+            no_optneg,
+            no_mail_command,
+            no_rcpt_command,
+            unsupported_chgfrom_action,
+            unsupported_addrcpt_action,
+            unsupported_delrcpt_action,
+            oversized_mail_command,
+            malformed_mail_command,
+            oversized_rcpt_command,
+            malformed_rcpt_command,
+            missing_null_terminators,
+            aborted_transaction,
+            close_on_quit,
+            send_garbage_first,
+            keep_alive_timeout,
+        ]:
+            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM, 0)
+            try:
+                sock.settimeout(0.5)
+                sock.connect(endpoint)
+                test_func(sock)
+                sys.stderr.write(f"PASS: {test_func.__name__}\n")
+            except AssertionError as e:
+                sys.stderr.write(f"*** FAIL: {test_func.__name__}: {str(e)}\n")
                 return False
             finally:
                 sock.close()
@@ -404,6 +578,8 @@ if __name__ == "__main__":
         when="1577836860",  # 2020-01-01 00:01:00 UTC
         queries=STATELESS_QUERIES,
     ):
+        sys.exit(1)
+    if not milter_protocol_violations(sys.argv[1], when="1577836860"):
         sys.exit(1)
     if sys.argv[2] == "1":
         if not execute_queries(

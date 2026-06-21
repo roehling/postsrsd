@@ -145,18 +145,30 @@ char* stpncpy(char* dst, const char* src)
 }
 #endif
 
+char* strip_brackets_n(const char* addr, size_t length)
+{
+    if (addr == NULL || length < 2)
+        return NULL;
+    const char* lbrak = memchr(addr, '<', length);
+    if (lbrak == NULL)
+        return NULL;
+    const char* rbrak = memchr(lbrak, '>', length - (lbrak - addr));
+    if (rbrak == NULL)
+        return NULL;
+    return strndup(lbrak + 1, rbrak - lbrak - 1);
+}
+
 char* strip_brackets(const char* addr)
 {
     if (addr == NULL)
         return NULL;
     const char* lbrak = strchr(addr, '<');
-    const char* rbrak = strchr(addr, '>');
-    if (lbrak == NULL || rbrak == NULL)
+    if (lbrak == NULL)
         return NULL;
-    lbrak++;
-    char* bare = strdup(lbrak);
-    *(bare + (rbrak - lbrak)) = 0;
-    return bare;
+    const char* rbrak = strchr(lbrak, '>');
+    if (rbrak == NULL)
+        return NULL;
+    return strndup(lbrak + 1, rbrak - lbrak - 1);
 }
 
 char* add_brackets(const char* addr)

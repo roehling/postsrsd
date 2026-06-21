@@ -552,6 +552,7 @@ static void handle_milter_client(postsrsd_t* state, int conn)
             break;
         alarm(0);
         char action = buffer[0];
+        char* addr = NULL;
         const char* info = NULL;
         bool error = false;
         bool is_local = false;
@@ -604,6 +605,16 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                         goto done;
                     goto cleanup;
                 }
+                addr = strip_brackets(list_get(sender, 0));
+                if (addr == NULL)
+                {
+                    log_error("%s: MTA sent malformed milter MAIL command",
+                              queue_id != NULL ? queue_id : "NOQUEUE");
+                    if (!milter_reject(fp_write))
+                        goto done;
+                    goto cleanup;
+                }
+                list_replace_at(sender, 0, addr, free);
                 if (!milter_continue(fp_write))
                     goto done;
                 break;
@@ -615,17 +626,30 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                 {
                     log_error("%s: MTA sent unexpected milter RCPT command",
                               queue_id != NULL ? queue_id : "NOQUEUE");
-                    milter_tempfail(fp_write);
+                    if (!milter_tempfail(fp_write))
+                        goto done;
                     goto cleanup;
                 }
                 if (truncated > 0)
                 {
                     log_error("%s: MTA sent oversized milter RCPT command",
                               queue_id != NULL ? queue_id : "NOQUEUE");
-                    milter_reject(fp_write);
+                    if (!milter_reject(fp_write))
+                        goto done;
                     goto cleanup;
                 }
-                list_append(recipients, strip_brackets(buffer + 1));
+                addr = NULL;
+                if (len >= 3)
+                    addr = strip_brackets_n(buffer + 1, len - 1);
+                if (addr == NULL)
+                {
+                    log_error("%s: MTA sent malformed milter RCPT command",
+                              queue_id != NULL ? queue_id : "NOQUEUE");
+                    if (!milter_reject(fp_write))
+                        goto done;
+                    goto cleanup;
+                }
+                list_append(recipients, addr);
                 if (!milter_continue(fp_write))
                     goto done;
                 milter_state = MILTER_AWAIT_RCPT_OR_EOM;
@@ -635,7 +659,8 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                 {
                     log_error("%s: MTA sent unexpected milter EOM command",
                               queue_id != NULL ? queue_id : "NOQUEUE");
-                    milter_tempfail(fp_write);
+                    if (!milter_tempfail(fp_write))
+                        goto done;
                     goto cleanup;
                 }
                 if (list_size(sender) == 0)
@@ -643,7 +668,8 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                     log_error(
                         "%s: MTA failed to divulge sender envelope address",
                         queue_id != NULL ? queue_id : "NOQUEUE");
-                    milter_reject(fp_write);
+                    if (!milter_reject(fp_write))
+                        goto done;
                     goto cleanup;
                 }
                 if (list_size(recipients) == 0)
@@ -651,7 +677,8 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                     log_error(
                         "%s: MTA failed to divulge any recipient addresses",
                         queue_id != NULL ? queue_id : "NOQUEUE");
-                    milter_reject(fp_write);
+                    if (!milter_reject(fp_write))
+                        goto done;
                     goto cleanup;
                 }
                 is_local = true;
@@ -696,13 +723,10 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                 }
                 if (!is_local || rewrite_local || always_rewrite)
                 {
-                    char* unbracketed_sender =
-                        strip_brackets(list_get(sender, 0));
                     char* rewritten = postsrsd_forward(
-                        unbracketed_sender, state->srs_domain, state->srs, db,
+                        list_get(sender, 0), state->srs_domain, state->srs, db,
                         always_rewrite ? NULL : state->local_domains, &error,
                         &info);
-                    free(unbracketed_sender);
                     if (rewritten)
                     {
                         list_replace_at(sender, 0, add_brackets(rewritten),
@@ -731,6 +755,8 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                     goto done;
                 goto cleanup;
             case MILTER_CMD_ABORT:
+                log_info("%s: MTA aborted transaction",
+                         queue_id != NULL ? queue_id : "NOQUEUE");
 cleanup:
                 list_clear(sender, free);
                 list_clear(recipients, free);
@@ -740,10 +766,13 @@ cleanup:
                     goto done;
                 break;
             default:
-                log_warn("%s: MTA sent unexpected milter command '%c'",
-                         queue_id != NULL ? queue_id : "NOQUEUE", action);
-                if (!milter_continue(fp_write))
-                    goto done;
+                log_warn("%s: MTA sent unexpected milter command",
+                         queue_id != NULL ? queue_id : "NOQUEUE");
+                if (milter_state != MILTER_AWAIT_OPTNEG)
+                {
+                    if (!milter_continue(fp_write))
+                        goto done;
+                }
                 break;
         }
         fflush(fp_write);
@@ -932,6 +961,7 @@ int main(int argc, char** argv)
     num_fds +=
         file_watch_prepare_poll(state.file_watch, fds + num_fds, remaining_fds);
     pid_t pid;
+    int child_status;
     for (;;)
     {
         if (sig_hup_received || files_changed)
@@ -1025,9 +1055,16 @@ int main(int argc, char** argv)
                 }
             }
         }
-        pid = waitpid(0, NULL, WNOHANG);
+        pid = waitpid(0, &child_status, WNOHANG);
         if (pid > 0)
+        {
+            if (WEXITSTATUS(child_status) != EXIT_SUCCESS)
+            {
+                log_warn("child process %d exited with status code %d", pid,
+                         WEXITSTATUS(child_status));
+            }
             pid_set_remove(P, pid);
+        }
     }
 shutdown:
     if (pf != NULL)
