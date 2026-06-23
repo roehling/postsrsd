@@ -27,12 +27,17 @@ import time
 
 
 def send_milter(sock: socket.socket, code: bytes, data: bytes):
-    sock.send(struct.pack(">Lc", len(data) + 1, code) + data)
+    sock.sendall(struct.pack(">Lc", len(data) + 1, code) + data)
 
 
 def recv_milter(sock: socket.socket):
-    size = struct.unpack(">L", sock.recv(4))
+    size_bytes = sock.recv(4)
+    if not size_bytes:
+        raise ConnectionResetError("cannot read milter packet from socket")
+    size = struct.unpack(">L", size_bytes)
     data = sock.recv(*size)
+    if not data:
+        raise ConnectionResetError("cannot read milter packet from socket")
     return data[:1], data[1:]
 
 
