@@ -422,6 +422,7 @@ bool srs_domains_from_config(cfg_t* cfg, char** srs_domain,
         log_error("no SRS domain configured");
         goto fail;
     }
+    domain_set_add(*local_domains, *srs_domain);
     return true;
 fail:
     domain_set_destroy(*local_domains);
