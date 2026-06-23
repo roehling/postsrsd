@@ -14,7 +14,7 @@
 # Default:
 #     none
 #
-domains = {}
+@POSTSRSD_DOMAINS_CONFIG@
 
 # Local domains (file storage)
 # Instead of listing your local domains directly, you can also write them to a
@@ -29,7 +29,7 @@ domains = {}
 # Default:
 #     none
 #
-#domains-file =
+@POSTSRSD_DOMAINS_FILE_CONFIG@
 
 # Watch domains file for changes
 # You can tell PostSRSd to automatically reconfigure itself whenever the domain
@@ -39,7 +39,7 @@ domains = {}
 # Default:
 #     domains-file-watch = off
 #
-#domains-file-watch = off
+@POSTSRSD_DOMAINS_FILE_WATCH_CONFIG@
 
 # Dedicated SRS rewrite domain.
 # The local domain which is used to create the ephemeral SRS envelope

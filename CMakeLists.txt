@@ -75,6 +75,20 @@ option(WITH_SECCOMP "Enable additional sandboxing with seccomp" OFF)
 add_feature_info(
     WITH_SECCOMP WITH_SECCOMP "use seccomp for additional sandboxing"
 )
+option(USE_DOMAINS_FILE "Pre-configure PostSRSd to use a domains file" OFF)
+add_feature_info(
+    USE_DOMAINS_FILE USE_DOMAINS_FILE
+    "pre-configure PostSRSd to use a domains file"
+)
+option(USE_DOMAINS_FILE_WATCH
+       "Pre-configure PostSRSd to watch for domains file changes"
+       ${USE_DOMAINS_FILE}
+)
+add_feature_info(
+    USE_DOMAINS_FILE_WATCH USE_DOMAINS_FILE_WATCH
+    "pre-configure PostSRSd to watch for domains file changes"
+)
+
 option(TESTS_WITH_ASAN "Run test suite with AddressSanitizer" OFF)
 option(TESTS_WITH_REDIS "Run test suite against Redis database backend" OFF)
 option(DEVELOPER_BUILD "Add strict compiler options for development only" OFF)
@@ -349,6 +363,20 @@ if(EXECUTABLE_WITH_ASAN)
     target_link_options(postsrsd PRIVATE -fsanitize=address,undefined)
 endif()
 
+if(USE_DOMAINS_FILE)
+    set(POSTSRSD_DOMAINS_CONFIG "#domains = {}")
+    set(POSTSRSD_DOMAINS_FILE_CONFIG
+        "domains-file = \"${POSTSRSD_CONFIGDIR}/${PROJECT_NAME}.domains\""
+    )
+else()
+    set(POSTSRSD_DOMAINS_CONFIG "domains = {}")
+    set(POSTSRSD_DOMAINS_FILE_CONFIG "#domains-file =")
+endif()
+if(USE_DOMAINS_FILE_WATCH)
+    set(POSTSRSD_DOMAINS_FILE_WATCH_CONFIG "domains-file-watch = on")
+else()
+    set(POSTSRSD_DOMAINS_FILE_WATCH_CONFIG "#domains-file-watch = off")
+endif()
 configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/data/postsrsd.conf.in"
     "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.conf" @ONLY
@@ -419,6 +447,15 @@ install(CODE "\
     message(STATUS \"Installing: \$ENV{DESTDIR}${POSTSRSD_CHROOTDIR}\")
     file(MAKE_DIRECTORY \"\$ENV{DESTDIR}${POSTSRSD_CHROOTDIR}\")"
 )
+if(USE_DOMAINS_FILE)
+    install(
+        CODE "\
+        if(NOT EXISTS \"\$ENV{DESTDIR}${POSTSRSD_CONFIGDIR}/${PROJECT_NAME}.domains\")
+            message(STATUS \"Creating: \$ENV{DESTDIR}${POSTSRSD_CONFIGDIR}/${PROJECT_NAME}.domains\")
+            file(TOUCH \"\$ENV{DESTDIR}${POSTSRSD_CONFIGDIR}/${PROJECT_NAME}.domains\")
+        endif()"
+    )
+endif()
 
 if(BUILD_TESTING)
     FetchContent_MakeAvailable(Check)

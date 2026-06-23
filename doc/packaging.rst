@@ -62,6 +62,15 @@ users:
   ``postsrsd.secret`` if it does not exist. This is helpful to make a source
   installation secure by default, but less so for a distributed binary package.
 
+- ``USE_DOMAINS_FILE``: If set to ``ON``, the generated default configuration
+  will use the domains file. This is disabled by default. Note that this can
+  always be overridden in ``postsrsd.conf`` by the user.
+
+- ``USE_DOMAINS_FILE_WATCH``: If set to ``ON``, the generated default
+  configuration will enable inotify support and automatically reload if the
+  domains file is changed. This is disabled by default. Note that this can
+  always be overridden in ``postsrsd.conf`` by the user.
+
 - ``INSTALL_SYSTEMD_SERVICE``: If set to ``ON`` (the default), a postsrsd.service
   unit will be installed to allow starting PostSRSd via systemd. You can disable
   this if your distribution uses a different init system.
@@ -86,12 +95,19 @@ users:
 
 - ``TESTS_WITH_ASAN``: If set to ``ON``, the unit tests will be linked against
   the AddressSanitizer and LeakSanitizer libraries to catch common memory handling
-  bugs. Enabling this option does not affect the PostSRSd binary, it will only
+  bugs. Enabling this option does not affect the PostSRSd executable, it will only
   be used for the test suite. It is disabled by default.
 
 - ``TESTS_WITH_REDIS``: If set to ``ON``, the test suite will assume that a
   Redis instance is available at ``localhost:6379``, and run additional
   database related tests. This is disabled by default and has no effect unless
   ``WITH_REDIS=ON`` is also set.
+
+- ``EXECUTABLE_WITH_ASAN``: If set to ``ON``, the PostSRSd executable itself
+  will be linked against the AddressSanitizer and LeakSanitizer libraries. This
+  is useful to detect memory handling bugs in the blackbox tests, but comes at
+  a performance cost and also weakens the SECCOMP sandboxing, as the sanitizer
+  needs additional permissions. It is disabled by default and you should keep it
+  disabled for release builds.
 
 .. _GNUInstallDirs: https://cmake.org/cmake/help/latest/module/GNUInstallDirs.html
