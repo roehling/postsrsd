@@ -184,9 +184,16 @@ def milter_protocol_violations(postsrsd: str, when: str):
 
     def no_rcpt_command(sock: socket.socket):
         assert mf_optneg(sock), "milter option negotiation failed"
-        code = mf_envfrom(sock, "sender@jumps-the-gun.com>")
+        code = mf_envfrom(sock, "sender@jumps-the-gun.com")
         assert code == b"c", "milter should have continued"
         code, _, _ = mf_eom(sock)
+        assert code == b"t", "milter should have temp-failed"
+
+    def send_mail_command_twice(sock: socket.socket):
+        assert mf_optneg(sock), "milter option negotiation failed"
+        code = mf_envfrom(sock, "sender@example.com")
+        assert code == b"c", "milter should have continued"
+        code = mf_envfrom(sock, "sender2@example.com")
         assert code == b"t", "milter should have temp-failed"
 
     def unsupported_chgfrom_action(sock: socket.socket):
@@ -306,6 +313,7 @@ def milter_protocol_violations(postsrsd: str, when: str):
             no_optneg,
             no_mail_command,
             no_rcpt_command,
+            send_mail_command_twice,
             unsupported_chgfrom_action,
             unsupported_addrcpt_action,
             unsupported_delrcpt_action,
@@ -503,6 +511,14 @@ STATELESS_QUERIES: list[
         ),
         (b"r", None, None),
     ),
+    # Handle bounce mail (empty sender)
+    (
+        (
+            "",
+            "SRS0=9KJ+=2W=otherdomain.com=sender@example.com",
+        ),
+        (b"a", None, "sender@otherdomain.com"),
+    ),
 ]
 
 DATABASE_QUERIES: list[tuple[tuple[str, str], tuple[bytes, str | None, str | None]]] = [
@@ -557,14 +573,6 @@ DATABASE_QUERIES: list[tuple[tuple[str, str], tuple[bytes, str | None, str | Non
     (
         (
             "sender@example.com",
-            "SRS0=9KJ+=2W=otherdomain.com=sender@example.com",
-        ),
-        (b"a", None, "sender@otherdomain.com"),
-    ),
-    # Handle bounce mail
-    (
-        (
-            "",
             "SRS0=9KJ+=2W=otherdomain.com=sender@example.com",
         ),
         (b"a", None, "sender@otherdomain.com"),

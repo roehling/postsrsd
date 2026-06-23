@@ -138,7 +138,7 @@ char* stpncpy(char* dst, const char* src, size_t len)
 #endif
 
 #ifndef HAVE_STPCPY
-char* stpncpy(char* dst, const char* src)
+char* stpcpy(char* dst, const char* src)
 {
     size_t n = strlen(src);
     return strncpy(dst, src, len) + n;

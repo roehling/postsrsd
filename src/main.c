@@ -665,18 +665,16 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                 }
                 if (list_size(sender) == 0)
                 {
-                    log_error(
-                        "%s: MTA failed to divulge sender envelope address",
-                        queue_id != NULL ? queue_id : "NOQUEUE");
+                    log_error("%s: no sender envelope address",
+                              queue_id != NULL ? queue_id : "NOQUEUE");
                     if (!milter_reject(fp_write))
                         goto done;
                     goto cleanup;
                 }
                 if (list_size(recipients) == 0)
                 {
-                    log_error(
-                        "%s: MTA failed to divulge any recipient addresses",
-                        queue_id != NULL ? queue_id : "NOQUEUE");
+                    log_error("%s: no recipient address",
+                              queue_id != NULL ? queue_id : "NOQUEUE");
                     if (!milter_reject(fp_write))
                         goto done;
                     goto cleanup;
@@ -761,7 +759,8 @@ cleanup:
                 list_clear(sender, free);
                 list_clear(recipients, free);
                 set_string(&queue_id, NULL);
-                milter_state = MILTER_AWAIT_MAIL;
+                if (milter_state != MILTER_AWAIT_OPTNEG)
+                    milter_state = MILTER_AWAIT_MAIL;
                 if (sig_hup_received)
                     goto done;
                 break;
