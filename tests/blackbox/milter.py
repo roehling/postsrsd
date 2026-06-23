@@ -289,7 +289,7 @@ def milter_protocol_violations(postsrsd: str, when: str):
         assert code == b"r", "milter should have rejected"
 
     def send_garbage_first(sock: socket.socket):
-        sock.send(b"\x00\x00\xff\xff" + b"!" * 65535)
+        sock.sendall(b"\x00\x00\xff\xff" + b"!" * 65535)
         assert mf_optneg(sock), "milter option negotiation failed"
         code = mf_envfrom(sock, "sender@otherdomain.com")
         assert code == b"c", "milter should have continued"
