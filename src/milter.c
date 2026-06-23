@@ -61,13 +61,12 @@ size_t milter_receive(FILE* fp, void* buffer, size_t size, size_t* truncated)
     len -= result;
     while (len > 0)
     {
-        size_t skip =
-            fread(discardpile, 1,
-                  len < sizeof(discardpile) ? len : sizeof(discardpile), fp);
+        read_len = len < sizeof(discardpile) ? len : sizeof(discardpile);
+        size_t skip = fread(discardpile, 1, read_len, fp);
         len -= skip;
         if (truncated != NULL)
             *truncated += skip;
-        if (skip == 0)
+        if (skip < read_len)
             break;
     }
     return result;
