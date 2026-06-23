@@ -145,8 +145,8 @@ if __name__ == "__main__":
                             f"expected 'OK SRS0=...=otherdomain.com=test@{test_domain}', got {result!r}"
                         )
                     sys.stderr.write(f"PASS: {test_domain}\n")
-            except AssertionError as e:
-                sys.stderr.write(f"*** FAIL: {str(e)}\n")
+            except Exception as e:
+                sys.stderr.write(f"*** FAIL: {e.__class__.__name__}: {str(e)}\n")
                 sys.exit(1)
             finally:
                 if sock is not None:

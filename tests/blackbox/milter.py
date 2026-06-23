@@ -324,8 +324,8 @@ def milter_protocol_violations(postsrsd: str, when: str):
             missing_null_terminators,
             aborted_transaction,
             close_on_quit,
-            send_garbage_first,
             keep_alive_timeout,
+            send_garbage_first,
         ]:
             sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM, 0)
             try:
@@ -333,6 +333,9 @@ def milter_protocol_violations(postsrsd: str, when: str):
                 sock.connect(endpoint)
                 test_func(sock)
                 sys.stderr.write(f"PASS: {test_func.__name__}\n")
+            except (IOError, OSError, struct.error) as e:
+                sys.stderr.write(f"*** FAIL: {test_func.__name__}: {str(e)}\n")
+                return False
             except AssertionError as e:
                 sys.stderr.write(f"*** FAIL: {test_func.__name__}: {str(e)}\n")
                 return False
