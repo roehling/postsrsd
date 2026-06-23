@@ -7,6 +7,28 @@
 Changelog
 #########
 
+2.2.1
+=====
+
+Changed
+-------
+
+* Add per-process tracking of child processes.
+* The ``srs-domain`` configuration option is implicitly added
+  to the list of local domains now.
+* Improved test coverage.
+* Show Postfix queue ID in log messages if used as milter.
+
+Added
+-----
+
+* Additional CMake options to customize the build.
+
+Fixed
+-----
+
+* The fallback stpcpy() implementation had a typo in its name.
+
 2.2.0
 =====
 
