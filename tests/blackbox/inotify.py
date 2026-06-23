@@ -102,14 +102,31 @@ def postsrsd_instance(postsrsd: str, domains_file: pathlib.Path):
             proc.wait()
 
 
+def run_query(sock_stream: SockStream, test_domain: str | None):
+    write_netstring(sock_stream, "forward test@otherdomain.com")
+    result = read_netstring(sock_stream)
+    if (
+        result is None
+        or not result.startswith("OK SRS0=")
+        or not result.endswith(f"=otherdomain.com=test@{test_domain}")
+    ):
+        raise AssertionError(
+            f"expected 'OK SRS0=...=otherdomain.com=test@{test_domain}', got {result!r}"
+        )
+
+
 if __name__ == "__main__":
     with tempfile.TemporaryDirectory() as tmpdirname:
         domains_file = pathlib.Path(tmpdirname) / "domains.txt"
         with open(domains_file, "w") as f:
             f.write("example.com")
         with postsrsd_instance(sys.argv[1], domains_file=domains_file) as daemon:
-            sock = None
+            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM, 0)
+            sock.connect(daemon[0])
+            sock_stream = SockStream(sock)
             try:
+                previous_domain = "example.com"
+                run_query(sock_stream, previous_domain)
                 for counter, test_domain in enumerate(
                     [
                         "first.com",
@@ -130,25 +147,28 @@ if __name__ == "__main__":
                         with open(tmp_file, "w") as f:
                             f.write(f"{test_domain}\n")
                         tmp_file.rename(domains_file)
-                    time.sleep(0.1)
+                    try:
+                        # We deliberately keep the connection open and continue querying
+                        # PostSRSd. The daemon should close the connection as soon as the
+                        # configuration has been reloaded.
+                        max_wait = 20
+                        while max_wait > 0:
+                            run_query(sock_stream, previous_domain)
+                            time.sleep(0.01)
+                            max_wait -= 1
+                        raise AssertionError("configuration update failed")
+                    except ConnectionError:
+                        pass
+                    sock.close()
                     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM, 0)
                     sock.connect(daemon[0])
                     sock_stream = SockStream(sock)
-                    write_netstring(sock_stream, "forward test@otherdomain.com")
-                    result = read_netstring(sock_stream)
-                    if (
-                        result is None
-                        or not result.startswith("OK SRS0=")
-                        or not result.endswith(f"=otherdomain.com=test@{test_domain}")
-                    ):
-                        raise AssertionError(
-                            f"expected 'OK SRS0=...=otherdomain.com=test@{test_domain}', got {result!r}"
-                        )
+                    run_query(sock_stream, test_domain)
                     sys.stderr.write(f"PASS: {test_domain}\n")
+                    previous_domain = test_domain
             except Exception as e:
                 sys.stderr.write(f"*** FAIL: {e.__class__.__name__}: {str(e)}\n")
                 sys.exit(1)
             finally:
-                if sock is not None:
-                    sock.close()
+                sock.close()
     sys.exit(0)
