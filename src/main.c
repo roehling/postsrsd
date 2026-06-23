@@ -482,13 +482,15 @@ static void handle_socketmap_client(postsrsd_t* state, int conn)
         const char* info = NULL;
         if (strcmp(query_type, "forward") == 0)
         {
-            rewritten = postsrsd_forward(
-                addr, state->srs_domain, state->srs, db,
-                always_rewrite ? NULL : state->local_domains, &error, &info);
+            rewritten =
+                postsrsd_forward(addr, state->srs_domain, state->srs, db,
+                                 always_rewrite ? NULL : state->local_domains,
+                                 &error, &info, "socketmap");
         }
         else if (strcmp(query_type, "reverse") == 0)
         {
-            rewritten = postsrsd_reverse(addr, state->srs, db, &error, &info);
+            rewritten = postsrsd_reverse(addr, state->srs, db, &error, &info,
+                                         "socketmap");
         }
         else
         {
@@ -683,8 +685,9 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                 for (size_t i = 0; i < list_size(recipients); ++i)
                 {
                     char* rcpt = list_get(recipients, i);
-                    char* rewritten =
-                        postsrsd_reverse(rcpt, state->srs, db, &error, &info);
+                    char* rewritten = postsrsd_reverse(
+                        rcpt, state->srs, db, &error, &info,
+                        queue_id != NULL ? queue_id : "NOQUEUE");
                     if (rewritten)
                     {
                         char* bracketed_old_rcpt = add_brackets(rcpt);
@@ -724,7 +727,7 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                     char* rewritten = postsrsd_forward(
                         list_get(sender, 0), state->srs_domain, state->srs, db,
                         always_rewrite ? NULL : state->local_domains, &error,
-                        &info);
+                        &info, queue_id != NULL ? queue_id : "NOQUEUE");
                     if (rewritten)
                     {
                         list_replace_at(sender, 0, add_brackets(rewritten),

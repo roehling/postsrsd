@@ -24,7 +24,7 @@
 
 char* postsrsd_forward(const char* addr, const char* domain, srs_t* srs,
                        database_t* db, domain_set_t* local_domains, bool* error,
-                       const char** info)
+                       const char** info, const char* queue_id)
 {
     if (addr == NULL)
         return NULL;
@@ -33,16 +33,19 @@ char* postsrsd_forward(const char* addr, const char* domain, srs_t* srs,
         *error = false;
     if (info != NULL)
         *info = NULL;
+    if (queue_id == NULL)
+        queue_id = "NULL";
     if (at == NULL)
     {
         if (info != NULL)
             *info = "No domain.";
-        log_debug("<%s> not rewritten: no domain", addr);
+        log_debug("%s: <%s> not rewritten: no domain", queue_id, addr);
         return NULL;
     }
     if (domain == NULL)
     {
-        log_error("<%s> not rewritten: no SRS domain configured", addr);
+        log_error("%s: <%s> not rewritten: no SRS domain configured", queue_id,
+                  addr);
         if (error != NULL)
             *error = true;
         if (info != NULL)
@@ -54,7 +57,7 @@ char* postsrsd_forward(const char* addr, const char* domain, srs_t* srs,
     {
         if (info != NULL)
             *info = "Need not rewrite local domain.";
-        log_debug("<%s> not rewritten: local domain", addr);
+        log_debug("%s: <%s> not rewritten: local domain", queue_id, addr);
         return NULL;
     }
     char db_alias_buf[35];
@@ -77,7 +80,7 @@ char* postsrsd_forward(const char* addr, const char* domain, srs_t* srs,
         strcat(db_alias, "@1");
         if (!database_write(db, db_alias, addr, srs->maxage * 86400))
         {
-            log_warn("<%s> not rewritten: database error", addr);
+            log_warn("%s: <%s> not rewritten: database error", queue_id, addr);
             if (error != NULL)
                 *error = true;
             if (info != NULL)
@@ -90,7 +93,7 @@ char* postsrsd_forward(const char* addr, const char* domain, srs_t* srs,
     int result = srs_forward_alloc(srs, &output, sender, domain);
     if (result == SRS_SUCCESS)
     {
-        log_info("<%s> forwarded as <%s>", addr, output);
+        log_info("%s: <%s> forwarded as <%s>", queue_id, addr, output);
         return output;
     }
     free(output);
@@ -98,12 +101,13 @@ char* postsrsd_forward(const char* addr, const char* domain, srs_t* srs,
         *error = result != SRS_ENOTREWRITTEN;
     if (info != NULL)
         *info = srs_strerror(result);
-    log_info("<%s> not rewritten: %s", addr, srs_strerror(result));
+    log_info("%s: <%s> not rewritten: %s", queue_id, addr,
+             srs_strerror(result));
     return NULL;
 }
 
 char* postsrsd_reverse(const char* addr, srs_t* srs, database_t* db,
-                       bool* error, const char** info)
+                       bool* error, const char** info, const char* queue_id)
 {
     char buffer[513];
     if (addr == NULL)
@@ -112,6 +116,8 @@ char* postsrsd_reverse(const char* addr, srs_t* srs, database_t* db,
         *error = false;
     if (info != NULL)
         *info = NULL;
+    if (queue_id == NULL)
+        queue_id = "NOQUEUE";
     int result = srs_reverse(srs, buffer, sizeof(buffer), addr);
     if (result != SRS_SUCCESS)
     {
@@ -121,18 +127,20 @@ char* postsrsd_reverse(const char* addr, srs_t* srs, database_t* db,
             *info = srs_strerror(result);
         if (result != SRS_ENOTSRSADDRESS)
         {
-            log_info("<%s> not reversed: %s", addr, srs_strerror(result));
+            log_info("%s: <%s> not reversed: %s", queue_id, addr,
+                     srs_strerror(result));
         }
         else
         {
-            log_debug("<%s> not reversed: %s", addr, srs_strerror(result));
+            log_debug("%s: <%s> not reversed: %s", queue_id, addr,
+                      srs_strerror(result));
         }
         return NULL;
     }
     const char* at = strchr(buffer, '@');
     if (at == NULL)
     {
-        log_info("<%s> not reversed: internal error", addr);
+        log_info("%s: <%s> not reversed: internal error", queue_id, addr);
         if (error != NULL)
             *error = true;
         if (info != NULL)
@@ -152,17 +160,19 @@ char* postsrsd_reverse(const char* addr, srs_t* srs, database_t* db,
             char* sender = database_read(db, buffer);
             if (sender == NULL)
             {
-                log_info("<%s> not reversed: unknown alias", addr);
+                log_info("%s: <%s> not reversed: unknown alias", queue_id,
+                         addr);
                 if (info != NULL)
                     *info = "Unknown alias.";
                 return NULL;
             }
-            log_info("<%s> reversed to <%s>", addr, sender);
+            log_info("%s: <%s> reversed to <%s>", queue_id, addr, sender);
             return sender;
         }
         else
         {
-            log_warn("<%s> not reversed: no database for alias", addr);
+            log_warn("%s: <%s> not reversed: no database for alias", queue_id,
+                     addr);
             if (error != NULL)
                 *error = true;
             if (info != NULL)
@@ -170,6 +180,6 @@ char* postsrsd_reverse(const char* addr, srs_t* srs, database_t* db,
             return NULL;
         }
     }
-    log_info("<%s> reversed to <%s>", addr, buffer);
+    log_info("%s: <%s> reversed to <%s>", queue_id, addr, buffer);
     return strdup(buffer);
 }
