@@ -27,6 +27,7 @@ char* postsrsd_forward(const char* addr, const char* domain, srs_t* srs,
                        database_t* db, domain_set_t* local_domains, bool* error,
                        const char** info, const char* queue_id);
 char* postsrsd_reverse(const char* addr, srs_t* srs, database_t* db,
-                       bool* error, const char** info, const char* queue_id);
+                       domain_set_t* local_domains, bool* error,
+                       const char** info, const char* queue_id);
 
 #endif

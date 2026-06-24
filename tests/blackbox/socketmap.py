@@ -279,6 +279,14 @@ STATELESS_QUERIES = [
         "reverse SRS0=FAKE=2V=otherdomain.com=test@example.com",
         "PERM Hash invalid in SRS address.",
     ),
+    # Pass through (do not reject) an SRS address in a domain we do not sign
+    # for: its hash can never validate under our secret because it was minted
+    # by a different signer and is only transiting this host. Rejecting it
+    # would defer legitimate relay / backup-MX / multi-hop forwarding.
+    (
+        "reverse SRS0=FAKE=2V=otherdomain.com=test@foreign.example",
+        "NOTFOUND Hash invalid in SRS address.",
+    ),
     # Recover mail address from all-lowercase SRS0 address
     (
         "reverse srs0=xjo9=2v=otherdomain.com=test@example.com",

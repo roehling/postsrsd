@@ -489,7 +489,8 @@ static void handle_socketmap_client(postsrsd_t* state, int conn)
         }
         else if (strcmp(query_type, "reverse") == 0)
         {
-            rewritten = postsrsd_reverse(addr, state->srs, db, &error, &info,
+            rewritten = postsrsd_reverse(addr, state->srs, db,
+                                         state->local_domains, &error, &info,
                                          "socketmap");
         }
         else
@@ -686,8 +687,8 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                 {
                     char* rcpt = list_get(recipients, i);
                     char* rewritten = postsrsd_reverse(
-                        rcpt, state->srs, db, &error, &info,
-                        queue_id != NULL ? queue_id : "NOQUEUE");
+                        rcpt, state->srs, db, state->local_domains, &error,
+                        &info, queue_id != NULL ? queue_id : "NOQUEUE");
                     if (rewritten)
                     {
                         char* bracketed_old_rcpt = add_brackets(rcpt);
