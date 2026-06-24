@@ -14,6 +14,13 @@ After=network.target
 Type=notify-reload
 ExecStart=@CMAKE_INSTALL_FULL_SBINDIR@/postsrsd -C @POSTSRSD_CONFIGDIR@/@PROJECT_NAME@.conf
 NotifyAccess=main
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/var/spool/postfix @POSTSRSD_CHROOTDIR@
+PrivateTmp=yes
+PrivateDevices=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictSUIDSGID=yes
 
 [Install]
 WantedBy=multi-user.target
