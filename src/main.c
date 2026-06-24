@@ -489,9 +489,9 @@ static void handle_socketmap_client(postsrsd_t* state, int conn)
         }
         else if (strcmp(query_type, "reverse") == 0)
         {
-            rewritten = postsrsd_reverse(addr, state->srs, db,
-                                         state->local_domains, &error, &info,
-                                         "socketmap");
+            rewritten =
+                postsrsd_reverse(addr, state->srs, db, state->local_domains,
+                                 &error, &info, "socketmap");
         }
         else
         {
