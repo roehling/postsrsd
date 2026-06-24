@@ -62,7 +62,8 @@
 
 static volatile sig_atomic_t timeout = 0;
 static volatile sig_atomic_t sig_hup_received = 0, sig_term_received = 0;
-static bool files_changed = false;
+static bool files_changed = false, files_changed_unsafe = false;
+static time_t last_file_watch_event = 0;
 static bool sd_notify_support = false;
 
 #ifdef WITH_SECCOMP
@@ -794,7 +795,17 @@ static void on_file_watch_event(const char* path, unsigned what, size_t cookie)
     if (what & FW_MODIFIED)
     {
         files_changed = true;
+        files_changed_unsafe = false;
     }
+    else if (what & FW_CREATED)
+    {
+        files_changed_unsafe = true;
+    }
+    if (what & FW_CHANGING)
+    {
+        files_changed_unsafe = false;
+    }
+    time(&last_file_watch_event);
 }
 
 static bool config_changed_str(cfg_t* old_cfg, cfg_t* new_cfg, const char* name)
@@ -966,6 +977,10 @@ int main(int argc, char** argv)
     int child_status;
     for (;;)
     {
+        if (files_changed_unsafe && time(NULL) - last_file_watch_event >= 1)
+        {
+            files_changed = true;
+        }
         if (sig_hup_received || files_changed)
         {
             if (sd_notify_support)
@@ -983,7 +998,14 @@ int main(int argc, char** argv)
             if (files_changed)
             {
                 files_changed = false;
-                log_info("file change detected, reloading configuration.");
+                if (files_changed_unsafe)
+                {
+                    log_warn(
+                        "trying to reload configuration after unsafe update");
+                    files_changed_unsafe = false;
+                }
+                else
+                    log_info("file change detected, reloading configuration.");
             }
             if (setup_state(argc, argv, &state))
             {

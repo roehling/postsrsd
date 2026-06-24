@@ -94,6 +94,8 @@ static size_t util_file_watch__callback_count = 0;
 static void util_file_watch__callback(const char* path, unsigned what,
                                       size_t cookie)
 {
+    if (what == FW_CHANGING)
+        return;
     ++util_file_watch__callback_count;
     MAYBE_UNUSED(path);
     MAYBE_UNUSED(cookie);

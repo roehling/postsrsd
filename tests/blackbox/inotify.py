@@ -15,6 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 import contextlib
+import itertools
 import os
 import pathlib
 import signal
@@ -128,33 +129,41 @@ if __name__ == "__main__":
                 previous_domain = "example.com"
                 run_query(sock_stream, previous_domain)
                 for counter, test_domain in enumerate(
-                    [
-                        "first.com",
-                        "second.com",
-                        "third.com",
-                        "fourth.com",
-                        "fifth.com",
-                        "sixth.com",
-                    ]
+                    itertools.cycle(
+                        [
+                            "one.com",
+                            "two.com",
+                            "three.com",
+                        ]
+                    )
                 ):
-                    if counter % 2 == 0:
+                    if counter % 3 == 0:
                         sys.stderr.write("Opening domain file and modifying content\n")
                         with open(domains_file, "w") as f:
                             f.write(f"{test_domain}\n")
-                    else:
-                        sys.stderr.write("Replacing domain file with different file\n")
+                    elif counter % 3 == 1:
+                        sys.stderr.write(
+                            "Renaming different file to replace the domain file\n"
+                        )
                         tmp_file = pathlib.Path(str(domains_file) + ".tmp")
                         with open(tmp_file, "w") as f:
                             f.write(f"{test_domain}\n")
                         tmp_file.rename(domains_file)
+                    else:
+                        sys.stderr.write(
+                            "Deleting old domains file and creating a new one\n"
+                        )
+                        domains_file.unlink()
+                        with open(domains_file, "w") as f:
+                            f.write(f"{test_domain}\n")
                     try:
                         # We deliberately keep the connection open and continue querying
                         # PostSRSd. The daemon should close the connection as soon as the
                         # configuration has been reloaded.
-                        max_wait = 20
+                        max_wait = 100
                         while max_wait > 0:
                             run_query(sock_stream, previous_domain)
-                            time.sleep(0.01)
+                            time.sleep(0.1)
                             max_wait -= 1
                         raise AssertionError("configuration update failed")
                     except ConnectionError:
@@ -164,8 +173,12 @@ if __name__ == "__main__":
                     sock.connect(daemon[0])
                     sock_stream = SockStream(sock)
                     run_query(sock_stream, test_domain)
-                    sys.stderr.write(f"PASS: {test_domain}\n")
+                    sys.stderr.write(
+                        f"PASS: inotify test {counter + 1} [{test_domain}]\n"
+                    )
                     previous_domain = test_domain
+                    if counter == 8:
+                        break
             except Exception as e:
                 sys.stderr.write(f"*** FAIL: {e.__class__.__name__}: {str(e)}\n")
                 sys.exit(1)

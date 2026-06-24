@@ -51,6 +51,7 @@ typedef void (*file_watch_cb_t)(const char*, unsigned, size_t);
 #define FW_CREATED  1
 #define FW_MODIFIED 2
 #define FW_DELETED  4
+#define FW_CHANGING 8
 
 bool string_equal(const void* s1, const void* s2);
 void set_string(char** var, char* value);

@@ -771,6 +771,14 @@ void file_watch_process_events(file_watch_t* W)
             what |= FW_MODIFIED;
         if (event->mask & (IN_DELETE | IN_DELETE_SELF | IN_MOVED_FROM))
             what |= FW_DELETED;
+        if (event->mask & IN_MODIFY)
+            what |= FW_CHANGING;
+        if (event->len > 0)
+            log_debug("inotify: watch event [wd=%d, mask=%#x, name=\"%s\"]",
+                      event->wd, event->mask, event->name);
+        else
+            log_debug("inotify: watch event [wd=%d, mask=%#x, name=NULL]",
+                      event->wd, event->mask);
         if (what != 0)
         {
             for (size_t i = 0; i < num_wd; ++i)
@@ -805,8 +813,12 @@ void file_watch_process_events(file_watch_t* W)
                                 new_entry->filter = NULL;
                                 new_entry->cb = entry->cb;
                                 list_append(W->entries, new_entry);
+                                log_debug("inotify: watching '%s' [wd=%d]",
+                                          new_entry->path, new_entry->wd);
                             }
                         }
+                        log_debug("inotify: directory event for '%s'",
+                                  event->name);
                     }
                     entry->cb(filepath, what, event->cookie);
                     break;
@@ -815,6 +827,7 @@ void file_watch_process_events(file_watch_t* W)
         }
         if (event->mask & IN_IGNORED)
         {
+            log_debug("inotify: removing entries for [wd=%d]", event->wd);
             num_wd -=
                 list_remove_if_value(W->entries, file_watch__is_matching_wd,
                                      &event->wd, file_watch__delete_entry);
@@ -833,12 +846,14 @@ bool file_watch_if_modified(file_watch_t* W, const char* path,
         (struct file_watch_entry*)malloc(sizeof(struct file_watch_entry));
     if (entry == NULL)
         return false;
-    entry->wd = inotify_add_watch(W->fd, path, IN_CLOSE_WRITE | IN_DELETE_SELF);
+    entry->wd = inotify_add_watch(W->fd, path,
+                                  IN_CLOSE_WRITE | IN_DELETE_SELF | IN_MODIFY);
     entry->mask = 0;
     entry->path = strdup(path);
     entry->filter = NULL;
     entry->cb = callback;
     list_append(W->entries, entry);
+    log_debug("inotify: watching '%s' [wd=%d]", entry->path, entry->wd);
     const char* slash = strrchr(path, '/');
     if (slash != NULL)
     {
@@ -846,10 +861,11 @@ bool file_watch_if_modified(file_watch_t* W, const char* path,
             (struct file_watch_entry*)malloc(sizeof(struct file_watch_entry));
         entry->path = strndup(path, slash - path);
         entry->wd = inotify_add_watch(W->fd, entry->path, IN_MOVE | IN_CREATE);
-        entry->mask = IN_CLOSE_WRITE | IN_DELETE_SELF;
+        entry->mask = IN_CLOSE_WRITE | IN_DELETE_SELF | IN_MODIFY;
         entry->filter = strdup(slash + 1);
         entry->cb = callback;
         list_append(W->entries, entry);
+        log_debug("inotify: watching '%s' [wd=%d]", entry->path, entry->wd);
     }
     return true;
 #else
