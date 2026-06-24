@@ -129,6 +129,27 @@ for now and not ready for production. Feel free to report bugs or open pull
 requests if you try it out, though. Until PostSRSd 2.1, the milter support was
 implemented with the external libMilter library from Sendmail.
 
+Inotify Support
+---------------
+
+PostSRSd 2.1 added support for automatic reload if the ``domains-file``
+is modified. This feature is disabled by default, but you can opt-in by
+enabling the ``domains-file-watch`` option. It comes with the usual caveats
+of modern file systems, especially regarding atomic file updates.
+
+The recommended way to update the domains file is by an atomic move, i.e.,
+create a ``postsrsd.domains.tmp.XXXXXXX`` in the same directory, populate
+it, and rename it to replace the actual domains file. It is also technically
+possible to modify the file in-place, but this is unsafe if the system crashes.
+The worst way to update is to delete the existing file and create a new one
+in-place. This is not atomic either, and the inotify API introduces a race
+condition which may let PostSRSd miss the relevant file close event after the
+new file has been written completely. PostSRSd tries to recover from this, but
+there are no guarantees, so do not file any bugs if it fails.
+
+If a file change is detected, PostSRSd behaves exactly like it would if the
+process received a ``SIGHUP`` signal or a ``systemctl reload``.
+
 Migrating from version 1.x
 --------------------------
 
@@ -154,8 +175,11 @@ Frequently Asked Questions
 * **Can I configure PostSRSd so it will only rewrite the envelope sender if the
   email is not delivered locally?**
 
-  The PostSRSd milter will not rewrite sender addresses if all recipients are
-  in local domains.
+  Starting with PostSRSd 2.1, the PostSRSd milter supports this out-of-the-box:
+  If all recipients in a mail transaction belong to one of the configured local
+  domains, PostSRSd will assume that no forwarding will happen, and skip
+  rewriting the envelope sender. If you prefer the socketmap behavior, you can
+  enable the ``milter-rewrite-local`` configuration option.
 
 * **I am serving multiple domains with my MTA. Can I configure PostSRSd to
   rewrite addresses to the specific domain for which an email is forwarded?**
@@ -188,3 +212,7 @@ Frequently Asked Questions
   Unfortunately, some mail admins forget (or misconfigure) DKIM, which
   effectively breaks forwarding for *everyone*. Try to contact the mail
   administrator for the sending domain and tell them to fix their setup.
+
+* **Can you help me find the problem with my Postfix configuration?**
+
+  No.

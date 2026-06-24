@@ -45,7 +45,9 @@
 # The local domain which is used to create the ephemeral SRS envelope
 # addresses. It is recommended that you use a dedicated mail domain for SRS if
 # you serve multiple unrelated domains (e.g. for your customers), to prevent
-# privacy issues. If unset, the first configured local domain is used.
+# privacy issues. If unset, the first configured local domain is used. In
+# either case, make sure that the SRS rewrite domain has proper mail
+# authentication configured, such as an SPF record in the DNS.
 #
 # Example:
 #     srs-domain = "srs.example.com"
@@ -71,10 +73,10 @@
 #
 socketmap = unix:/var/spool/postfix/srs
 
-# Socketmap connection keep-alive timeout.
-# After PostSRSd has served a socketmap request, it will keep the connection
-# open for a while longer, in case Postfix has additional queries. PostSRSd
-# will close the connection after the configured time (in seconds) has expired.
+# Connection keep-alive timeout.
+# After PostSRSd has served a request, it will keep the connection open for a
+# while longer, in case Postfix has additional queries. PostSRSd will close
+# the connection after the configured time (in seconds) has expired.
 #
 # Default:
 #     keep-alive = 30
@@ -153,7 +155,7 @@ secrets-file = "@POSTSRSD_CONFIGDIR@/@PROJECT_NAME@.secret"
 # Force milter SRS rewrite for local recipients
 # If PostSRSd is run as milter and finds that a particular mail has only
 # recipients in the configured local domains, it will assume that no
-# forwarding is required and never rewrite the envelope sender.
+# forwarding is required and skip rewriting the envelope sender.
 #
 # If this option is enabled, the milter will process sender and recipients
 # independently like the socketmap implementation.
