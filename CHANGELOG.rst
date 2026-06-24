@@ -7,6 +7,19 @@
 Changelog
 #########
 
+Unreleased
+==========
+
+Fixed
+-----
+
+* ``reverse`` no longer rejects (socketmap ``PERM`` / milter reject) SRS
+  addresses whose domain is not local. Such addresses are minted by a
+  different SRS signer and only transit this host (relay, backup MX,
+  multi-hop forwarding); they are passed through unchanged again, as in
+  2.1.0 and earlier. Unverifiable SRS addresses in a local domain (forged
+  backscatter) are still rejected.
+
 2.2.1
 =====
 
