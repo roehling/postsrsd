@@ -264,25 +264,22 @@ STATELESS_QUERIES = [
         "reverse test@example.com",
         "NOTFOUND Not an SRS address.",
     ),
-    # Reject valid SRS0 address with time stamp older than 6 months
+    # Ignore valid SRS0 address with time stamp older than 6 months
     (
         "reverse SRS0=te87=T7=otherdomain.com=test@example.com",
-        "PERM Time stamp out of date.",
+        "NOTFOUND Time stamp out of date.",
     ),
-    # Reject valid SRS0 address with time stamp 6 months in the future
+    # Ignore valid SRS0 address with time stamp 6 months in the future
     (
         "reverse SRS0=VcIb=7N=otherdomain.com=test@example.com",
-        "PERM Time stamp out of date.",
+        "NOTFOUND Time stamp out of date.",
     ),
-    # Reject SRS0 address with invalid hash
+    # Ignore SRS0 address with invalid hash (locally created)
     (
         "reverse SRS0=FAKE=2V=otherdomain.com=test@example.com",
-        "PERM Hash invalid in SRS address.",
+        "NOTFOUND Hash invalid in SRS address.",
     ),
-    # Pass through (do not reject) an SRS address in a domain we do not sign
-    # for: its hash can never validate under our secret because it was minted
-    # by a different signer and is only transiting this host. Rejecting it
-    # would defer legitimate relay / backup-MX / multi-hop forwarding.
+    # Ignore SRS0 address with invalid hash (foreign sender)
     (
         "reverse SRS0=FAKE=2V=otherdomain.com=test@foreign.example",
         "NOTFOUND Hash invalid in SRS address.",
@@ -297,25 +294,25 @@ STATELESS_QUERIES = [
         "reverse SRS0=XJO9=2V=OTHERDOMAIN.COM=TEST@EXAMPLE.COM",
         "OK TEST@OTHERDOMAIN.COM",
     ),
-    # Reject SRS0 address without authenticating hash
+    # Ignore SRS0 address without authenticating hash
     (
         "reverse SRS0=@example.com",
-        "PERM No hash in SRS0 address.",
+        "NOTFOUND No hash in SRS0 address.",
     ),
-    # Reject SRS0 address without time stamp
+    # Ignore SRS0 address without time stamp
     (
         "reverse SRS0=XjO9@example.com",
-        "PERM No timestamp in SRS0 address.",
+        "NOTFOUND No timestamp in SRS0 address.",
     ),
-    # Reject SRS0 address without original domain
+    # Ignore SRS0 address without original domain
     (
         "reverse SRS0=XjO9=2V@example.com",
-        "PERM No host in SRS0 address.",
+        "NOTFOUND No host in SRS0 address.",
     ),
-    # Reject SRS0 address without original localpart
+    # Ignore SRS0 address without original localpart
     (
         "reverse SRS0=XjO9=2V=otherdomain.com@example.com",
-        "PERM No user in SRS0 address.",
+        "NOTFOUND No user in SRS0 address.",
     ),
     # Reject Database alias
     (

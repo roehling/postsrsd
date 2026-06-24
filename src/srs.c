@@ -107,8 +107,7 @@ char* postsrsd_forward(const char* addr, const char* domain, srs_t* srs,
 }
 
 char* postsrsd_reverse(const char* addr, srs_t* srs, database_t* db,
-                       domain_set_t* local_domains, bool* error,
-                       const char** info, const char* queue_id)
+                       bool* error, const char** info, const char* queue_id)
 {
     char buffer[513];
     if (addr == NULL)
@@ -122,20 +121,9 @@ char* postsrsd_reverse(const char* addr, srs_t* srs, database_t* db,
     int result = srs_reverse(srs, buffer, sizeof(buffer), addr);
     if (result != SRS_SUCCESS)
     {
-        /* A failed reverse only constitutes (forged) backscatter worth
-         * rejecting if the address claims a domain we actually sign SRS for.
-         * A hash/timestamp failure in any other domain just means the address
-         * was minted by a different SRS signer and is merely transiting this
-         * host (relay, backup MX, multi-hop forwarding); it must pass through
-         * untouched so delivery can proceed, rather than being deferred by a
-         * socketmap PERM (Postfix 451 4.3.5). */
-        const char* at = strrchr(addr, '@');
-        bool ours = at != NULL && domain_set_contains(local_domains, at + 1);
-        if (error != NULL)
-            *error = result != SRS_ENOTSRSADDRESS && ours;
         if (info != NULL)
             *info = srs_strerror(result);
-        if (result != SRS_ENOTSRSADDRESS && ours)
+        if (result != SRS_ENOTSRSADDRESS)
         {
             log_info("%s: <%s> not reversed: %s", queue_id, addr,
                      srs_strerror(result));

@@ -490,9 +490,8 @@ static void handle_socketmap_client(postsrsd_t* state, int conn)
         }
         else if (strcmp(query_type, "reverse") == 0)
         {
-            rewritten =
-                postsrsd_reverse(addr, state->srs, db, state->local_domains,
-                                 &error, &info, "socketmap");
+            rewritten = postsrsd_reverse(addr, state->srs, db, &error, &info,
+                                         "socketmap");
         }
         else
         {
@@ -688,8 +687,8 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                 {
                     char* rcpt = list_get(recipients, i);
                     char* rewritten = postsrsd_reverse(
-                        rcpt, state->srs, db, state->local_domains, &error,
-                        &info, queue_id != NULL ? queue_id : "NOQUEUE");
+                        rcpt, state->srs, db, &error, &info,
+                        queue_id != NULL ? queue_id : "NOQUEUE");
                     if (rewritten)
                     {
                         char* bracketed_old_rcpt = add_brackets(rcpt);
@@ -718,10 +717,25 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                     else
                     {
                         char* domain = strchr(rcpt, '@');
-                        if (domain != NULL
-                            && !domain_set_contains(state->local_domains,
-                                                    domain + 1))
-                            is_local = false;
+                        if (domain != NULL)
+                        {
+                            if (SRS_IS_SRS_ADDRESS(rcpt)
+                                && strcasecmp(domain + 1, state->srs_domain)
+                                       == 0)
+                            {
+                                log_info(
+                                    "%s: rejecting own invalid SRS address "
+                                    "<%s>",
+                                    queue_id != NULL ? queue_id : "NOQUEUE",
+                                    rcpt);
+                                if (!milter_reject(fp_write))
+                                    goto done;
+                                goto cleanup;
+                            }
+                            if (!domain_set_contains(state->local_domains,
+                                                     domain + 1))
+                                is_local = false;
+                        }
                     }
                 }
                 if (!is_local || rewrite_local || always_rewrite)

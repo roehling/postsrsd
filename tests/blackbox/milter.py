@@ -447,6 +447,22 @@ STATELESS_QUERIES: list[
         ),
         (b"a", None, "TEST@OTHERDOMAIN.COM"),
     ),
+    # Accept SRS0 address with invalid hash but from a different signer
+    (
+        (
+            "sender@example.com",
+            "SRS0=FAKE=2V=otherdomain.com=test@foreign-signer.com",
+        ),
+        (b"a", None, None),
+    ),
+    # Accept SRS1 address with invalid hash but from a different signer
+    (
+        (
+            "sender@example.com",
+            "SRS1=FAKE=otherdomain.com==opaque+string@foreign-signer.com",
+        ),
+        (b"a", None, None),
+    ),
     # Reject SRS0 address with invalid hash
     (
         (
@@ -557,7 +573,7 @@ DATABASE_QUERIES: list[tuple[tuple[str, str], tuple[bytes, str | None, str | Non
             "sender@example.com",
             "SRS0=hdxW=2W=1=VVVVVVUNVVVVVVS1VVVVVVUIVVVTKKQJ@example.com",
         ),
-        (b"a", None, None),
+        (b"r", None, None),
     ),
     # No rewrite for SRS address which is already in the local domain
     (
@@ -577,10 +593,34 @@ DATABASE_QUERIES: list[tuple[tuple[str, str], tuple[bytes, str | None, str | Non
         ),
         (b"a", "SRS1=JIBX=thirddomain.com==opaque+string@example.com", None),
     ),
+    # Accept SRS0 address with invalid hash but from a different signer
+    (
+        (
+            "sender@example.com",
+            "SRS0=FAKE=2V=otherdomain.com=test@foreign-signer.com",
+        ),
+        (b"a", None, None),
+    ),
+    # Accept SRS1 address with invalid hash but from a different signer
+    (
+        (
+            "sender@example.com",
+            "SRS1=FAKE=otherdomain.com==opaque+string@foreign-signer.com",
+        ),
+        (b"a", None, None),
+    ),
     # Recover original mail address from valid SRS0 address
     (
         (
             "sender@example.com",
+            "SRS0=9KJ+=2W=otherdomain.com=sender@example.com",
+        ),
+        (b"a", None, "sender@otherdomain.com"),
+    ),
+    # Handle bounce mail (empty sender)
+    (
+        (
+            "",
             "SRS0=9KJ+=2W=otherdomain.com=sender@example.com",
         ),
         (b"a", None, "sender@otherdomain.com"),
