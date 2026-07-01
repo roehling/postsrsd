@@ -141,7 +141,8 @@ char* stpncpy(char* dst, const char* src, size_t len)
 char* stpcpy(char* dst, const char* src)
 {
     size_t n = strlen(src);
-    return strncpy(dst, src, len) + n;
+    memcpy(dst, src, n + 1);
+    return dst + n;
 }
 #endif
 
