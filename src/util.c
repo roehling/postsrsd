@@ -141,7 +141,8 @@ char* stpncpy(char* dst, const char* src, size_t len)
 char* stpcpy(char* dst, const char* src)
 {
     size_t n = strlen(src);
-    return strncpy(dst, src, len) + n;
+    memcpy(dst, src, n + 1);
+    return dst + n;
 }
 #endif
 
@@ -898,8 +899,8 @@ char* endpoint_for_redis(const char* s, int* port)
 {
     if (s == NULL)
         return NULL;
-    char* colon = strchr(s, ':');
-    char* slash = strchr(s, '/');
+    const char* colon = strchr(s, ':');
+    const char* slash = strchr(s, '/');
     if (slash || !colon)
     {
         /* Treat this as unix socket path */
