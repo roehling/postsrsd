@@ -899,8 +899,8 @@ char* endpoint_for_redis(const char* s, int* port)
 {
     if (s == NULL)
         return NULL;
-    char* colon = strchr(s, ':');
-    char* slash = strchr(s, '/');
+    const char* colon = strchr(s, ':');
+    const char* slash = strchr(s, '/');
     if (slash || !colon)
     {
         /* Treat this as unix socket path */
