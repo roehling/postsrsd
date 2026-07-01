@@ -1089,7 +1089,10 @@ int main(int argc, char** argv)
                     {
                         log_perror(errno, "fork");
                     }
-                    pid_set_add(P, pid);
+                    else
+                    {
+                        pid_set_add(P, pid);
+                    }
                     close(conn);
                 }
             }
