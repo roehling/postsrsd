@@ -82,7 +82,7 @@ static bool create_unix_socket(const char* path, endpoint_t* endpoint)
         return true;
     }
     size_t path_len = strlen(path);
-    if (path_len > sizeof(sa.sun_path))
+    if (path_len >= sizeof(sa.sun_path))
     {
         log_error("file path for unix socket is too long");
         return false;
