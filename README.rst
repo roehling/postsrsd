@@ -61,11 +61,13 @@ PostSRSd has a few external build dependencies:
   enable it with ``-DWITH_SQLITE=ON`` as additional argument for ``cmake``.
 - hiredis_ is an optional alternative to store envelope senders in Redis;
   enable it with ``-DWITH_REDIS=ON``.
-- libseccomp_ and gperf_ are needed if you want to secure untrusted input
-  handling with additional sandboxing; enable it with ``-DWITH_SECCOMP=ON``.
+- libseccomp_ and gperf_ are optional and only needed if you want to secure
+  untrusted input handling with additional sandboxing; enable it with
+  ``-DWITH_SECCOMP=ON``.
 - check_ is needed if you want to build and run the unit test suite;
   otherwise disable it with ``-DBUILD_TESTING=OFF``.
-- Python_ is needed for the optional blackbox tests.
+- Python_ is optional and needed for additional blackbox tests as part
+  of the test suite.
 
 PostSRSd relies on the FetchContent_ module of CMake for its dependency
 resolution. Please refer to its documentation if you wish to tweak the
@@ -130,7 +132,7 @@ requests if you try it out, though. Until PostSRSd 2.1, the milter support was
 implemented with the external libMilter library from Sendmail.
 
 Inotify Support
----------------
+~~~~~~~~~~~~~~~
 
 PostSRSd 2.1 added support for automatic reload if the ``domains-file``
 is modified. This feature is disabled by default, but you can opt-in by
