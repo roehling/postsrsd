@@ -21,6 +21,26 @@ email address from one of their own domains. This temporary address is bound to
 the original sender and only valid for a certain amount of time, which prevents
 abuse by spammers.
 
+SRS in a nutshell
+~~~~~~~~~~~~~~~~~
+
+Imagine your server receives a mail from ``alice@example.com`` that is to be
+forwarded. If ``example.com`` uses the Sender Policy Framework to indicate that
+all legit mails originate from their server, your forwarded mail might be
+bounced, because you have no permission to send on behalf of ``example.com``.
+PostSRSd allows you to circumvent this restriction and map the sender address
+to one of your own domains instead.
+
+Typically, the temporary SRS address will look like
+``SRS0=xxxx=yy=example.com=alice@yourdomain.org`` ("forward SRS"). If the mail
+is bounced later and a notification arrives, you can extract the original
+address from the SRS address ("reverse SRS") and relay the bounce mail to the
+actual sender. You might notice that the reverse SRS process could potentially
+be abused to turn your server into an open relay. For this reason, ``xxxx`` is
+a cryptographic signature and ``yy`` is a timestamp. If the signature does not
+verify or the timestamp is too old, the address is forged or expired, and the
+mail can be discarded.
+
 
 Installation
 ------------
@@ -84,6 +104,7 @@ discovery process.
 .. _check: https://github.com/libcheck/check
 .. _FetchContent: https://cmake.org/cmake/help/latest/module/FetchContent.html
 .. _Python: https://www.python.org
+
 
 Configuration
 -------------
@@ -152,6 +173,7 @@ there are no guarantees, so do not file any bugs if it fails.
 If a file change is detected, PostSRSd behaves exactly like it would if the
 process received a ``SIGHUP`` signal or a ``systemctl reload``.
 
+
 Migrating from version 1.x
 --------------------------
 
@@ -170,6 +192,7 @@ Be aware that PostSRSd 2.x uses ``socketmap:`` tables, which are NOT compatible
 with ``tcp:`` tables. This also means that PostSRSd 2.x requires at least
 Postfix 2.10 now, and you need to update your Postfix configuration as detailed
 above.
+
 
 Frequently Asked Questions
 --------------------------
