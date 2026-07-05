@@ -90,6 +90,7 @@ static bool create_unix_socket(const char* path, endpoint_t* endpoint)
     endpoint->lock = acquire_lock(path);
     if (endpoint->lock >= 0)
         unlink(path);
+    mode_t old_mask = umask(0111);
     int sock = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
     if (sock < 0)
         goto fail;
@@ -100,8 +101,6 @@ static bool create_unix_socket(const char* path, endpoint_t* endpoint)
              offsetof(struct sockaddr_un, sun_path) + path_len)
         < 0)
         goto fail;
-    if (chmod(path, 0666) < 0)
-        goto fail;
     if (listen(sock, POSTSRSD_SOCKET_LISTEN_QUEUE) < 0)
         goto fail;
     endpoint->fd[endpoint->num_fds++] = sock;
@@ -109,6 +108,7 @@ static bool create_unix_socket(const char* path, endpoint_t* endpoint)
         endpoint->path = strdup(path);
     return true;
 fail:
+    umask(old_mask);
     log_perror(errno, NULL);
     if (sock >= 0)
         close(sock);
