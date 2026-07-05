@@ -306,9 +306,10 @@ srs_t* srs_from_config(cfg_t* cfg)
         {
             char buffer[1024];
             char* secret;
+            char* saveptr;
             while ((secret = fgets(buffer, sizeof(buffer), f)) != NULL)
             {
-                secret = strtok(secret, "\r\n");
+                secret = strtok_r(secret, "\r\n", &saveptr);
                 if (NONEMPTY_STRING(secret))
                     srs_add_secret(srs, secret);
             }
@@ -379,9 +380,10 @@ bool srs_domains_from_config(cfg_t* cfg, char** srs_domain,
         {
             char buffer[1024];
             char* end;
+            char* saveptr;
             while ((domain = fgets(buffer, sizeof(buffer), f)) != NULL)
             {
-                domain = strtok(domain, "\r\n");
+                domain = strtok_r(domain, "\r\n", &saveptr);
                 if (domain == NULL)
                     continue;
                 while (isspace(domain[0]))
