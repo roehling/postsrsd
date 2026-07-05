@@ -1010,7 +1010,7 @@ int main(int argc, char** argv)
             if (reload_requested)
             {
                 log_info("Signal %d received, reloading configuration.",
-                         reload_requested);
+                         (int)reload_requested);
                 reload_requested = 0;
             }
             if (files_changed)
@@ -1050,7 +1050,8 @@ int main(int argc, char** argv)
         }
         if (shutdown_requested)
         {
-            log_info("Signal %d received. shutting down.", shutdown_requested);
+            log_info("Signal %d received. shutting down.",
+                     (int)shutdown_requested);
             shutdown_requested = 0;
             goto shutdown;
         }
