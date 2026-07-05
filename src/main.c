@@ -61,7 +61,7 @@
 #endif
 
 static volatile sig_atomic_t timeout = 0;
-static volatile sig_atomic_t sig_hup_received = 0, sig_term_received = 0;
+static volatile sig_atomic_t reload_requested = 0, shutdown_requested = 0;
 static bool files_changed = false, files_changed_unsafe = false;
 static time_t last_file_watch_event = 0;
 static bool sd_notify_support = false;
@@ -371,19 +371,19 @@ static bool daemonize(postsrsd_t* state)
     return true;
 }
 
-static void on_sigalrm(int signum)
+static void on_timeout(int signum)
 {
     timeout = signum;
 }
 
-static void on_sig_hup(int signum)
+static void on_reload_requested(int signum)
 {
-    sig_hup_received = signum;
+    reload_requested = signum;
 }
 
-static void on_sig_term(int signum)
+static void on_shutdown_requested(int signum)
 {
-    sig_term_received = signum;
+    shutdown_requested = signum;
 }
 
 static bool prepare_client(postsrsd_t* state, int conn, FILE** fp_read,
@@ -418,9 +418,10 @@ static bool prepare_client(postsrsd_t* state, int conn, FILE** fp_read,
         if (*db == NULL)
             return false;
     }
-    signal(SIGALRM, on_sigalrm);
-    signal(SIGUSR1, on_sig_hup);
+    signal(SIGALRM, on_timeout);
+    signal(SIGUSR1, on_reload_requested);
     signal(SIGTERM, SIG_DFL);
+    signal(SIGINT, SIG_DFL);
 #ifdef WITH_SECCOMP
     if (cfg_getbool(state->cfg, "seccomp") && scmp_ctx != NULL
         && seccomp_load(scmp_ctx) < 0)
@@ -446,7 +447,7 @@ static void handle_socketmap_client(postsrsd_t* state, int conn)
         size_t len;
         char* addr;
         bool error;
-        if (sig_hup_received)
+        if (reload_requested)
             break;
         timeout = 0;
         alarm(keep_alive);
@@ -537,7 +538,7 @@ static void handle_milter_client(postsrsd_t* state, int conn)
     size_t len, truncated;
     if (!prepare_client(state, conn, &fp_read, &fp_write, &db))
         exit(EXIT_FAILURE);
-    if (sig_hup_received)
+    if (reload_requested)
         return;
     const bool always_rewrite = cfg_getbool(state->cfg, "always-rewrite");
     const bool rewrite_local = cfg_getbool(state->cfg, "milter-rewrite-local");
@@ -780,7 +781,7 @@ cleanup:
                 set_string(&queue_id, NULL);
                 if (milter_state != MILTER_AWAIT_OPTNEG)
                     milter_state = MILTER_AWAIT_MAIL;
-                if (sig_hup_received)
+                if (reload_requested)
                     goto done;
                 break;
             default:
@@ -972,8 +973,9 @@ int main(int argc, char** argv)
         pf = NULL;
     }
     exit_code = EXIT_SUCCESS;
-    signal(SIGHUP, on_sig_hup);
-    signal(SIGTERM, on_sig_term);
+    signal(SIGHUP, on_reload_requested);
+    signal(SIGTERM, on_shutdown_requested);
+    signal(SIGINT, on_shutdown_requested);
     sd_notify_support = sd_notify("READY=1\nMAINPID=%d", getpid());
     struct pollfd fds[10];
     unsigned remaining_fds = sizeof(fds) / sizeof(struct pollfd);
@@ -996,7 +998,7 @@ int main(int argc, char** argv)
         {
             files_changed = true;
         }
-        if (sig_hup_received || files_changed)
+        if (reload_requested || files_changed)
         {
             if (sd_notify_support)
             {
@@ -1005,10 +1007,11 @@ int main(int argc, char** argv)
                 sd_notify("RELOADING=1\nMONOTONIC_USEC=%ld",
                           1000000l * tp.tv_sec + tp.tv_nsec / 1000l);
             }
-            if (sig_hup_received)
+            if (reload_requested)
             {
-                sig_hup_received = 0;
-                log_info("SIGHUP received, reloading configuration.");
+                log_info("Signal %d received, reloading configuration.",
+                         reload_requested);
+                reload_requested = 0;
             }
             if (files_changed)
             {
@@ -1045,10 +1048,10 @@ int main(int argc, char** argv)
             if (sd_notify_support)
                 sd_notify("READY=1");
         }
-        if (sig_term_received)
+        if (shutdown_requested)
         {
-            sig_term_received = 0;
-            log_info("SIGTERM received. shutting down.");
+            log_info("Signal %d received. shutting down.", shutdown_requested);
+            shutdown_requested = 0;
             goto shutdown;
         }
         if (poll(fds, num_fds, 1000) < 0)
