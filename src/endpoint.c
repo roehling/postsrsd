@@ -297,10 +297,7 @@ void endpoint_close(endpoint_t* endpoint)
         release_lock(endpoint->path, endpoint->lock);
     }
     if (endpoint->path != NULL)
-    {
-        unlink(endpoint->path);
         free(endpoint->path);
-    }
     for (unsigned i = 0; i < endpoint->num_fds; ++i)
     {
         int sock = endpoint->fd[i];
