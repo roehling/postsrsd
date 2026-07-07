@@ -235,14 +235,14 @@ char* milter_find_macro(const char* name, const char* buffer, size_t length)
     {
         const char* key = buffer;
         size_t keylen = strnlen(key, length);
-        if (length == keylen)
+        if (keylen == length || keylen + 1 == length)
             return NULL;
         length -= keylen + 1;
         buffer += keylen + 1;
         if (strcmp(key, name) == 0)
             return strndup(buffer, length);
         size_t vallen = strnlen(buffer, length);
-        if (length == vallen)
+        if (vallen == length || vallen + 1 == length)
             return NULL;
         length -= vallen + 1;
         buffer += vallen + 1;

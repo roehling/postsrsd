@@ -51,3 +51,4 @@ add_postsrsd_test(
     ${SRCDIR}/util.c
 )
 target_link_libraries(test_config_executable PRIVATE Confuse::Confuse)
+add_postsrsd_test(test_milter ${SRCDIR}/milter.c ${SRCDIR}/util.c)
