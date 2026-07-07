@@ -918,6 +918,11 @@ static bool setup_state(int argc, char** argv, postsrsd_t* state)
 fail:
     /* If a configuration error occurs and the daemon was configured already, we
        want to keep the old functional configuration. */
+    if (cfg_getbool(state->cfg, "syslog"))
+        log_enable_syslog();
+    else
+        log_disable_syslog();
+    log_set_verbosity(cfg_getbool(state->cfg, "debug") ? LogDebug : LogInfo);
     if (socketmap_rollback)
     {
         state->socketmap = new_state.socketmap;
@@ -1101,16 +1106,19 @@ int main(int argc, char** argv)
                 }
             }
         }
-        pid = waitpid(0, &child_status, WNOHANG);
-        if (pid > 0)
+        do
         {
-            if (WEXITSTATUS(child_status) != EXIT_SUCCESS)
+            pid = waitpid(0, &child_status, WNOHANG);
+            if (pid > 0)
             {
-                log_warn("child process %d exited with status code %d", pid,
-                         WEXITSTATUS(child_status));
+                if (WEXITSTATUS(child_status) != EXIT_SUCCESS)
+                {
+                    log_warn("child process %d exited with status code %d", pid,
+                             WEXITSTATUS(child_status));
+                }
+                pid_set_remove(P, pid);
             }
-            pid_set_remove(P, pid);
-        }
+        } while (pid > 0);
     }
 shutdown:
     if (pf != NULL)
