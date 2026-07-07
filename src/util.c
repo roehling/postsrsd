@@ -178,6 +178,8 @@ char* add_brackets(const char* addr)
         return NULL;
     size_t addr_len = strlen(addr);
     char* result = malloc(addr_len + 3);
+    if (result == NULL)
+        return NULL;
     result[0] = '<';
     memcpy(result + 1, addr, addr_len);
     result[addr_len + 1] = '>';
@@ -274,9 +276,12 @@ int acquire_lock(const char* path)
     MAYBE_UNUSED(path);
 #if defined(LOCK_EX) && defined(LOCK_NB)
     size_t len = strlen(path);
+    if (len > SIZE_MAX - 6)
+        return -1;
     char* lock_path = malloc(len + 6); /* ".lock" + "\0" */
-    strcpy(lock_path, path);
-    strcat(lock_path, ".lock");
+    if (lock_path == NULL)
+        return -1;
+    stpcpy(stpcpy(lock_path, path), ".lock");
     int fd = open(lock_path, O_RDONLY | O_CREAT | O_CLOEXEC, 0600);
     free(lock_path);
     if (fd < 0)
@@ -298,11 +303,16 @@ void release_lock(const char* path, int fd)
     MAYBE_UNUSED(fd);
 #if defined(LOCK_EX) && defined(LOCK_NB)
     size_t len = strlen(path);
-    char* lock_path = malloc(len + 6); /* ".lock" + "\0" */
-    strcpy(lock_path, path);
-    strcat(lock_path, ".lock");
-    unlink(lock_path);
-    free(lock_path);
+    if (len <= SIZE_MAX - 6)
+    {
+        char* lock_path = malloc(len + 6); /* ".lock" + "\0" */
+        if (lock_path != NULL)
+        {
+            stpcpy(stpcpy(lock_path, path), ".lock");
+            unlink(lock_path);
+            free(lock_path);
+        }
+    }
     close(fd);
 #endif
 }
@@ -394,9 +404,10 @@ bool domain_set_add(domain_set_t* D, const char* domain)
 {
     if (D == NULL)
         return false;
-    char buffer[1024];
-    strncpy(buffer, domain, sizeof(buffer) - 1);
-    buffer[sizeof(buffer) - 1] = 0;
+    char buffer[512];
+    char* end = stpncpy(buffer, domain, sizeof(buffer));
+    if (end - buffer >= sizeof(buffer))
+        return false;
     return !walk_domain_set(D, buffer, DOMAIN_SET_ADD);
 }
 
@@ -404,9 +415,10 @@ bool domain_set_contains(domain_set_t* D, const char* domain)
 {
     if (D == NULL)
         return false;
-    char buffer[1024];
-    strncpy(buffer, domain, sizeof(buffer) - 1);
-    buffer[sizeof(buffer) - 1] = 0;
+    char buffer[512];
+    char* end = stpncpy(buffer, domain, sizeof(buffer) - 1);
+    if (end - buffer >= sizeof(buffer))
+        return false;
     return walk_domain_set(D, buffer, DOMAIN_SET_PARENTS_MATCH);
 }
 
@@ -794,11 +806,14 @@ void file_watch_process_events(file_watch_t* W)
                         && (event->len == 0
                             || strcmp(entry->filter, event->name) != 0))
                         continue;
-                    strncpy(filepath, entry->path, sizeof(filepath) - 1);
-                    if (event->len > 0)
+                    char* fp_end =
+                        stpncpy(filepath, entry->path, sizeof(filepath) - 1);
+                    if (event->len > 0
+                        && event->len
+                               < sizeof(filepath) - (fp_end - filepath) - 2)
                     {
-                        strcat(filepath, "/");
-                        strcat(filepath, event->name);
+                        fp_end = stpcpy(fp_end, "/");
+                        stpncpy(fp_end, event->name, event->len);
                         if (entry->mask
                             && list_find(W->entries, file_watch__same_path,
                                          filepath)
@@ -934,7 +949,8 @@ static void vlog(enum log_priority prio, const char* fmt, va_list ap)
     size_t prefix_len =
         snprintf(buffer, sizeof(buffer), "postsrsd: %s", priority_labels[prio]);
     char* text = buffer + prefix_len;
-    vsnprintf(text, sizeof(buffer) - prefix_len, fmt, ap);
+    vsnprintf(text, sizeof(buffer) - prefix_len, fmt,  // flawfinder: ignore
+              ap);
     buffer[sizeof(buffer) - 1] = 0;
     fprintf(stderr, "%s\n", buffer);
     fflush(stderr);
@@ -1035,7 +1051,8 @@ bool sd_notify(const char* fmt, ...)
         return false;
     va_list ap;
     va_start(ap, fmt);
-    ssize_t message_len = vsnprintf(message, sizeof(message), fmt, ap);
+    ssize_t message_len =
+        vsnprintf(message, sizeof(message), fmt, ap);  // flawfinder: ignore
     if (message_len <= 0)
         return false;
 #if defined(AF_UNIX)

@@ -125,13 +125,18 @@ enum log_priority
 void log_enable_syslog();
 void log_disable_syslog();
 void log_set_verbosity(enum log_priority prio);
-void log_debug(const char* fmt, ...) ATTRIBUTE(format(printf, 1, 2));
-void log_info(const char* fmt, ...) ATTRIBUTE(format(printf, 1, 2));
-void log_warn(const char* fmt, ...) ATTRIBUTE(format(printf, 1, 2));
-void log_error(const char* fmt, ...) ATTRIBUTE(format(printf, 1, 2));
+void log_debug(const char* fmt, ...)
+    ATTRIBUTE(format(printf, 1, 2));  // flawfinder: ignore
+void log_info(const char* fmt, ...)
+    ATTRIBUTE(format(printf, 1, 2));  // flawfinder: ignore
+void log_warn(const char* fmt, ...)
+    ATTRIBUTE(format(printf, 1, 2));  // flawfinder: ignore
+void log_error(const char* fmt, ...)
+    ATTRIBUTE(format(printf, 1, 2));  // flawfinder: ignore
 void log_perror(int errno, const char* prefix);
 void log_fatal(const char* fmt, ...) ATTRIBUTE(noreturn);
 
-bool sd_notify(const char* fmt, ...) ATTRIBUTE(format(printf, 1, 2));
+bool sd_notify(const char* fmt, ...)
+    ATTRIBUTE(format(printf, 1, 2));  // flawfinder: ignore
 
 #endif

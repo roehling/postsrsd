@@ -60,6 +60,8 @@
 #    include <grp.h>
 #endif
 
+#define PAYLOAD_SIZE MILTER_PAYLOAD_SIZE
+
 static volatile sig_atomic_t timeout = 0;
 static volatile sig_atomic_t reload_requested = 0, shutdown_requested = 0;
 static bool files_changed = false, files_changed_unsafe = false;
@@ -218,7 +220,10 @@ static bool init_seccomp()
         goto fail;
     if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(getdents64), 0) < 0)
         goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(readlink), 0) < 0)
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW,
+                         SCMP_SYS(readlink),  // flawfinder: ignore
+                         0)
+        < 0)
         goto fail;
     if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ERRNO(EINVAL), SCMP_SYS(ioctl), 0)
         < 0)
@@ -447,6 +452,7 @@ static void handle_socketmap_client(postsrsd_t* state, int conn)
         size_t len;
         char* addr;
         bool error;
+        char* eob;
         if (reload_requested)
             break;
         timeout = 0;
@@ -473,7 +479,7 @@ static void handle_socketmap_client(postsrsd_t* state, int conn)
             log_error("invalid socketmap query, closing connection");
             break;
         }
-        if (len > 512 + (size_t)(addr - request))
+        if (len > PAYLOAD_SIZE + (size_t)(addr - request))
         {
             netstring_write(fp_write, "PERM Too big.", 13);
             fflush(fp_write);
@@ -502,24 +508,23 @@ static void handle_socketmap_client(postsrsd_t* state, int conn)
         }
         if (rewritten)
         {
-            strcpy(buffer, "OK ");
-            strncat(buffer, rewritten, sizeof(buffer) - 4);
+            eob = stpncpy(stpcpy(buffer, "OK "), rewritten, sizeof(buffer) - 4);
             free(rewritten);
-            netstring_write(fp_write, buffer, strlen(buffer));
+            netstring_write(fp_write, buffer, eob - buffer);
         }
         else
         {
             if (error)
             {
-                strcpy(buffer, "PERM ");
+                eob = stpcpy(buffer, "PERM ");
             }
             else
             {
-                strcpy(buffer, "NOTFOUND ");
+                eob = stpcpy(buffer, "NOTFOUND ");
             }
             if (info)
-                strncat(buffer, info, sizeof(buffer) - 10);
-            netstring_write(fp_write, buffer, strlen(buffer));
+                eob = stpncpy(eob, info, sizeof(buffer) - 9);
+            netstring_write(fp_write, buffer, eob - buffer);
         }
         fflush(fp_write);
     }
@@ -534,7 +539,7 @@ static void handle_milter_client(postsrsd_t* state, int conn)
 #define MILTER_AWAIT_RCPT_OR_EOM 3
     FILE *fp_read, *fp_write;
     database_t* db;
-    char buffer[MILTER_PAYLOAD_SIZE];
+    char buffer[PAYLOAD_SIZE];
     size_t len, truncated;
     if (!prepare_client(state, conn, &fp_read, &fp_write, &db))
         exit(EXIT_FAILURE);
