@@ -433,6 +433,8 @@ bool pid_set_add(pid_set_t* P, pid_t pid)
 {
     if (P == NULL)
         return false;
+    if (pid <= 0)
+        return false;
     for (size_t i = 0; i < P->size; ++i)
     {
         if (P->entries[i] == pid)
