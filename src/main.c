@@ -1090,8 +1090,6 @@ int main(int argc, char** argv)
                             handle_socketmap_client(&state, conn);
                         else
                             handle_milter_client(&state, conn);
-                        finalize_state(&state);
-                        pid_set_destroy(P);
                         exit(EXIT_SUCCESS);
                     }
                     if (pid < 0)
