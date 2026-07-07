@@ -405,8 +405,8 @@ bool domain_set_add(domain_set_t* D, const char* domain)
     if (D == NULL)
         return false;
     char buffer[512];
-    char* end = stpncpy(buffer, domain, sizeof(buffer));
-    if (end - buffer >= sizeof(buffer))
+    char* end = stpncpy(buffer, domain, sizeof(buffer) - 1);
+    if (end - buffer >= (ptrdiff_t)sizeof(buffer))
         return false;
     return !walk_domain_set(D, buffer, DOMAIN_SET_ADD);
 }
@@ -417,7 +417,7 @@ bool domain_set_contains(domain_set_t* D, const char* domain)
         return false;
     char buffer[512];
     char* end = stpncpy(buffer, domain, sizeof(buffer) - 1);
-    if (end - buffer >= sizeof(buffer))
+    if (end - buffer >= (ptrdiff_t)sizeof(buffer))
         return false;
     return walk_domain_set(D, buffer, DOMAIN_SET_PARENTS_MATCH);
 }
