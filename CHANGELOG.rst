@@ -7,6 +7,21 @@
 Changelog
 #########
 
+2.2.4
+=====
+
+Fixed
+-----
+
+* Missing error handling for some edge cases (e.g., failing fork()).
+  (`#199 <https://github.com/roehling/postsrsd/pull/199`_)
+* Reworked a few potentially unsafe constructs in the code.
+
+Changed
+-------
+
+* Delete socket file on shutdown.
+
 2.2.3
 =====
 
