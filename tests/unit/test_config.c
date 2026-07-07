@@ -48,6 +48,7 @@ START_TEST(config_domains_file)
             "     # This is a comment with preceding white space\n"
             "\t tabspace.org\n"
             "\n"
+            "#unused.org\n"
             "commented.de   # This is a comment after a domain name\n"
             "trailing.net    ");
     fclose(f);
@@ -61,6 +62,7 @@ START_TEST(config_domains_file)
     ck_assert_int_eq(domain_set_contains(D, "example.com"), true);
     ck_assert_int_eq(domain_set_contains(D, "tabspace.org"), true);
     ck_assert_int_eq(domain_set_contains(D, "trailing.net"), true);
+    ck_assert_int_eq(domain_set_contains(D, "unused.org"), false);
     ck_assert_str_eq(srs_domain, "example.com");
     ck_assert_int_eq(unlink("domains.txt"), 0);
     domain_set_destroy(D);
