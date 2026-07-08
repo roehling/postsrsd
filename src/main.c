@@ -550,6 +550,7 @@ static void handle_milter_client(postsrsd_t* state, int conn)
     const int keep_alive = cfg_getint(state->cfg, "keep-alive");
     int milter_state = MILTER_AWAIT_OPTNEG;
     char* queue_id = NULL;
+    set_string(&queue_id, strdup("NOQUEUE"));
     list_t* sender = list_create();
     list_t* recipients = list_create();
     for (;;)
@@ -573,7 +574,7 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                     log_error(
                         "%s: MTA initiated unexpected milter option "
                         "negotiation",
-                        queue_id != NULL ? queue_id : "NOQUEUE");
+                        queue_id);
                     if (!milter_tempfail(fp_write))
                         goto done;
                     goto cleanup;
@@ -591,7 +592,7 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                 if (milter_state != MILTER_AWAIT_MAIL)
                 {
                     log_error("%s: MTA sent unexpected milter MAIL command",
-                              queue_id != NULL ? queue_id : "NOQUEUE");
+                              queue_id);
                     if (!milter_tempfail(fp_write))
                         goto done;
                     goto cleanup;
@@ -599,7 +600,7 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                 if (truncated > 0)
                 {
                     log_error("%s: MTA sent oversized milter MAIL command",
-                              queue_id != NULL ? queue_id : "NOQUEUE");
+                              queue_id);
                     if (!milter_reject(fp_write))
                         goto done;
                     goto cleanup;
@@ -609,16 +610,16 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                 if (list_size(sender) < 1)
                 {
                     log_error("%s: MTA sent empty milter MAIL command",
-                              queue_id != NULL ? queue_id : "NOQUEUE");
+                              queue_id);
                     if (!milter_reject(fp_write))
                         goto done;
                     goto cleanup;
                 }
-                addr = strip_brackets(list_get(sender, 0));
+                addr = milter_parse_address(list_get(sender, 0));
                 if (addr == NULL)
                 {
                     log_error("%s: MTA sent malformed milter MAIL command",
-                              queue_id != NULL ? queue_id : "NOQUEUE");
+                              queue_id);
                     if (!milter_reject(fp_write))
                         goto done;
                     goto cleanup;
@@ -634,7 +635,7 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                     && milter_state != MILTER_AWAIT_RCPT_OR_EOM)
                 {
                     log_error("%s: MTA sent unexpected milter RCPT command",
-                              queue_id != NULL ? queue_id : "NOQUEUE");
+                              queue_id);
                     if (!milter_tempfail(fp_write))
                         goto done;
                     goto cleanup;
@@ -642,23 +643,12 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                 if (truncated > 0)
                 {
                     log_error("%s: MTA sent oversized milter RCPT command",
-                              queue_id != NULL ? queue_id : "NOQUEUE");
+                              queue_id);
                     if (!milter_reject(fp_write))
                         goto done;
                     goto cleanup;
                 }
-                addr = NULL;
-                if (len >= 3)
-                    addr = strip_brackets_n(buffer + 1, len - 1);
-                if (addr == NULL)
-                {
-                    log_error("%s: MTA sent malformed milter RCPT command",
-                              queue_id != NULL ? queue_id : "NOQUEUE");
-                    if (!milter_reject(fp_write))
-                        goto done;
-                    goto cleanup;
-                }
-                list_append(recipients, addr);
+                list_append(recipients, strndup(buffer + 1, len - 1));
                 if (!milter_continue(fp_write))
                     goto done;
                 milter_state = MILTER_AWAIT_RCPT_OR_EOM;
@@ -667,23 +657,21 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                 if (milter_state != MILTER_AWAIT_RCPT_OR_EOM)
                 {
                     log_error("%s: MTA sent unexpected milter EOM command",
-                              queue_id != NULL ? queue_id : "NOQUEUE");
+                              queue_id);
                     if (!milter_tempfail(fp_write))
                         goto done;
                     goto cleanup;
                 }
                 if (list_size(sender) == 0)
                 {
-                    log_error("%s: no sender envelope address",
-                              queue_id != NULL ? queue_id : "NOQUEUE");
+                    log_error("%s: no sender envelope address", queue_id);
                     if (!milter_reject(fp_write))
                         goto done;
                     goto cleanup;
                 }
                 if (list_size(recipients) == 0)
                 {
-                    log_error("%s: no recipient address",
-                              queue_id != NULL ? queue_id : "NOQUEUE");
+                    log_error("%s: no recipient address", queue_id);
                     if (!milter_reject(fp_write))
                         goto done;
                     goto cleanup;
@@ -691,22 +679,27 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                 is_local = true;
                 for (size_t i = 0; i < list_size(recipients); ++i)
                 {
-                    char* rcpt = list_get(recipients, i);
-                    char* rewritten = postsrsd_reverse(
-                        rcpt, state->srs, db, &error, &info,
-                        queue_id != NULL ? queue_id : "NOQUEUE");
+                    char* old_rcpt = list_get(recipients, i);
+                    char* addr = milter_parse_address(old_rcpt);
+                    if (addr == NULL)
+                    {
+                        log_error("%s: invalid recipient: %s", queue_id,
+                                  old_rcpt);
+                        if (!milter_reject(fp_write))
+                            goto done;
+                        goto cleanup;
+                    }
+                    char* rewritten = postsrsd_reverse(addr, state->srs, db,
+                                                       &error, &info, queue_id);
                     if (rewritten)
                     {
-                        char* bracketed_old_rcpt = add_brackets(rcpt);
-                        char* bracketed_new_rcpt = add_brackets(rewritten);
+                        free(addr);
                         if (!milter_send_str(fp_write, MILTER_DO_DELRCPT,
-                                             bracketed_old_rcpt))
+                                             old_rcpt))
                             goto done;
                         if (!milter_send_str(fp_write, MILTER_DO_ADDRCPT,
-                                             bracketed_new_rcpt))
+                                             rewritten))
                             goto done;
-                        free(bracketed_old_rcpt);
-                        free(bracketed_new_rcpt);
                         char* domain = strchr(rewritten, '@');
                         if (domain != NULL
                             && !domain_set_contains(state->local_domains,
@@ -716,24 +709,23 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                     }
                     else if (error)
                     {
+                        free(addr);
                         if (!milter_reject(fp_write))
                             goto done;
                         goto cleanup;
                     }
                     else
                     {
-                        char* domain = strchr(rcpt, '@');
+                        char* domain = strchr(addr, '@');
                         if (domain != NULL)
                         {
-                            if (SRS_IS_SRS_ADDRESS(rcpt)
+                            if (SRS_IS_SRS_ADDRESS(addr)
                                 && strcasecmp(domain + 1, state->srs_domain)
                                        == 0)
                             {
                                 log_info(
-                                    "%s: rejecting own invalid SRS address "
-                                    "<%s>",
-                                    queue_id != NULL ? queue_id : "NOQUEUE",
-                                    rcpt);
+                                    "%s: rejecting invalid SRS address <%s>",
+                                    queue_id, addr);
                                 if (!milter_reject(fp_write))
                                     goto done;
                                 goto cleanup;
@@ -742,6 +734,7 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                                                      domain + 1))
                                 is_local = false;
                         }
+                        free(addr);
                     }
                 }
                 if (!is_local || rewrite_local || always_rewrite)
@@ -749,15 +742,13 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                     char* rewritten = postsrsd_forward(
                         list_get(sender, 0), state->srs_domain, state->srs, db,
                         always_rewrite ? NULL : state->local_domains, &error,
-                        &info, queue_id != NULL ? queue_id : "NOQUEUE");
+                        &info, queue_id);
                     if (rewritten)
                     {
-                        list_replace_at(sender, 0, add_brackets(rewritten),
-                                        free);
+                        list_replace_at(sender, 0, rewritten, free);
                         if (!milter_send_str_list(fp_write, MILTER_DO_CHGFROM,
                                                   sender))
                             goto done;
-                        free(rewritten);
                     }
                     else if (error)
                     {
@@ -769,29 +760,26 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                 else
                 {
                     log_info(
-                        "%s: %s not rewritten: all recipients are in local "
+                        "%s: <%s> not rewritten: all recipients are in local "
                         "domains",
-                        queue_id != NULL ? queue_id : "NOQUEUE",
-                        (char*)list_get(sender, 0));
+                        queue_id, (char*)list_get(sender, 0));
                 }
                 if (!milter_accept(fp_write))
                     goto done;
                 goto cleanup;
             case MILTER_CMD_ABORT:
-                log_info("%s: MTA aborted transaction",
-                         queue_id != NULL ? queue_id : "NOQUEUE");
+                log_info("%s: MTA aborted transaction", queue_id);
 cleanup:
                 list_clear(sender, free);
                 list_clear(recipients, free);
-                set_string(&queue_id, NULL);
+                set_string(&queue_id, strdup("NOQUEUE"));
                 if (milter_state != MILTER_AWAIT_OPTNEG)
                     milter_state = MILTER_AWAIT_MAIL;
                 if (reload_requested)
                     goto done;
                 break;
             default:
-                log_warn("%s: MTA sent unexpected milter command",
-                         queue_id != NULL ? queue_id : "NOQUEUE");
+                log_warn("%s: MTA sent unexpected milter command", queue_id);
                 if (milter_state != MILTER_AWAIT_OPTNEG)
                 {
                     if (!milter_continue(fp_write))

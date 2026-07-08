@@ -85,8 +85,70 @@ START_TEST(milter_str_list)
 }
 END_TEST
 
+START_TEST(milter_test_parse_address)
+{
+    char* result;
+    result = milter_parse_address("<test@example.com");
+    ck_assert_ptr_null(result);
+    result = milter_parse_address("test@example.com>");
+    ck_assert_ptr_null(result);
+    result = milter_parse_address(">test@example.com<");
+    ck_assert_ptr_null(result);
+    result = milter_parse_address("<test@example.com>");
+    ck_assert_str_eq(result, "test@example.com");
+    free(result);
+    result = milter_parse_address("test@example.com");
+    ck_assert_str_eq(result, "test@example.com");
+    free(result);
+    result = milter_parse_address("Test User <test@example.com>");
+    ck_assert_str_eq(result, "test@example.com");
+    free(result);
+    result = milter_parse_address("<>");
+    ck_assert_str_eq(result, "");
+    free(result);
+    result = milter_parse_address("<first><second>");
+    ck_assert_str_eq(result, "first");
+    free(result);
+    ck_assert_ptr_null(milter_parse_address(NULL));
+}
+END_TEST
+
+START_TEST(milter_test_parse_address_n)
+{
+    char* result;
+    result = milter_parse_address_n("<test@example.com", 17);
+    ck_assert_ptr_null(result);
+    result = milter_parse_address_n("<test@example.com>", 17);
+    ck_assert_ptr_null(result);
+    result = milter_parse_address_n("test@example.com>", 17);
+    ck_assert_ptr_null(result);
+    result = milter_parse_address_n(">test@example.com<", 18);
+    ck_assert_ptr_null(result);
+    result = milter_parse_address_n("<test@example.com>", 18);
+    ck_assert_str_eq(result, "test@example.com");
+    free(result);
+    result = milter_parse_address_n("test@example.com", 16);
+    ck_assert_str_eq(result, "test@example.com");
+    free(result);
+    result = milter_parse_address_n("Test User <test@example.com>", 28);
+    ck_assert_str_eq(result, "test@example.com");
+    free(result);
+    result = milter_parse_address_n("Test User <test@example.com>", 11);
+    ck_assert_ptr_null(result);
+    result = milter_parse_address_n("<>", 2);
+    ck_assert_str_eq(result, "");
+    free(result);
+    result = milter_parse_address_n("<first><second>", 15);
+    ck_assert_str_eq(result, "first");
+    free(result);
+    ck_assert_ptr_null(milter_parse_address_n(NULL, 10000));
+}
+END_TEST
+
 BEGIN_TEST_SUITE(milter)
 ADD_TEST(milter_macros)
 ADD_TEST(milter_str_list)
+ADD_TEST(milter_test_parse_address)
+ADD_TEST(milter_test_parse_address_n)
 END_TEST_SUITE()
 TEST_MAIN(milter)

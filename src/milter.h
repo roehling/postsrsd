@@ -92,5 +92,7 @@ bool milter_reject(FILE* fp);
 void milter_parse_str_list(list_t* L, const char* data, size_t length);
 bool milter_handle_optneg(FILE* fp, const void* input, size_t length);
 char* milter_find_macro(const char* name, const char* data, size_t length);
+char* milter_parse_address(const char* addr);
+char* milter_parse_address_n(const char* addr, size_t length);
 
 #endif

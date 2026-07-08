@@ -146,47 +146,6 @@ char* stpcpy(char* dst, const char* src)
 }
 #endif
 
-char* strip_brackets_n(const char* addr, size_t length)
-{
-    if (addr == NULL || length < 2)
-        return NULL;
-    const char* lbrak = memchr(addr, '<', length);
-    if (lbrak == NULL)
-        return NULL;
-    const char* rbrak = memchr(lbrak, '>', length - (lbrak - addr));
-    if (rbrak == NULL)
-        return NULL;
-    return strndup(lbrak + 1, rbrak - lbrak - 1);
-}
-
-char* strip_brackets(const char* addr)
-{
-    if (addr == NULL)
-        return NULL;
-    const char* lbrak = strchr(addr, '<');
-    if (lbrak == NULL)
-        return NULL;
-    const char* rbrak = strchr(lbrak, '>');
-    if (rbrak == NULL)
-        return NULL;
-    return strndup(lbrak + 1, rbrak - lbrak - 1);
-}
-
-char* add_brackets(const char* addr)
-{
-    if (addr == NULL)
-        return NULL;
-    size_t addr_len = strlen(addr);
-    char* result = malloc(addr_len + 3);
-    if (result == NULL)
-        return NULL;
-    result[0] = '<';
-    memcpy(result + 1, addr, addr_len);
-    result[addr_len + 1] = '>';
-    result[addr_len + 2] = 0;
-    return result;
-}
-
 char* b32h_encode(const char* data, size_t length, char* buffer, size_t bufsize)
 {
     static const char B32H_CHARS[32] = {'0', '1', '2', '3', '4', '5', '6', '7',

@@ -70,9 +70,13 @@ def mf_eom(sock: socket.socket):
     code, data = recv_milter(sock)
     while code in [b"+", b"-", b"e"]:
         if code == b"+":
-            new_rcpt = data[1:-2].decode()
+            new_rcpt = data[:-1].decode()
+            if new_rcpt[0] == "<" and new_rcpt[-1] == ">":
+                new_rcpt = new_rcpt[1:-2]
         if code == b"e":
-            new_from = data[1:-2].decode()
+            new_from = data[:-1].decode()
+            if new_from[0] == "<" and new_from[-1] == ">":
+                new_from = new_from[1:-2]
         code, data = recv_milter(sock)
     return code, new_from, new_rcpt
 
@@ -286,6 +290,8 @@ def milter_protocol_violations(postsrsd: str, when: str):
         assert mf_envfrom(sock, "a" * 508), "milter MAIL command failed"
         send_milter(sock, b"R", b">recipient@otherdomain.com<")
         code, _ = recv_milter(sock)
+        assert code == b"c", "milter should have continued"
+        code, _, _ = mf_eom(sock)
         assert code == b"r", "milter should have rejected"
 
     def send_garbage_first(sock: socket.socket):

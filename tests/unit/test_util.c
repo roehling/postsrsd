@@ -174,78 +174,6 @@ START_TEST(util_argvdup)
 }
 END_TEST
 
-START_TEST(util_strip_brackets)
-{
-    char* result;
-    result = strip_brackets("test@example.com");
-    ck_assert_ptr_null(result);
-    result = strip_brackets("<test@example.com");
-    ck_assert_ptr_null(result);
-    result = strip_brackets("test@example.com>");
-    ck_assert_ptr_null(result);
-    result = strip_brackets(">test@example.com<");
-    ck_assert_ptr_null(result);
-    result = strip_brackets("<test@example.com>");
-    ck_assert_str_eq(result, "test@example.com");
-    free(result);
-    result = strip_brackets("Test User <test@example.com>");
-    ck_assert_str_eq(result, "test@example.com");
-    free(result);
-    result = strip_brackets("<>");
-    ck_assert_str_eq(result, "");
-    free(result);
-    result = strip_brackets("<first><second>");
-    ck_assert_str_eq(result, "first");
-    free(result);
-    ck_assert_ptr_null(strip_brackets(NULL));
-}
-END_TEST
-
-START_TEST(util_strip_brackets_n)
-{
-    char* result;
-    result = strip_brackets_n("test@example.com", 16);
-    ck_assert_ptr_null(result);
-    result = strip_brackets_n("<test@example.com", 17);
-    ck_assert_ptr_null(result);
-    result = strip_brackets_n("<test@example.com>", 17);
-    ck_assert_ptr_null(result);
-    result = strip_brackets_n("test@example.com>", 17);
-    ck_assert_ptr_null(result);
-    result = strip_brackets_n(">test@example.com<", 18);
-    ck_assert_ptr_null(result);
-    result = strip_brackets_n("<test@example.com>", 18);
-    ck_assert_str_eq(result, "test@example.com");
-    free(result);
-    result = strip_brackets_n("Test User <test@example.com>", 28);
-    ck_assert_str_eq(result, "test@example.com");
-    free(result);
-    result = strip_brackets_n("Test User <test@example.com>", 9);
-    ck_assert_ptr_null(result);
-    result = strip_brackets_n("<>", 2);
-    ck_assert_str_eq(result, "");
-    free(result);
-    result = strip_brackets_n("<first><second>", 15);
-    ck_assert_str_eq(result, "first");
-    free(result);
-    ck_assert_ptr_null(strip_brackets_n(NULL, 10000));
-    ck_assert_ptr_null(strip_brackets_n("", 0));
-}
-END_TEST
-
-START_TEST(util_add_brackets)
-{
-    char* result;
-    result = add_brackets("test@example.com");
-    ck_assert_str_eq(result, "<test@example.com>");
-    free(result);
-    result = add_brackets("");
-    ck_assert_str_eq(result, "<>");
-    free(result);
-    ck_assert_ptr_null(add_brackets(NULL));
-}
-END_TEST
-
 static bool util_list__is_not_b(const void* value)
 {
     return strcmp((const char*)value, "b") != 0;
@@ -466,9 +394,6 @@ ADD_TEST_TO_TEST_CASE(fs, util_dotlock)
 ADD_TEST_TO_TEST_CASE(fs, util_file_watch)
 ADD_TEST(util_set_string)
 ADD_TEST(util_argvdup);
-ADD_TEST(util_strip_brackets);
-ADD_TEST(util_strip_brackets_n);
-ADD_TEST(util_add_brackets);
 ADD_TEST(util_list);
 ADD_TEST(util_b32h_encode)
 ADD_TEST(util_domain_set)

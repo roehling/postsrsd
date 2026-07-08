@@ -249,3 +249,39 @@ char* milter_find_macro(const char* name, const char* buffer, size_t length)
     }
     return NULL;
 }
+
+char* milter_parse_address_n(const char* addr, size_t length)
+{
+    if (addr == NULL)
+        return NULL;
+    if (length < 2)
+        return strndup(addr, length);
+    const char* lbrak = memchr(addr, '<', length);
+    if (lbrak == NULL)
+    {
+        if (memchr(addr, '>', length) == NULL)
+            return strndup(addr, length);
+        return NULL;
+    }
+    const char* rbrak = memchr(lbrak, '>', length - (lbrak - addr));
+    if (rbrak == NULL)
+        return NULL;
+    return strndup(lbrak + 1, rbrak - lbrak - 1);
+}
+
+char* milter_parse_address(const char* addr)
+{
+    if (addr == NULL)
+        return NULL;
+    const char* lbrak = strchr(addr, '<');
+    if (lbrak == NULL)
+    {
+        if (strchr(addr, '>') == NULL)
+            return strdup(addr);
+        return NULL;
+    }
+    const char* rbrak = strchr(lbrak, '>');
+    if (rbrak == NULL)
+        return NULL;
+    return strndup(lbrak + 1, rbrak - lbrak - 1);
+}
