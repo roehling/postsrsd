@@ -43,15 +43,24 @@ jobs:
         run: |
           cd _build
           sudo make install
-          sed -e 's/^#srs-domain.*/srs-domain = "example.com"/' /usr/local/share/doc/postsrsd/postsrsd.conf | sudo tee /usr/local/etc/postsrsd.conf
+          sed -e 's/^#srs-domain.*/srs-domain = "example.com"/' -e 's!^#milter.*!milter = unix:/var/spool/postfix/srs_milter!' /usr/local/share/doc/postsrsd/postsrsd.conf | sudo tee /usr/local/etc/postsrsd.conf
           sudo systemctl enable postsrsd
           sudo systemctl start postsrsd
           sudo journalctl --no-pager -u postsrsd
           sudo systemctl --no-pager status postsrsd
       - name: Test Postfix integration
         run: |
+          echo -e "@example.com $(whoami)\n@otherdomain.com $(whoami)" | sudo tee /etc/postfix/virtual
+          sudo postmap hash:/etc/postfix/virtual
+          sudo postconf -e non_smtpd_milters=unix:srs_milter smtpd_milters=unix:srs_milter "virtual_alias_domains=example.com otherdomain.com" virtual_alias_maps=hash:/etc/postfix/virtual
+          sudo postfix reload
           postmap -q test@otherdomain.com socketmap:unix:/var/spool/postfix/srs:forward | tee /tmp/srs-alias.txt
           postmap -q "$(cat /tmp/srs-alias.txt)" socketmap:unix:/var/spool/postfix/srs:reverse
+          echo -e 'Subject: Forward SRS\r\n\r\nThis is the first test\r\n\r\n\r\n' | sendmail -f sender@otherdomain.com -- recipient@otherdomain.com
+          echo -e 'Subject: Reverse SRS\r\n\r\nThis is the second test\r\n\r\n\r\n' | sendmail -f sender@otherdomain.com -- $(cat /tmp/srs-alias.txt)
+          sleep 2
+          sudo tail /var/log/mail.log || true
+          sudo cat $(postconf -h mail_spool_directory)/* || true
       - name: Test notify-reload
         run: |
           sudo systemctl reload postsrsd
