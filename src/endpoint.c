@@ -310,6 +310,15 @@ void endpoint_close(endpoint_t* endpoint)
     free(endpoint);
 }
 
+void endpoint_free(endpoint_t* endpoint)
+{
+    if (endpoint == NULL)
+        return;
+    if (endpoint->path != NULL)
+        free(endpoint->path);
+    free(endpoint);
+}
+
 size_t endpoint_prepare_poll(endpoint_t* endpoint, struct pollfd* pollfds,
                              size_t max_fds)
 {

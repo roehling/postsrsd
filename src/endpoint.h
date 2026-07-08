@@ -26,6 +26,7 @@ typedef struct endpoint endpoint_t;
 
 endpoint_t* endpoint_create(const char* s);
 void endpoint_close(endpoint_t* endpoint);
+void endpoint_free(endpoint_t* endpoint);
 size_t endpoint_prepare_poll(endpoint_t* endpoint, struct pollfd* pollfds,
                              size_t max_fds);
 

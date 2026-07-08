@@ -1079,10 +1079,17 @@ int main(int argc, char** argv)
                     pid = fork();
                     if (pid == 0)
                     {
+                        endpoint_free(state.socketmap);
+                        state.socketmap = NULL;
+                        endpoint_free(state.milter);
+                        state.milter = NULL;
                         if (i < num_socketmap_fds)
                             handle_socketmap_client(&state, conn);
                         else
                             handle_milter_client(&state, conn);
+                        finalize_state(&state);
+                        finalize_seccomp();
+                        pid_set_destroy(P);
                         exit(EXIT_SUCCESS);
                     }
                     if (pid < 0)
