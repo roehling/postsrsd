@@ -285,3 +285,33 @@ char* milter_parse_address(const char* addr)
         return NULL;
     return strndup(lbrak + 1, rbrak - lbrak - 1);
 }
+
+char* milter_parse_address_buf(const char* addr, void* buffer, size_t size)
+{
+    if (addr == NULL)
+        return NULL;
+    const char* lbrak = strchr(addr, '<');
+    if (lbrak == NULL)
+    {
+        if (strchr(addr, '>') == NULL)
+        {
+            size_t len = strlen(addr);
+            if (len < size)
+            {
+                char* eob = stpcpy(buffer, addr);
+                *eob = 0;
+                return buffer;
+            }
+        }
+        return NULL;
+    }
+    const char* rbrak = strchr(lbrak, '>');
+    if (rbrak == NULL)
+        return NULL;
+    size_t len = rbrak - lbrak - 1;
+    if (len >= size)
+        return NULL;
+    char* eob = stpncpy(buffer, lbrak + 1, len);
+    *eob = 0;
+    return buffer;
+}

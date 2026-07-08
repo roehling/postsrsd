@@ -113,6 +113,41 @@ START_TEST(milter_test_parse_address)
 }
 END_TEST
 
+START_TEST(milter_test_parse_address_buf)
+{
+    char buffer[32];
+    char* result;
+    result =
+        milter_parse_address_buf("<test@example.com", buffer, sizeof(buffer));
+    ck_assert_ptr_null(result);
+    result =
+        milter_parse_address_buf("test@example.com>", buffer, sizeof(buffer));
+    ck_assert_ptr_null(result);
+    result =
+        milter_parse_address_buf(">test@example.com<", buffer, sizeof(buffer));
+    ck_assert_ptr_null(result);
+    result =
+        milter_parse_address_buf("<test@example.com>", buffer, sizeof(buffer));
+    ck_assert_str_eq(result, "test@example.com");
+    result =
+        milter_parse_address_buf("test@example.com", buffer, sizeof(buffer));
+    ck_assert_str_eq(result, "test@example.com");
+    result = milter_parse_address_buf("Test User <test@example.com>", buffer,
+                                      sizeof(buffer));
+    ck_assert_str_eq(result, "test@example.com");
+    result = milter_parse_address_buf("<>", buffer, sizeof(buffer));
+    ck_assert_str_eq(result, "");
+    result =
+        milter_parse_address_buf("<first><second>", buffer, sizeof(buffer));
+    ck_assert_str_eq(result, "first");
+    ck_assert_ptr_null(milter_parse_address_buf(NULL, buffer, sizeof(buffer)));
+    ck_assert_ptr_null(milter_parse_address_buf(
+        "<test@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com>", buffer, sizeof(buffer)));
+    ck_assert_ptr_null(milter_parse_address_buf(
+        "test@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com", buffer, sizeof(buffer)));
+}
+END_TEST
+
 START_TEST(milter_test_parse_address_n)
 {
     char* result;
@@ -149,6 +184,7 @@ BEGIN_TEST_SUITE(milter)
 ADD_TEST(milter_macros)
 ADD_TEST(milter_str_list)
 ADD_TEST(milter_test_parse_address)
+ADD_TEST(milter_test_parse_address_buf)
 ADD_TEST(milter_test_parse_address_n)
 END_TEST_SUITE()
 TEST_MAIN(milter)

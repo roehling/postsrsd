@@ -680,7 +680,8 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                 for (size_t i = 0; i < list_size(recipients); ++i)
                 {
                     char* old_rcpt = list_get(recipients, i);
-                    char* addr = milter_parse_address(old_rcpt);
+                    char* addr = milter_parse_address_buf(old_rcpt, buffer,
+                                                          sizeof(buffer));
                     if (addr == NULL)
                     {
                         log_error("%s: invalid recipient: %s", queue_id,
@@ -693,7 +694,6 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                                                        &error, &info, queue_id);
                     if (rewritten)
                     {
-                        free(addr);
                         if (!milter_send_str(fp_write, MILTER_DO_DELRCPT,
                                              old_rcpt))
                             goto done;
@@ -709,7 +709,6 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                     }
                     else if (error)
                     {
-                        free(addr);
                         if (!milter_reject(fp_write))
                             goto done;
                         goto cleanup;
@@ -734,7 +733,6 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                                                      domain + 1))
                                 is_local = false;
                         }
-                        free(addr);
                     }
                 }
                 if (!is_local || rewrite_local || always_rewrite)
