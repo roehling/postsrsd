@@ -7,6 +7,15 @@
 Changelog
 #########
 
+2.2.5
+=====
+
+Changed
+-------
+
+* The milter is less strict with its input requirements for better
+  compatibility with MTAs.
+
 2.2.4
 =====
 
