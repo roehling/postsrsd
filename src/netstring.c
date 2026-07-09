@@ -18,6 +18,7 @@
 
 #include "util.h"
 
+#include <stdint.h>
 #include <string.h>
 #include <sys/uio.h>
 
@@ -61,6 +62,8 @@ char* netstring_read(int fd, char* buffer, size_t bufsize,
 {
     size_t length = 0;
     char ch;
+    if (decoded_length != NULL)
+        *decoded_length = 0;
     for (;;)
     {
         if (read(fd, &ch, 1) != 1)
@@ -68,11 +71,21 @@ char* netstring_read(int fd, char* buffer, size_t bufsize,
         if (ch == ':')
             break;
         if (ch < '0' || ch > '9')
+        {
+            if (decoded_length != NULL)
+                *decoded_length = SIZE_MAX;
             return NULL;
+        }
         length = 10 * length + (ch - '0');
         if (length > 100000 || length >= bufsize)
+        {
+            if (decoded_length != NULL)
+                *decoded_length = SIZE_MAX;
             return NULL;
+        }
     }
+    if (decoded_length != NULL)
+        *decoded_length = length;
     size_t total_read = 0;
     while (total_read < length)
     {
@@ -85,8 +98,6 @@ char* netstring_read(int fd, char* buffer, size_t bufsize,
         return NULL;
     if (ch != ',')
         return NULL;
-    if (decoded_length != NULL)
-        *decoded_length = length;
     buffer[length] = 0;
     return buffer;
 }

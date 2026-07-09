@@ -297,13 +297,12 @@ static void handle_socketmap_client(postsrsd_t* state, int conn)
             break;
         timeout = 0;
         alarm(keep_alive);
-        errno = 0;
         char* request = netstring_read(conn, buffer, sizeof(buffer), &len);
         if (timeout)
             break;
         if (request == NULL)
         {
-            if (errno == 0)
+            if (len != 0)
             {
                 netstring_write(conn, "PERM Invalid query.", 19);
                 log_error("invalid socketmap query, closing connection");
