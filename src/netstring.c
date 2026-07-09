@@ -106,13 +106,24 @@ int netstring_write(int fd, const char* data, size_t length)
 {
     static const char suffix[] = {','};
     char prefix[16];
-    size_t n = snprintf(prefix, sizeof(prefix), "%zu:", length);
     struct iovec iov[3];
-    iov[0].iov_base = prefix;
-    iov[0].iov_len = n;
-    iov[1].iov_base = (void*)data;
-    iov[1].iov_len = length;
-    iov[2].iov_base = (void*)suffix;
-    iov[2].iov_len = 1;
-    return writev_all(fd, iov, 3) ? (int)(length + n + 1) : -1;
+    if (length != 0)
+    {
+        if (data == NULL)
+            return -1;
+        size_t n = snprintf(prefix, sizeof(prefix), "%zu:", length);
+        iov[0].iov_base = prefix;
+        iov[0].iov_len = n;
+        iov[1].iov_base = (void*)data;
+        iov[1].iov_len = length;
+        iov[2].iov_base = (void*)suffix;
+        iov[2].iov_len = 1;
+        return writev_all(fd, iov, 3) ? (int)(length + n + 1) : -1;
+    }
+    else
+    {
+        iov[0].iov_base = (void*)"0:,";
+        iov[0].iov_len = 3;
+        return writev_all(fd, iov, 1) ? 3 : -1;
+    }
 }

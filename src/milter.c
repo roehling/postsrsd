@@ -90,9 +90,12 @@ bool milter_send_bytes(int fd, char action, const void* data, size_t length)
     packet.code = action;
     iov[0].iov_base = &packet;
     iov[0].iov_len = sizeof(milter_packet_t);
-    iov[1].iov_base = (void*)data;
-    iov[1].iov_len = length;
-    return writev_all(fd, iov, 2);
+    if (length != 0)
+    {
+        iov[1].iov_base = (void*)data;
+        iov[1].iov_len = length;
+    }
+    return writev_all(fd, iov, length != 0 ? 2 : 1);
 }
 
 bool milter_send_str(int fd, char action, const char* value)

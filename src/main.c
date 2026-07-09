@@ -515,8 +515,8 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                 for (size_t i = 0; i < list_size(recipients); ++i)
                 {
                     char* old_rcpt = list_get(recipients, i);
-                    char* addr = milter_parse_address_buf(old_rcpt, buffer,
-                                                          sizeof(buffer));
+                    addr = milter_parse_address_buf(old_rcpt, buffer,
+                                                    sizeof(buffer));
                     if (addr == NULL)
                     {
                         log_error("%s: invalid recipient: %s", queue_id,
