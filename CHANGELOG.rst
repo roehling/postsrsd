@@ -7,6 +7,26 @@
 Changelog
 #########
 
+2.2.6
+=====
+
+Fixed
+-----
+
+* Properly drop privileges in worker processes again (broken since 2.2.0).
+
+Added
+-----
+
+* The systemd service unit file has been substantially hardened.
+
+Changed
+-------
+
+* Drop FILE* API in favor of direct read()/write()
+* SRS hashes are encoded with the base64url scheme now
+  (`#189 <https://github.com/roehling/postsrsd/issues/189>`_).
+
 2.2.5
 =====
 
@@ -23,7 +43,7 @@ Fixed
 -----
 
 * Missing error handling for some edge cases (e.g., failing fork()).
-  (`#199 <https://github.com/roehling/postsrsd/pull/199`_)
+  (`#199 <https://github.com/roehling/postsrsd/pull/199>`_)
 * Reworked a few potentially unsafe constructs in the code.
 
 Changed
@@ -147,7 +167,7 @@ Fixed
 * Run `autoreconf` to prevent confuse build failures with newer
   autoconf/automake releases
 * Fix build failures with libcheck if libsubunit ist installed
-  (`#161 <https://github.com/roehling/postsrsd/issues/161`_)
+  (`#161 <https://github.com/roehling/postsrsd/issues/161>`_)
 * Do not fail silently if `WITH_MILTER=ON` is set but libmilter
   is not available
 
