@@ -231,7 +231,7 @@ def milter_protocol_violations(postsrsd: str, when: str):
         code, new_from, new_rcpt = mf_eom(sock)
         assert code == b"a", f"milter should have accepted"
         assert (
-            new_from == "SRS0=9KJ+=2W=otherdomain.com=sender@example.com"
+            new_from == "SRS0=9KJ-=2W=otherdomain.com=sender@example.com"
         ), f"unexpected rewrite of envelope sender: {new_from!r}"
         assert (
             new_rcpt == "test@otherdomain.com"
@@ -263,7 +263,7 @@ def milter_protocol_violations(postsrsd: str, when: str):
         code, new_from, new_rcpt = mf_eom(sock)
         assert code == b"a", f"milter should have accepted"
         assert (
-            new_from == "SRS0=9KJ+=2W=otherdomain.com=sender@example.com"
+            new_from == "SRS0=9KJ-=2W=otherdomain.com=sender@example.com"
         ), f"unexpected rewrite of envelope sender: {new_from!r}"
         assert (
             new_rcpt == "test@otherdomain.com"
@@ -304,7 +304,7 @@ def milter_protocol_violations(postsrsd: str, when: str):
         code, new_from, new_rcpt = mf_eom(sock)
         assert code == b"a", f"milter should have accepted"
         assert (
-            new_from == "SRS0=9KJ+=2W=otherdomain.com=sender@example.com"
+            new_from == "SRS0=9KJ-=2W=otherdomain.com=sender@example.com"
         ), f"unexpected rewrite of envelope sender: {new_from!r}"
         assert (
             new_rcpt == "test@otherdomain.com"
@@ -368,7 +368,7 @@ STATELESS_QUERIES: list[
     # Regular rewrite
     (
         ("sender@otherdomain.com", "recipient@thirddomain.com"),
-        (b"a", "SRS0=9KJ+=2W=otherdomain.com=sender@example.com", None),
+        (b"a", "SRS0=9KJ-=2W=otherdomain.com=sender@example.com", None),
     ),
     # No rewrite for sender without domain
     (
@@ -397,7 +397,7 @@ STATELESS_QUERIES: list[
     (
         (
             "sender@example.com",
-            "SRS0=9KJ+=2W=otherdomain.com=sender@example.com",
+            "SRS0=9KJ-=2W=otherdomain.com=sender@example.com",
         ),
         (b"a", None, "sender@otherdomain.com"),
     ),
@@ -405,11 +405,11 @@ STATELESS_QUERIES: list[
     (
         (
             "sender@otherdomain.com",
-            "SRS0=9KJ+=2W=otherdomain.com=sender@example.com",
+            "SRS0=9KJ-=2W=otherdomain.com=sender@example.com",
         ),
         (
             b"a",
-            "SRS0=9KJ+=2W=otherdomain.com=sender@example.com",
+            "SRS0=9KJ-=2W=otherdomain.com=sender@example.com",
             "sender@otherdomain.com",
         ),
     ),
@@ -545,7 +545,7 @@ STATELESS_QUERIES: list[
     (
         (
             "",
-            "SRS0=9KJ+=2W=otherdomain.com=sender@example.com",
+            "SRS0=9KJ-=2W=otherdomain.com=sender@example.com",
         ),
         (b"a", None, "sender@otherdomain.com"),
     ),
@@ -619,7 +619,7 @@ DATABASE_QUERIES: list[tuple[tuple[str, str], tuple[bytes, str | None, str | Non
     (
         (
             "sender@example.com",
-            "SRS0=9KJ+=2W=otherdomain.com=sender@example.com",
+            "SRS0=9KJ-=2W=otherdomain.com=sender@example.com",
         ),
         (b"a", None, "sender@otherdomain.com"),
     ),
@@ -627,7 +627,7 @@ DATABASE_QUERIES: list[tuple[tuple[str, str], tuple[bytes, str | None, str | Non
     (
         (
             "",
-            "SRS0=9KJ+=2W=otherdomain.com=sender@example.com",
+            "SRS0=9KJ-=2W=otherdomain.com=sender@example.com",
         ),
         (b"a", None, "sender@otherdomain.com"),
     ),

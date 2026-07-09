@@ -247,7 +247,7 @@ int srs_timestamp_check(srs_t* srs, const char* stamp)
 const char* SRS_HASH_BASECHARS =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     "abcdefghijklmnopqrstuvwxyz"
-    "0123456789+/";
+    "0123456789-_";
 
 static void srs_hash_create_v(srs_t* srs, int idx, char* buf, int nargs,
                               va_list ap)
@@ -357,7 +357,7 @@ int srs_hash_check(srs_t* srs, char* hash, int nargs, ...)
 {
     va_list ap;
     int len;
-    int i;
+    int i, j;
 
     len = strlen(hash);
     if (len < srs->hashmin)
@@ -373,6 +373,15 @@ int srs_hash_check(srs_t* srs, char* hash, int nargs, ...)
         va_start(ap, nargs);
         srs_hash_create_v(srs, i, srshash, nargs, ap);
         va_end(ap);
+        if (strncasecmp(hash, srshash, len) == 0)
+            return SRS_SUCCESS;
+        for (j = 0; j < len; ++j)
+        {
+            if (srshash[j] == '-')
+                srshash[j] = '+';
+            if (srshash[j] == '_')
+                srshash[j] = '/';
+        }
         if (strncasecmp(hash, srshash, len) == 0)
             return SRS_SUCCESS;
     }

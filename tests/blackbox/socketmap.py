@@ -294,6 +294,21 @@ STATELESS_QUERIES = [
         "reverse SRS0=XJO9=2V=OTHERDOMAIN.COM=TEST@EXAMPLE.COM",
         "OK TEST@OTHERDOMAIN.COM",
     ),
+    # Check base64url hash encoding
+    (
+        "forward hash234@somedomain.com",
+        "OK SRS0=-3_5=2W=somedomain.com=hash234@example.com",
+    ),
+    # Recover mail address from base64url encoding
+    (
+        "reverse SRS0=-3_5=2W=somedomain.com=hash234@example.com",
+        "OK hash234@somedomain.com",
+    ),
+    # Recover mail address from base64 encoding
+    (
+        "reverse SRS0=+3/5=2W=somedomain.com=hash234@example.com",
+        "OK hash234@somedomain.com",
+    ),
     # Ignore SRS0 address without authenticating hash
     (
         "reverse SRS0=@example.com",
