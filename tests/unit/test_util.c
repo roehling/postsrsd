@@ -137,40 +137,13 @@ START_TEST(util_file_watch)
 }
 END_TEST
 
-START_TEST(util_set_string)
+START_TEST(util_string_set)
 {
     char* s = NULL;
-    set_string(&s, strdup("Test"));
+    string_set(&s, strdup("Test"));
     ck_assert_str_eq(s, "Test");
-    set_string(&s, NULL);
+    string_set(&s, NULL);
     ck_assert_ptr_null(s);
-}
-END_TEST
-
-START_TEST(util_argvdup)
-{
-    const char* tokens[5] = {"one", "two", "three", "four", "five"};
-    char* argv[6];
-    ck_assert_ptr_null(argvdup(NULL));
-    for (size_t num = 0; num <= 5; ++num)
-    {
-        for (size_t i = 0; i < num; ++i)
-        {
-            argv[i] = strdup(tokens[i]);
-        }
-        argv[num] = NULL;
-        char** result = argvdup(argv);
-        ck_assert_ptr_ne(argv, result);
-        for (size_t i = 0; i < num; ++i)
-        {
-            ck_assert_ptr_ne(argv[i], result[i]);
-            ck_assert_str_eq(argv[i], result[i]);
-            free(argv[i]);
-        }
-        ck_assert_ptr_null(result[num]);
-        freeargv(result);
-    }
-    freeargv(NULL);
 }
 END_TEST
 
@@ -312,10 +285,10 @@ START_TEST(util_dotlock)
 #if defined(LOCK_EX) && defined(LOCK_NB)
     for (int i = 0; i < 2; ++i)
     {
-        int handle = acquire_lock("testfile");
+        int handle = lock_acquire("testfile");
         ck_assert_int_gt(handle, 0);
-        ck_assert_int_lt(acquire_lock("testfile"), 0);
-        release_lock("testfile", handle);
+        ck_assert_int_lt(lock_acquire("testfile"), 0);
+        lock_release("testfile", handle);
     }
 #endif
 }
@@ -392,8 +365,7 @@ ADD_TEST_TO_TEST_CASE(fs, util_file_exists)
 ADD_TEST_TO_TEST_CASE(fs, util_directory_exists)
 ADD_TEST_TO_TEST_CASE(fs, util_dotlock)
 ADD_TEST_TO_TEST_CASE(fs, util_file_watch)
-ADD_TEST(util_set_string)
-ADD_TEST(util_argvdup);
+ADD_TEST(util_string_set)
 ADD_TEST(util_list);
 ADD_TEST(util_b32h_encode)
 ADD_TEST(util_domain_set)

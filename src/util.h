@@ -54,12 +54,9 @@ typedef void (*file_watch_cb_t)(const char*, unsigned, size_t);
 #define FW_CHANGING 8
 
 bool string_equal(const void* s1, const void* s2);
-void set_string(char** var, char* value);
+void string_set(char** var, char* value);
 char* b32h_encode(const char* data, size_t length, char* buffer,
                   size_t bufsize);
-
-char** argvdup(char** argv);
-void freeargv(char** argv);
 
 #ifndef HAVE_STPNCPY
 char* stpncpy(char* dst, const char* src, size_t len);
@@ -71,8 +68,8 @@ char* stpcpy(char* dst, const char* src);
 bool file_exists(const char* filename);
 bool directory_exists(const char* dirname);
 
-int acquire_lock(const char* path);
-void release_lock(const char* path, int fd);
+int lock_acquire(const char* path);
+void lock_release(const char* path, int fd);
 
 domain_set_t* domain_set_create();
 bool domain_set_add(domain_set_t* D, const char* domain);
@@ -134,5 +131,12 @@ void log_fatal(const char* fmt, ...) ATTRIBUTE(noreturn);
 
 bool sd_notify(const char* fmt, ...)
     ATTRIBUTE(format(printf, 1, 2));  // flawfinder: ignore
+
+struct sandbox;
+typedef struct sandbox sandbox_t;
+
+sandbox_t* sandbox_init();
+bool sandbox_enable(sandbox_t* sandbox);
+void sandbox_release(sandbox_t* sandbox);
 
 #endif

@@ -87,7 +87,7 @@ static bool create_unix_socket(const char* path, endpoint_t* endpoint)
         log_error("file path for unix socket is too long");
         return false;
     }
-    endpoint->lock = acquire_lock(path);
+    endpoint->lock = lock_acquire(path);
     if (endpoint->lock >= 0)
         unlink(path);
     mode_t old_mask = umask(0111);
@@ -114,7 +114,7 @@ fail:
         close(sock);
     if (endpoint->lock >= 0)
     {
-        release_lock(path, endpoint->lock);
+        lock_release(path, endpoint->lock);
         endpoint->lock = -1;
     }
     return false;
@@ -251,7 +251,7 @@ endpoint_t* endpoint_create(const char* s)
         if (create_unix_socket(path, result))
             return result;
         log_error("failed to create endpoint '%s'", s);
-        endpoint_close(result);
+        endpoint_destroy(result);
         return NULL;
     }
 #endif
@@ -279,22 +279,22 @@ endpoint_t* endpoint_create(const char* s)
         if (ok)
             return result;
         log_error("failed to create endpoint '%s'", s);
-        endpoint_close(result);
+        endpoint_destroy(result);
         return NULL;
     }
 #endif
     log_error("unsupported endpoint '%s'", s);
-    endpoint_close(result);
+    endpoint_destroy(result);
     return NULL;
 }
 
-void endpoint_close(endpoint_t* endpoint)
+void endpoint_destroy(endpoint_t* endpoint)
 {
     if (endpoint == NULL)
         return;
     if (endpoint->lock >= 0 && endpoint->path != NULL)
     {
-        release_lock(endpoint->path, endpoint->lock);
+        lock_release(endpoint->path, endpoint->lock);
     }
     if (endpoint->path != NULL)
     {
@@ -310,7 +310,7 @@ void endpoint_close(endpoint_t* endpoint)
     free(endpoint);
 }
 
-void endpoint_free(endpoint_t* endpoint)
+void endpoint_release(endpoint_t* endpoint)
 {
     if (endpoint == NULL)
         return;

@@ -216,7 +216,7 @@ cfg_t* config_from_commandline(int argc, char* const* argv)
     int daemonize = 0;
     int ok = 1;
     if (file_exists(DEFAULT_CONFIG_FILE))
-        set_string(&config_file, strdup(DEFAULT_CONFIG_FILE));
+        string_set(&config_file, strdup(DEFAULT_CONFIG_FILE));
     optind = 1;
     while ((opt = getopt(argc, argv, "C:c:Dhp:u:v")) != -1)
     {
@@ -225,10 +225,10 @@ cfg_t* config_from_commandline(int argc, char* const* argv)
             case '?':
                 return 0;
             case 'C':
-                set_string(&config_file, strdup(optarg));
+                string_set(&config_file, strdup(optarg));
                 break;
             case 'c':
-                set_string(&chroot_dir, strdup(optarg));
+                string_set(&chroot_dir, strdup(optarg));
                 break;
             case 'D':
                 daemonize = 1;
@@ -238,10 +238,10 @@ cfg_t* config_from_commandline(int argc, char* const* argv)
                 exit(0);
                 break;
             case 'p':
-                set_string(&pid_file, strdup(optarg));
+                string_set(&pid_file, strdup(optarg));
                 break;
             case 'u':
-                set_string(&unprivileged_user, strdup(optarg));
+                string_set(&unprivileged_user, strdup(optarg));
                 break;
             case 'v':
                 puts(POSTSRSD_VERSION);
@@ -266,22 +266,22 @@ cfg_t* config_from_commandline(int argc, char* const* argv)
             default:
                 break;
         }
-        set_string(&config_file, NULL);
+        string_set(&config_file, NULL);
     }
     if (pid_file != NULL)
     {
         cfg_setstr(cfg, "pid-file", pid_file);
-        set_string(&pid_file, NULL);
+        string_set(&pid_file, NULL);
     }
     if (unprivileged_user != NULL)
     {
         cfg_setstr(cfg, "unprivileged-user", unprivileged_user);
-        set_string(&unprivileged_user, NULL);
+        string_set(&unprivileged_user, NULL);
     }
     if (chroot_dir != NULL)
     {
         cfg_setstr(cfg, "chroot-dir", chroot_dir);
-        set_string(&chroot_dir, NULL);
+        string_set(&chroot_dir, NULL);
     }
     if (daemonize)
         cfg_setbool(cfg, "daemonize", cfg_true);

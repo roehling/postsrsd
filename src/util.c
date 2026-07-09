@@ -42,6 +42,9 @@
 #ifdef HAVE_SYS_INOTIFY_H
 #    include <sys/inotify.h>
 #endif
+#ifdef HAVE_SYS_MMAN_H
+#    include <sys/mman.h>
+#endif
 #ifdef HAVE_SYS_TYPES_H
 #    include <sys/types.h>
 #endif
@@ -76,55 +79,19 @@
 #    define O_CLOEXEC 0
 #endif
 
+#ifdef WITH_SECCOMP
+#    include <seccomp.h>
+#endif
+
 bool string_equal(const void* s1, const void* s2)
 {
     return strcmp(s1, s2) == 0;
 }
 
-void set_string(char** var, char* value)
+void string_set(char** var, char* value)
 {
     free(*var);
     *var = value;
-}
-
-char** argvdup(char** argv)
-{
-    if (argv == NULL)
-        return NULL;
-    size_t num = 0;
-    while (argv[num] != NULL)
-        num++;
-    char** result = malloc((num + 1) * sizeof(char*));
-    if (result == NULL)
-        return NULL;
-    for (size_t i = 0; i < num; ++i)
-    {
-        result[i] = strdup(argv[i]);
-        if (result[i] == NULL)
-        {
-            for (size_t j = 0; j < i; ++j)
-            {
-                free(result[j]);
-            }
-            free(result);
-            return NULL;
-        }
-    }
-    result[num] = NULL;
-    return result;
-}
-
-void freeargv(char** argv)
-{
-    if (argv == NULL)
-        return;
-    size_t i = 0;
-    while (argv[i] != NULL)
-    {
-        free(argv[i]);
-        i++;
-    }
-    free(argv);
 }
 
 #ifndef HAVE_STPNCPY
@@ -230,7 +197,7 @@ bool directory_exists(const char* dirname)
     return S_ISDIR(st.st_mode);
 }
 
-int acquire_lock(const char* path)
+int lock_acquire(const char* path)
 {
     MAYBE_UNUSED(path);
 #if defined(LOCK_EX) && defined(LOCK_NB)
@@ -256,7 +223,7 @@ int acquire_lock(const char* path)
 #endif
 }
 
-void release_lock(const char* path, int fd)
+void lock_release(const char* path, int fd)
 {
     MAYBE_UNUSED(path);
     MAYBE_UNUSED(fd);
@@ -1000,7 +967,7 @@ void log_fatal(const char* fmt, ...)
     va_start(ap, fmt);
     vlog(LogError, fmt, ap);
     va_end(ap);
-    exit(1);
+    exit(EXIT_FAILURE);
 }
 
 bool sd_notify(const char* fmt, ...)
@@ -1052,5 +1019,165 @@ bool sd_notify(const char* fmt, ...)
     }
     close(fd);
     return true;
+#endif
+}
+
+sandbox_t* sandbox_init()
+{
+#ifdef WITH_SECCOMP
+    scmp_filter_ctx scmp_ctx;
+    scmp_ctx = seccomp_init(SCMP_ACT_KILL_PROCESS);
+    if (scmp_ctx == NULL)
+        return NULL;
+    /* Syscalls without database access */
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(fstat), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(stat), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(read), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(readv), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(write), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(writev), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(alarm), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(setitimer), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(sigreturn), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(rt_sigreturn), 0)
+        < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(close), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(exit), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(exit_group), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(time), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(brk), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(madvise), 0) < 0)
+        goto fail;
+#    ifdef HAVE_SYS_MMAN_H
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(mprotect), 1,
+                         SCMP_A2(SCMP_CMP_MASKED_EQ, PROT_EXEC, 0))
+        < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(mmap), 1,
+                         SCMP_A2(SCMP_CMP_MASKED_EQ, PROT_EXEC, 0))
+        < 0)
+        goto fail;
+#    endif
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(munmap), 0) < 0)
+        goto fail;
+#    ifdef WITH_SQLITE
+    /* Syscalls for SQlite database access */
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(getpid), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(geteuid), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(lseek), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(newfstatat), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(fcntl), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(open), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(openat), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(pread64), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(preadv2), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(pwrite64), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(pwritev2), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(fsync), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(fdatasync), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(unlink), 0) < 0)
+        goto fail;
+#    endif
+#    ifdef WITH_REDIS
+    /* Syscalls for Redis database access */
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(sendto), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(recvfrom), 0) < 0)
+        goto fail;
+#    endif
+#    ifdef __SANITIZE_ADDRESS__
+    /* These syscalls are used by the Address Sanitizer */
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(sigaltstack), 0)
+        < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(rt_sigprocmask), 0)
+        < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(rt_sigaction), 0)
+        < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(gettid), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(getppid), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(futex), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(prctl), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(clone), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(wait4), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(sched_yield), 0)
+        < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(ptrace), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(getdents64), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW,
+                         SCMP_SYS(readlink),  // flawfinder: ignore
+                         0)
+        < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ERRNO(EINVAL), SCMP_SYS(ioctl), 0)
+        < 0)
+        goto fail;
+#    endif
+    return (sandbox_t*)scmp_ctx;
+fail:
+    seccomp_release(scmp_ctx);
+    return NULL;
+#else
+    return NULL;
+#endif
+}
+
+bool sandbox_enable(sandbox_t* sandbox)
+{
+    MAYBE_UNUSED(sandbox);
+#ifdef WITH_SECCOMP
+    if (sandbox == NULL)
+        return false;
+    return seccomp_load((scmp_filter_ctx)sandbox) == 0;
+#else
+    return false;
+#endif
+}
+
+void sandbox_release(sandbox_t* sandbox)
+{
+    MAYBE_UNUSED(sandbox);
+#ifdef WITH_SECCOMP
+    if (sandbox != NULL)
+        seccomp_release((scmp_filter_ctx)sandbox);
 #endif
 }

@@ -26,29 +26,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #ifdef HAVE_FCNTL_H
 #    include <fcntl.h>
 #endif
 #ifdef HAVE_ERRNO_H
 #    include <errno.h>
 #endif
-#ifdef HAVE_SYS_MMAN_H
-#    include <sys/mman.h>
-#endif
 #ifdef HAVE_SYS_SOCKET_H
 #    include <sys/socket.h>
-#endif
-#ifdef HAVE_SYS_TYPES_H
-#    include <sys/types.h>
 #endif
 #ifdef HAVE_SYS_WAIT_H
 #    include <sys/wait.h>
 #endif
 #ifdef HAVE_SIGNAL_H
 #    include <signal.h>
-#endif
-#ifdef HAVE_PWD_H
-#    include <pwd.h>
 #endif
 #ifdef HAVE_POLL_H
 #    include <poll.h>
@@ -62,17 +54,17 @@
 
 #define PAYLOAD_SIZE MILTER_PAYLOAD_SIZE
 
+#define FD_UNUSED    0
+#define FD_SOCKETMAP 1
+#define FD_MILTER    2
+#define FD_WATCH     3
+
 static volatile sig_atomic_t timeout = 0;
 static volatile sig_atomic_t reload_requested = 0, shutdown_requested = 0;
 static bool files_changed = false, files_changed_unsafe = false;
 static time_t last_file_watch_event = 0;
 static bool sd_notify_support = false;
-
-#ifdef WITH_SECCOMP
-#    include <seccomp.h>
-
-static scmp_filter_ctx scmp_ctx;
-#endif
+static sandbox_t* sandbox = NULL;
 
 struct postsrsd
 {
@@ -83,6 +75,7 @@ struct postsrsd
     char* srs_domain;
     domain_set_t* local_domains;
     file_watch_t* file_watch;
+    sandbox_t* sandbox;
     int target_uid, target_gid;
 };
 typedef struct postsrsd postsrsd_t;
@@ -100,154 +93,6 @@ static void init_state(postsrsd_t* state)
     state->target_gid = 0;
 }
 
-static bool init_seccomp()
-{
-#ifdef WITH_SECCOMP
-    scmp_ctx = seccomp_init(SCMP_ACT_KILL_PROCESS);
-    if (scmp_ctx == NULL)
-        return false;
-    /* Syscalls without database access */
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(fstat), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(stat), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(read), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(readv), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(write), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(writev), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(alarm), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(setitimer), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(sigreturn), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(rt_sigreturn), 0)
-        < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(close), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(exit), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(exit_group), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(time), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(brk), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(madvise), 0) < 0)
-        goto fail;
-#    ifdef HAVE_SYS_MMAN_H
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(mprotect), 1,
-                         SCMP_A2(SCMP_CMP_MASKED_EQ, PROT_EXEC, 0))
-        < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(mmap), 1,
-                         SCMP_A2(SCMP_CMP_MASKED_EQ, PROT_EXEC, 0))
-        < 0)
-        goto fail;
-#    endif
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(munmap), 0) < 0)
-        goto fail;
-#    ifdef WITH_SQLITE
-    /* Syscalls for SQlite database access */
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(getpid), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(geteuid), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(lseek), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(newfstatat), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(fcntl), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(open), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(openat), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(pread64), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(preadv2), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(pwrite64), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(pwritev2), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(fsync), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(fdatasync), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(unlink), 0) < 0)
-        goto fail;
-#    endif
-#    ifdef WITH_REDIS
-    /* Syscalls for Redis database access */
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(sendto), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(recvfrom), 0) < 0)
-        goto fail;
-#    endif
-#    ifdef __SANITIZE_ADDRESS__
-    /* These syscalls are used by the Address Sanitizer */
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(sigaltstack), 0)
-        < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(rt_sigprocmask), 0)
-        < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(rt_sigaction), 0)
-        < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(gettid), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(getppid), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(futex), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(prctl), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(clone), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(wait4), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(sched_yield), 0)
-        < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(ptrace), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(getdents64), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW,
-                         SCMP_SYS(readlink),  // flawfinder: ignore
-                         0)
-        < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ERRNO(EINVAL), SCMP_SYS(ioctl), 0)
-        < 0)
-        goto fail;
-#    endif
-    return true;
-fail:
-    seccomp_release(scmp_ctx);
-    scmp_ctx = NULL;
-    return false;
-#else
-    return false;
-#endif
-}
-
-static void finalize_seccomp()
-{
-#ifdef WITH_SECCOMP
-    if (scmp_ctx != NULL)
-        seccomp_release(scmp_ctx);
-    scmp_ctx = NULL;
-#endif
-}
-
 static void finalize_state(postsrsd_t* state)
 {
     if (state->file_watch != NULL)
@@ -257,15 +102,15 @@ static void finalize_state(postsrsd_t* state)
     }
     if (state->socketmap != NULL)
     {
-        endpoint_close(state->socketmap);
+        endpoint_destroy(state->socketmap);
         state->socketmap = NULL;
     }
     if (state->milter != NULL)
     {
-        endpoint_close(state->milter);
+        endpoint_destroy(state->milter);
         state->milter = NULL;
     }
-    set_string(&state->srs_domain, NULL);
+    string_set(&state->srs_domain, NULL);
     if (state->local_domains != NULL)
     {
         domain_set_destroy(state->local_domains);
@@ -348,6 +193,11 @@ static bool check_unprivileged_work(postsrsd_t* state)
                 cfg_getstr(state->cfg, "envelope-database"), true);
             if (db == NULL)
                 exit(EXIT_FAILURE);
+            if (cfg_getbool(state->cfg, "seccomp") && sandbox != NULL
+                && !sandbox_enable(sandbox))
+            {
+                log_fatal("failed to enable sandboxing for worker processes");
+            }
             database_expire(db);
             database_disconnect(db);
         }
@@ -428,8 +278,8 @@ static bool prepare_client(postsrsd_t* state, int conn, FILE** fp_read,
     signal(SIGTERM, SIG_DFL);
     signal(SIGINT, SIG_DFL);
 #ifdef WITH_SECCOMP
-    if (cfg_getbool(state->cfg, "seccomp") && scmp_ctx != NULL
-        && seccomp_load(scmp_ctx) < 0)
+    if (cfg_getbool(state->cfg, "seccomp") && state->sandbox != NULL
+        && !sandbox_enable(sandbox))
     {
         log_error("failed to activate seccomp sandboxing");
         return false;
@@ -550,7 +400,7 @@ static void handle_milter_client(postsrsd_t* state, int conn)
     const int keep_alive = cfg_getint(state->cfg, "keep-alive");
     int milter_state = MILTER_AWAIT_OPTNEG;
     char* queue_id = NULL;
-    set_string(&queue_id, strdup("NOQUEUE"));
+    string_set(&queue_id, strdup("NOQUEUE"));
     list_t* sender = list_create();
     list_t* recipients = list_create();
     for (;;)
@@ -585,7 +435,7 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                 break;
             case MILTER_CMD_MACRO:
                 if (len > 2)
-                    set_string(&queue_id,
+                    string_set(&queue_id,
                                milter_find_macro("i", buffer + 2, len - 2));
                 break;
             case MILTER_CMD_MAIL:
@@ -770,7 +620,7 @@ static void handle_milter_client(postsrsd_t* state, int conn)
 cleanup:
                 list_clear(sender, free);
                 list_clear(recipients, free);
-                set_string(&queue_id, strdup("NOQUEUE"));
+                string_set(&queue_id, strdup("NOQUEUE"));
                 if (milter_state != MILTER_AWAIT_OPTNEG)
                     milter_state = MILTER_AWAIT_MAIL;
                 if (reload_requested)
@@ -791,7 +641,7 @@ done:
     fflush(fp_write);
     list_clear(sender, free);
     list_clear(recipients, free);
-    set_string(&queue_id, NULL);
+    string_set(&queue_id, NULL);
     database_disconnect(db);
 }
 
@@ -928,12 +778,38 @@ fail:
     return false;
 }
 
+static size_t setup_poll(postsrsd_t* state, struct pollfd* fds, int* fd_types,
+                         size_t max_fds)
+{
+    size_t num_fds = 0;
+    size_t remaining_fds = max_fds;
+    size_t num_socketmap_fds =
+        endpoint_prepare_poll(state->socketmap, fds + num_fds, remaining_fds);
+    for (size_t i = num_fds; i < num_fds + num_socketmap_fds; ++i)
+        fd_types[i] = FD_SOCKETMAP;
+    remaining_fds -= num_socketmap_fds;
+    num_fds += num_socketmap_fds;
+    size_t num_milter_fds =
+        endpoint_prepare_poll(state->milter, fds + num_fds, remaining_fds);
+    for (size_t i = num_fds; i < num_fds + num_milter_fds; ++i)
+        fd_types[i] = FD_MILTER;
+    remaining_fds -= num_milter_fds;
+    num_fds += num_milter_fds;
+    size_t num_watch_fds = file_watch_prepare_poll(
+        state->file_watch, fds + num_fds, remaining_fds);
+    for (size_t i = num_fds; i < num_fds + num_watch_fds; ++i)
+        fd_types[i] = FD_WATCH;
+    remaining_fds -= num_watch_fds;
+    num_fds += num_watch_fds;
+    for (size_t i = num_fds; i < max_fds; ++i)
+        fd_types[i] = FD_UNUSED;
+    return num_fds;
+}
+
 int main(int argc, char** argv)
 {
     postsrsd_t state;
     init_state(&state);
-    if (!init_seccomp() && cfg_getbool(state.cfg, "seccomp"))
-        log_warn("seccomp sandboxing is unavailable");
     FILE* pf = NULL;
     pid_set_t* P = NULL;
     int exit_code = EXIT_FAILURE;
@@ -947,6 +823,9 @@ int main(int argc, char** argv)
     signal(SIGUSR1, SIG_IGN);
     if (!setup_state(argc, argv, &state))
         goto shutdown;
+    sandbox = sandbox_init();
+    if (sandbox == NULL)
+        log_warn("seccomp sandbox is unavailable");
     const char* pid_file = cfg_getstr(state.cfg, "pid-file");
     if (NONEMPTY_STRING(pid_file))
     {
@@ -973,19 +852,10 @@ int main(int argc, char** argv)
     signal(SIGTERM, on_shutdown_requested);
     signal(SIGINT, on_shutdown_requested);
     sd_notify_support = sd_notify("READY=1\nMAINPID=%d", getpid());
-    struct pollfd fds[10];
-    unsigned remaining_fds = sizeof(fds) / sizeof(struct pollfd);
-    unsigned num_fds = 0;
-    unsigned num_socketmap_fds =
-        endpoint_prepare_poll(state.socketmap, fds + num_fds, remaining_fds);
-    remaining_fds -= num_socketmap_fds;
-    num_fds += num_socketmap_fds;
-    unsigned num_milter_fds =
-        endpoint_prepare_poll(state.milter, fds + num_fds, remaining_fds);
-    remaining_fds -= num_milter_fds;
-    num_fds += num_milter_fds;
-    num_fds +=
-        file_watch_prepare_poll(state.file_watch, fds + num_fds, remaining_fds);
+    struct pollfd fds[16];
+    int fd_types[sizeof(fds) / sizeof(struct pollfd)];
+    size_t num_fds =
+        setup_poll(&state, fds, fd_types, sizeof(fds) / sizeof(struct pollfd));
     pid_t pid;
     int child_status;
     for (;;)
@@ -1024,22 +894,12 @@ int main(int argc, char** argv)
             if (setup_state(argc, argv, &state))
             {
                 pid_set_kill(P, SIGUSR1);
-                num_fds = 0;
-                remaining_fds = sizeof(fds) / sizeof(struct pollfd);
-                num_socketmap_fds = endpoint_prepare_poll(
-                    state.socketmap, fds + num_fds, remaining_fds);
-                remaining_fds -= num_socketmap_fds;
-                num_fds += num_socketmap_fds;
-                num_milter_fds = endpoint_prepare_poll(
-                    state.milter, fds + num_fds, remaining_fds);
-                remaining_fds -= num_milter_fds;
-                num_fds += num_milter_fds;
-                num_fds += file_watch_prepare_poll(
-                    state.file_watch, fds + num_fds, remaining_fds);
+                num_fds = setup_poll(&state, fds, fd_types,
+                                     sizeof(fds) / sizeof(struct pollfd));
             }
             else
             {
-                log_error("configuration error, keeping the old one");
+                log_error("configuration error, rolling back changes");
             }
             if (sd_notify_support)
                 sd_notify("READY=1");
@@ -1077,26 +937,34 @@ int main(int argc, char** argv)
                     pid = fork();
                     if (pid == 0)
                     {
-                        endpoint_free(state.socketmap);
+                        endpoint_release(state.socketmap);
                         state.socketmap = NULL;
-                        endpoint_free(state.milter);
+                        endpoint_release(state.milter);
                         state.milter = NULL;
-                        if (i < num_socketmap_fds)
-                            handle_socketmap_client(&state, conn);
-                        else
-                            handle_milter_client(&state, conn);
+                        switch (fd_types[i])
+                        {
+                            case FD_SOCKETMAP:
+                                handle_socketmap_client(&state, conn);
+                                break;
+                            case FD_MILTER:
+                                handle_milter_client(&state, conn);
+                                break;
+                            default:
+                                log_error("socket dispatch error");
+                                exit(EXIT_FAILURE);
+                        }
                         finalize_state(&state);
-                        finalize_seccomp();
+                        sandbox_release(sandbox);
                         pid_set_destroy(P);
                         exit(EXIT_SUCCESS);
                     }
-                    if (pid < 0)
+                    if (pid > 0)
                     {
-                        log_perror(errno, "fork");
+                        pid_set_add(P, pid);
                     }
                     else
                     {
-                        pid_set_add(P, pid);
+                        log_perror(errno, "fork");
                     }
                     close(conn);
                 }
@@ -1120,7 +988,7 @@ shutdown:
     if (pf != NULL)
         fclose(pf);
     finalize_state(&state);
-    finalize_seccomp();
+    sandbox_release(sandbox);
     pid_set_kill(P, SIGUSR1);
     pid_set_destroy(P);
     return exit_code;
