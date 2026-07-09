@@ -48,6 +48,7 @@ jobs:
           sudo systemctl start postsrsd
           sudo journalctl --no-pager -u postsrsd
           sudo systemctl --no-pager status postsrsd
+          sudo systemd-analyze --no-pager security postsrsd
       - name: Test Postfix integration
         run: |
           echo -e "@example.com $(whoami)\n@otherdomain.com $(whoami)" | sudo tee /etc/postfix/virtual
