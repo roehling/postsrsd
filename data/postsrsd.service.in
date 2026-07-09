@@ -21,6 +21,17 @@ PrivateTmp=yes
 PrivateDevices=yes
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 RestrictSUIDSGID=yes
+SystemCallArchitectures=native
+LockPersonality=yes
+ProtectKernelTunables=yes
+RestrictRealtime=yes
+ProtectClock=yes
+RestrictNamespaces=yes
+CapabilityBoundingSet=~CAP_SYS_PTRACE
+ProtectHome=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+ProtectKernelLogs=yes
 
 [Install]
 WantedBy=multi-user.target
