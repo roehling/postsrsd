@@ -80,20 +80,21 @@
 
 #define MILTER_PAYLOAD_SIZE 512
 
-size_t milter_receive(FILE* fp, void* buffer, size_t size, size_t* truncated);
-bool milter_send(FILE* fp, char action);
-bool milter_send_bytes(FILE* fp, char action, const void* data, size_t length);
-bool milter_send_str(FILE* fp, char action, const char* value);
-bool milter_send_str_list(FILE* fp, char action, list_t* L);
-bool milter_tempfail(FILE* fp);
-bool milter_continue(FILE* fp);
-bool milter_accept(FILE* fp);
-bool milter_reject(FILE* fp);
+size_t milter_receive(int fd, void* buffer, size_t size, size_t* truncated);
+bool milter_send(int fd, char action);
+bool milter_send_bytes(int fd, char action, const void* data, size_t length);
+bool milter_send_str(int fd, char action, const char* value);
+bool milter_send_str_list(int fd, char action, list_t* L);
+bool milter_tempfail(int fd);
+bool milter_continue(int fd);
+bool milter_accept(int fd);
+bool milter_reject(int fd);
+bool milter_handle_optneg(int fd, const void* input, size_t length);
+
 void milter_parse_str_list(list_t* L, const char* data, size_t length);
-bool milter_handle_optneg(FILE* fp, const void* input, size_t length);
-char* milter_find_macro(const char* name, const char* data, size_t length);
 char* milter_parse_address(const char* addr);
 char* milter_parse_address_buf(const char* addr, void* buffer, size_t size);
 char* milter_parse_address_n(const char* addr, size_t length);
+char* milter_parse_macros(const char* name, const char* data, size_t length);
 
 #endif

@@ -21,6 +21,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
+#include <sys/uio.h>
 #include <unistd.h>
 
 #define MAYBE_UNUSED(x) (void)(x)
@@ -70,6 +71,8 @@ bool directory_exists(const char* dirname);
 
 int lock_acquire(const char* path);
 void lock_release(const char* path, int fd);
+
+bool writev_all(int fd, struct iovec* iov, size_t numv);
 
 domain_set_t* domain_set_create();
 bool domain_set_add(domain_set_t* D, const char* domain);

@@ -41,7 +41,7 @@ endmacro()
 
 set(SRCDIR ../../src)
 
-add_postsrsd_test(test_netstring ${SRCDIR}/netstring.c)
+add_postsrsd_test(test_netstring ${SRCDIR}/netstring.c ${SRCDIR}/util.c)
 add_postsrsd_test(test_sha1 ${SRCDIR}/sha1.c)
 add_postsrsd_test(test_util ${SRCDIR}/util.c)
 add_postsrsd_test(test_database ${SRCDIR}/database.c ${SRCDIR}/util.c)

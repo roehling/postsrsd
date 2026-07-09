@@ -25,39 +25,39 @@ START_TEST(milter_macros)
         "a\000alpha\000\000unused\000b\000\000variable\000value";
     char* result;
 
-    result = milter_find_macro("a", macro_block, sizeof(macro_block));
+    result = milter_parse_macros("a", macro_block, sizeof(macro_block));
     ck_assert_ptr_nonnull(result);
     ck_assert_str_eq(result, "alpha");
     free(result);
 
-    result = milter_find_macro("b", macro_block, sizeof(macro_block));
+    result = milter_parse_macros("b", macro_block, sizeof(macro_block));
     ck_assert_ptr_nonnull(result);
     ck_assert_str_eq(result, "");
     free(result);
 
-    result = milter_find_macro("variable", macro_block, sizeof(macro_block));
+    result = milter_parse_macros("variable", macro_block, sizeof(macro_block));
     ck_assert_ptr_nonnull(result);
     ck_assert_str_eq(result, "value");
     free(result);
 
-    result = milter_find_macro("missing", macro_block, sizeof(macro_block));
+    result = milter_parse_macros("missing", macro_block, sizeof(macro_block));
     ck_assert_ptr_null(result);
 
     static const char broken_1[] = {'a'};
 
-    result = milter_find_macro("a", broken_1, sizeof(broken_1));
+    result = milter_parse_macros("a", broken_1, sizeof(broken_1));
     ck_assert_ptr_null(result);
-    result = milter_find_macro("aaa", broken_1, sizeof(broken_1));
+    result = milter_parse_macros("aaa", broken_1, sizeof(broken_1));
     ck_assert_ptr_null(result);
 
     static const char broken_2[] = {'a', 0, '1', 0, 'b', 0};
 
-    result = milter_find_macro("a", broken_2, sizeof(broken_2));
+    result = milter_parse_macros("a", broken_2, sizeof(broken_2));
     ck_assert_ptr_nonnull(result);
     ck_assert_str_eq(result, "1");
     free(result);
 
-    result = milter_find_macro("b", broken_2, sizeof(broken_2));
+    result = milter_parse_macros("b", broken_2, sizeof(broken_2));
     ck_assert_ptr_null(result);
 }
 END_TEST

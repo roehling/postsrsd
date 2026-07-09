@@ -23,6 +23,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/uio.h>
 
 #if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 #    define BE32(x) (x)
@@ -45,95 +46,98 @@ typedef struct milter_packet milter_packet_t;
 static_assert(sizeof(struct milter_packet) == 5,
               "unexpected size of struct milter_packet");
 
-size_t milter_receive(FILE* fp, void* buffer, size_t size, size_t* truncated)
+size_t milter_receive(int fd, void* buffer, size_t size, size_t* truncated)
 {
     static char discardpile[512];
     uint32_t len;
     if (truncated != NULL)
         *truncated = 0;
-    if (fread(&len, 4, 1, fp) != 1)
+    if (read(fd, &len, 4) != 4)
         return 0;
     len = BE32(len);
     size_t read_len = len < size ? len : size;
-    size_t result = fread(buffer, 1, read_len, fp);
-    if (result < read_len)
-        return result;
-    len -= result;
+    size_t total_read = 0;
+    while (total_read < read_len)
+    {
+        ssize_t r = read(fd, buffer + total_read, read_len - total_read);
+        if (r < 0)
+            return 0;
+        total_read += r;
+    }
+    len -= total_read;
     while (len > 0)
     {
         read_len = len < sizeof(discardpile) ? len : sizeof(discardpile);
-        size_t skip = fread(discardpile, 1, read_len, fp);
-        len -= skip;
-        if (truncated != NULL)
-            *truncated += skip;
-        if (skip < read_len)
+        ssize_t r = read(fd, discardpile, read_len);
+        if (r < 0)
             break;
+        len -= r;
+        if (truncated != NULL)
+            *truncated += r;
     }
-    return result;
+    return total_read;
 }
 
-bool milter_send_bytes(FILE* fp, char action, const void* data, size_t length)
+bool milter_send_bytes(int fd, char action, const void* data, size_t length)
 {
-    static char buffer[MILTER_PAYLOAD_SIZE + sizeof(milter_packet_t)];
-    const bool allocate = length > sizeof(buffer) - sizeof(milter_packet_t);
     if (data == NULL && length != 0)
         return false;
     if (length > 0xfffffffe)
         return false;
-    milter_packet_t* packet =
-        allocate ? malloc(sizeof(milter_packet_t) + length) : &buffer;
-    packet->length = BE32(1 + length);
-    packet->code = action;
-    if (length > 0)
-        memcpy(packet->payload, data, length);
-    size_t written = fwrite(packet, 1, sizeof(milter_packet_t) + length, fp);
-    if (allocate)
-        free(packet);
-    return written == sizeof(milter_packet_t) + length;
+    milter_packet_t packet;
+    struct iovec iov[2];
+    packet.length = BE32(1 + length);
+    packet.code = action;
+    iov[0].iov_base = &packet;
+    iov[0].iov_len = sizeof(milter_packet_t);
+    iov[1].iov_base = (void*)data;
+    iov[1].iov_len = length;
+    return writev_all(fd, iov, 2);
 }
 
-bool milter_send_str(FILE* fp, char action, const char* value)
+bool milter_send_str(int fd, char action, const char* value)
 {
-    return milter_send_bytes(fp, action, value,
+    return milter_send_bytes(fd, action, value,
                              value != NULL ? strlen(value) + 1 : 0);
 }
 
-bool milter_send(FILE* fp, char action)
+bool milter_send(int fd, char action)
 {
     milter_packet_t packet;
     packet.length = BE32(1);
     packet.code = action;
-    return fwrite(&packet, 1, sizeof(milter_packet_t), fp)
+    return write(fd, &packet, sizeof(milter_packet_t))
            == sizeof(milter_packet_t);
 }
 
-bool milter_continue(FILE* fp)
+bool milter_continue(int fd)
 {
-    return milter_send(fp, MILTER_DO_CONTINUE);
+    return milter_send(fd, MILTER_DO_CONTINUE);
 }
 
-bool milter_tempfail(FILE* fp)
+bool milter_tempfail(int fd)
 {
-    return milter_send(fp, MILTER_DO_TEMPFAIL);
+    return milter_send(fd, MILTER_DO_TEMPFAIL);
 }
 
-bool milter_accept(FILE* fp)
+bool milter_accept(int fd)
 {
-    return milter_send(fp, MILTER_DO_ACCEPT);
+    return milter_send(fd, MILTER_DO_ACCEPT);
 }
 
-bool milter_reject(FILE* fp)
+bool milter_reject(int fd)
 {
-    return milter_send(fp, MILTER_DO_REJECT);
+    return milter_send(fd, MILTER_DO_REJECT);
 }
 
-bool milter_send_str_list(FILE* fp, char action, list_t* L)
+bool milter_send_str_list(int fd, char action, list_t* L)
 {
-    static char buffer[MILTER_PAYLOAD_SIZE + sizeof(milter_packet_t)];
-    if (list_size(L) == 0)
-        return milter_send(fp, action);
-    size_t length = 0;
-    for (size_t i = 0; i < list_size(L); ++i)
+    size_t numv = list_size(L);
+    if (numv == 0)
+        return milter_send(fd, action);
+    struct iovec iov[numv + 1];
+    size_t j = 1, length = 0;
+    for (size_t i = 0; i < numv; ++i)
     {
         const char* item = list_get(L, i);
         if (item != NULL)
@@ -142,29 +146,19 @@ bool milter_send_str_list(FILE* fp, char action, list_t* L)
             if (length > 0xfffffffe - item_length)
                 return false;
             length += item_length;
+            iov[j].iov_base = (void*)item;
+            iov[j].iov_len = item_length;
+            ++j;
         }
     }
     if (length > 0xfffffffe)
         return false;
-    const bool allocate = length > sizeof(buffer) - sizeof(milter_packet_t);
-    milter_packet_t* packet =
-        allocate ? malloc(sizeof(milter_packet_t) + length) : &buffer;
-    packet->length = BE32(1 + length);
-    packet->code = action;
-    char* out = packet->payload;
-    for (size_t i = 0; i < list_size(L); ++i)
-    {
-        const char* item = list_get(L, i);
-        if (item != NULL)
-        {
-            out = stpcpy(out, item);
-            *out++ = 0;
-        }
-    }
-    size_t written = fwrite(packet, 1, sizeof(milter_packet_t) + length, fp);
-    if (allocate)
-        free(packet);
-    return written == sizeof(milter_packet_t) + length;
+    milter_packet_t packet;
+    packet.length = BE32(1 + length);
+    packet.code = action;
+    iov[0].iov_base = &packet;
+    iov[0].iov_len = sizeof(milter_packet_t);
+    return writev_all(fd, iov, j);
 }
 
 void milter_parse_str_list(list_t* L, const char* data, size_t length)
@@ -180,7 +174,7 @@ void milter_parse_str_list(list_t* L, const char* data, size_t length)
     }
 }
 
-bool milter_handle_optneg(FILE* fp, const void* input, size_t length)
+bool milter_handle_optneg(int fd, const void* input, size_t length)
 {
     struct
     {
@@ -204,19 +198,19 @@ bool milter_handle_optneg(FILE* fp, const void* input, size_t length)
     if ((buf.actions & MILTER_FL_CHGFROM) == 0)
     {
         log_error("MTA does not support CHGFROM milter action");
-        milter_send(fp, MILTER_DO_TEMPFAIL);
+        milter_send(fd, MILTER_DO_TEMPFAIL);
         return false;
     }
     if ((buf.actions & MILTER_FL_ADDRCPT) == 0)
     {
         log_error("MTA does not support ADDRCPT milter action");
-        milter_send(fp, MILTER_DO_TEMPFAIL);
+        milter_send(fd, MILTER_DO_TEMPFAIL);
         return false;
     }
     if ((buf.actions & MILTER_FL_DELRCPT) == 0)
     {
         log_error("MTA does not support DELRCPT milter action");
-        milter_send(fp, MILTER_DO_TEMPFAIL);
+        milter_send(fd, MILTER_DO_TEMPFAIL);
         return false;
     }
     buf.protocol &= (MILTER_FL_NOCONNECT | MILTER_FL_NOHELO | MILTER_FL_NOHDRS
@@ -226,10 +220,10 @@ bool milter_handle_optneg(FILE* fp, const void* input, size_t length)
     buf.version = BE32(buf.version);
     buf.actions = BE32(buf.actions);
     buf.protocol = BE32(buf.protocol);
-    return milter_send_bytes(fp, MILTER_CMD_OPTNEG, &buf, sizeof(buf));
+    return milter_send_bytes(fd, MILTER_CMD_OPTNEG, &buf, sizeof(buf));
 }
 
-char* milter_find_macro(const char* name, const char* buffer, size_t length)
+char* milter_parse_macros(const char* name, const char* buffer, size_t length)
 {
     while (length > 0)
     {

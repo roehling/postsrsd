@@ -96,7 +96,9 @@ START_TEST(netstring_io_test)
     char* data;
     char buffer[16];
     size_t length;
-    FILE* f = tmpfile();
+    char template[] = "netstring.XXXXXX";
+    int f = mkstemp(template);
+    ck_assert_int_ge(f, 0);
 
     written = netstring_write(f, "PostSRSd", 8);
     ck_assert_int_eq(written, 11);
@@ -105,7 +107,7 @@ START_TEST(netstring_io_test)
     written = netstring_write(f, "0123456789abcdefgh", 17);
     ck_assert_int_eq(written, 21);
 
-    ck_assert_int_eq(fseek(f, 0, SEEK_SET), 0);
+    ck_assert_int_eq(lseek(f, 0, SEEK_SET), 0);
 
     data = netstring_read(f, buffer, sizeof(buffer), &length);
     ck_assert_ptr_nonnull(data);
@@ -119,11 +121,11 @@ START_TEST(netstring_io_test)
     data = netstring_read(f, buffer, sizeof(buffer), &length);
     ck_assert_ptr_null(data);
 
-    ck_assert_int_eq(fseek(f, 0, SEEK_SET), 0);
-    ck_assert_int_eq(ftruncate(fileno(f), 0), 0);
-    fwrite("3:abc,4:abcde", 1, 13, f);
+    ck_assert_int_eq(lseek(f, 0, SEEK_SET), 0);
+    ck_assert_int_eq(ftruncate(f, 0), 0);
+    ck_assert_int_eq(write(f, "3:abc,4:abcde", 13), 13);
 
-    ck_assert_int_eq(fseek(f, 0, SEEK_SET), 0);
+    ck_assert_int_eq(lseek(f, 0, SEEK_SET), 0);
     data = netstring_read(f, buffer, sizeof(buffer), &length);
     ck_assert_ptr_nonnull(data);
     ck_assert_uint_eq(length, 3);
@@ -132,14 +134,14 @@ START_TEST(netstring_io_test)
     data = netstring_read(f, buffer, sizeof(buffer), &length);
     ck_assert_ptr_null(data);
 
-    ck_assert_int_eq(fseek(f, 0, SEEK_SET), 0);
-    ck_assert_int_eq(ftruncate(fileno(f), 0), 0);
-    fwrite("999:obviously too short,", 1, 4, f);
+    ck_assert_int_eq(lseek(f, 0, SEEK_SET), 0);
+    ck_assert_int_eq(ftruncate(f, 0), 0);
+    ck_assert_int_eq(write(f, "999:obviously too short,", 24), 24);
 
-    ck_assert_int_eq(fseek(f, 0, SEEK_SET), 0);
+    ck_assert_int_eq(lseek(f, 0, SEEK_SET), 0);
     data = netstring_read(f, buffer, sizeof(buffer), &length);
     ck_assert_ptr_null(data);
-    fclose(f);
+    close(f);
 }
 END_TEST
 

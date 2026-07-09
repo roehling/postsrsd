@@ -69,6 +69,7 @@
 #ifdef HAVE_UNISTD_H
 #    include <unistd.h>
 #endif
+#include <sys/uio.h>
 
 #ifndef HAVE_STRNCASECMP
 #    ifdef HAVE__STRNICMP
@@ -241,6 +242,32 @@ void lock_release(const char* path, int fd)
     }
     close(fd);
 #endif
+}
+
+bool writev_all(int fd, struct iovec* iov, size_t numv)
+{
+    size_t i = 0;
+    do
+    {
+        ssize_t written = writev(fd, iov + i, numv - i);
+        if (written < 0)
+            return false;
+        while (written > 0)
+        {
+            if ((size_t)written >= iov[i].iov_len)
+            {
+                written -= iov[i].iov_len;
+                ++i;
+            }
+            else
+            {
+                iov[i].iov_len -= written;
+                iov[i].iov_base += written;
+                written = 0;
+            }
+        }
+    } while (i < numv);
+    return true;
 }
 
 /* The domain set is implemented as a common prefix tree */

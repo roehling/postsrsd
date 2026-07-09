@@ -16,7 +16,10 @@
  */
 #include "netstring.h"
 
+#include "util.h"
+
 #include <string.h>
+#include <sys/uio.h>
 
 char* netstring_encode(const char* data, size_t length, char* buffer,
                        size_t bufsize, size_t* encoded_length)
@@ -53,19 +56,34 @@ char* netstring_decode(const char* netstring, char* buffer, size_t bufsize,
     return buffer;
 }
 
-char* netstring_read(FILE* f, char* buffer, size_t bufsize,
+char* netstring_read(int fd, char* buffer, size_t bufsize,
                      size_t* decoded_length)
 {
-    size_t length;
-    if (fscanf(f, "%5zu", &length) != 1)
+    size_t length = 0;
+    char ch;
+    for (;;)
+    {
+        if (read(fd, &ch, 1) != 1)
+            return NULL;
+        if (ch == ':')
+            break;
+        if (ch < '0' || ch > '9')
+            return NULL;
+        length = 10 * length + (ch - '0');
+        if (length > 100000 || length >= bufsize)
+            return NULL;
+    }
+    size_t total_read = 0;
+    while (total_read < length)
+    {
+        ssize_t r = read(fd, buffer + total_read, length - total_read);
+        if (r < 0)
+            return NULL;
+        total_read += r;
+    }
+    if (read(fd, &ch, 1) != 1)
         return NULL;
-    if (fgetc(f) != ':')
-        return NULL;
-    if (length >= bufsize)
-        return NULL;
-    if (fread(buffer, 1, length, f) != length)
-        return NULL;
-    if (fgetc(f) != ',')
+    if (ch != ',')
         return NULL;
     if (decoded_length != NULL)
         *decoded_length = length;
@@ -73,14 +91,17 @@ char* netstring_read(FILE* f, char* buffer, size_t bufsize,
     return buffer;
 }
 
-int netstring_write(FILE* f, const char* data, size_t length)
+int netstring_write(int fd, const char* data, size_t length)
 {
-    int i = fprintf(f, "%zu:", length);
-    if (i < 0)
-        return -1;
-    if (fwrite(data, 1, length, f) != length)
-        return -1;
-    if (fputc(',', f) != ',')
-        return -1;
-    return length + i + 1;
+    static const char suffix[] = {','};
+    char prefix[16];
+    size_t n = snprintf(prefix, sizeof(prefix), "%zu:", length);
+    struct iovec iov[3];
+    iov[0].iov_base = prefix;
+    iov[0].iov_len = n;
+    iov[1].iov_base = (void*)data;
+    iov[1].iov_len = length;
+    iov[2].iov_base = (void*)suffix;
+    iov[2].iov_len = 1;
+    return writev_all(fd, iov, 3) ? (int)(length + n + 1) : -1;
 }
