@@ -13,25 +13,29 @@ After=network.target
 [Service]
 Type=notify-reload
 ExecStart=@CMAKE_INSTALL_FULL_SBINDIR@/postsrsd -C @POSTSRSD_CONFIGDIR@/@PROJECT_NAME@.conf
-NotifyAccess=main
+
+AmbientCapabilities=CAP_DAC_OVERRIDE CAP_NET_BIND_SERVICE CAP_SETGID CAP_SETUID CAP_SYS_CHROOT
+CapabilityBoundingSet=CAP_DAC_OVERRIDE CAP_NET_BIND_SERVICE CAP_SETGID CAP_SETUID CAP_SYS_CHROOT
+LockPersonality=yes
 NoNewPrivileges=yes
+NotifyAccess=main
+PrivateDevices=yes
+PrivateTmp=yes
+ProtectClock=yes
+ProtectControlGroups=yes
+ProtectHome=yes
+ProtectKernelLogs=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+ProtectProc=yes
 ProtectSystem=strict
 ReadWritePaths=/var/spool/postfix @POSTSRSD_CHROOTDIR@
-PrivateTmp=yes
-PrivateDevices=yes
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+RestrictRealtime=yes
 RestrictSUIDSGID=yes
 SystemCallArchitectures=native
-LockPersonality=yes
-ProtectKernelTunables=yes
-RestrictRealtime=yes
-ProtectClock=yes
-RestrictNamespaces=yes
-CapabilityBoundingSet=~CAP_SYS_PTRACE
-ProtectHome=yes
-ProtectKernelModules=yes
-ProtectControlGroups=yes
-ProtectKernelLogs=yes
+UMask=077
 
 [Install]
 WantedBy=multi-user.target
