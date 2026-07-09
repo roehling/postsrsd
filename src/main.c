@@ -246,6 +246,8 @@ static bool prepare_client(postsrsd_t* state, int conn, database_t** db)
     if (state == NULL || db == NULL)
         return false;
     *db = NULL;
+    if (!drop_privileges(state))
+        return false;
 #ifdef HAVE_FCNTL_H
     int flags = fcntl(conn, F_GETFL);
     if (flags & O_NONBLOCK)
@@ -268,14 +270,12 @@ static bool prepare_client(postsrsd_t* state, int conn, database_t** db)
     signal(SIGUSR1, on_reload_requested);
     signal(SIGTERM, SIG_DFL);
     signal(SIGINT, SIG_DFL);
-#ifdef WITH_SECCOMP
     if (cfg_getbool(state->cfg, "seccomp") && state->sandbox != NULL
         && !sandbox_enable(sandbox))
     {
         log_error("failed to activate seccomp sandboxing");
         return false;
     }
-#endif
     return true;
 }
 
