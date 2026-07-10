@@ -7,6 +7,14 @@
 Changelog
 #########
 
+2.2.7
+=====
+
+Fixed
+-----
+
+* Do not fail if seccomp sandboxing cannot be enabled on unsupported systems.
+
 2.2.6
 =====
 
