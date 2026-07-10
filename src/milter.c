@@ -23,6 +23,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef HAVE_ERRNO_H
+#    include <errno.h>
+#endif
 #include <sys/uio.h>
 
 #if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
@@ -60,8 +63,12 @@ size_t milter_receive(int fd, void* buffer, size_t size, size_t* truncated)
     while (total_read < read_len)
     {
         ssize_t r = read(fd, buffer + total_read, read_len - total_read);
-        if (r < 0)
+        if (r <= 0)
+        {
+            if (r < 0 && errno == EINTR)
+                continue;
             return 0;
+        }
         total_read += r;
     }
     len -= total_read;
@@ -69,8 +76,12 @@ size_t milter_receive(int fd, void* buffer, size_t size, size_t* truncated)
     {
         read_len = len < sizeof(discardpile) ? len : sizeof(discardpile);
         ssize_t r = read(fd, discardpile, read_len);
-        if (r < 0)
+        if (r <= 0)
+        {
+            if (r < 0 && errno == EINTR)
+                continue;
             break;
+        }
         len -= r;
         if (truncated != NULL)
             *truncated += r;
