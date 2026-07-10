@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-find_package(Python3 3.3 QUIET)
+find_package(Python3 3.5 QUIET)
 
 if(Python3_EXECUTABLE)
     add_test(
@@ -25,16 +25,19 @@ if(Python3_EXECUTABLE)
             "$<AND:$<BOOL:${WITH_REDIS}>,$<BOOL:${TESTS_WITH_REDIS}>>"
     )
     add_test(
-        NAME test_inotify
-        COMMAND
-            "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/inotify.py"
-            "$<TARGET_FILE:postsrsd>"
-    )
-    add_test(
         NAME test_milter
         COMMAND
             "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/milter.py"
             "$<TARGET_FILE:postsrsd>" "$<BOOL:${WITH_SQLITE}>"
             "$<AND:$<BOOL:${WITH_REDIS}>,$<BOOL:${TESTS_WITH_REDIS}>>"
     )
+    if(HAVE_SYS_INOTIFY_H)
+        add_test(
+            NAME test_inotify
+            COMMAND
+                "${Python3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/inotify.py"
+                "$<TARGET_FILE:postsrsd>"
+        )
+    endif()
 endif()

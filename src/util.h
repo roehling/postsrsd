@@ -83,6 +83,7 @@ pid_set_t* pid_set_create();
 bool pid_set_add(pid_set_t* P, pid_t pid);
 bool pid_set_remove(pid_set_t* P, pid_t pid);
 bool pid_set_kill(pid_set_t* P, int signal);
+void pid_set_wait(pid_set_t* P);
 void pid_set_destroy(pid_set_t* P);
 
 list_t* list_create();

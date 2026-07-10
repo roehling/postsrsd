@@ -832,7 +832,7 @@ int main(int argc, char** argv)
     signal(SIGHUP, on_reload_requested);
     signal(SIGTERM, on_shutdown_requested);
     signal(SIGINT, on_shutdown_requested);
-    sd_notify_support = sd_notify("READY=1\nMAINPID=%d", getpid());
+    sd_notify_support = sd_notify("READY=1\nMAINPID=%d", (int)getpid());
     struct pollfd fds[16];
     int fd_types[sizeof(fds) / sizeof(struct pollfd)];
     size_t num_fds =
@@ -852,7 +852,7 @@ int main(int argc, char** argv)
                 struct timespec tp;
                 clock_gettime(CLOCK_MONOTONIC, &tp);
                 sd_notify("RELOADING=1\nMONOTONIC_USEC=%ld",
-                          1000000l * tp.tv_sec + tp.tv_nsec / 1000l);
+                          (long)(1000000l * tp.tv_sec + tp.tv_nsec / 1000l));
             }
             if (reload_requested)
             {
@@ -970,7 +970,8 @@ shutdown:
         fclose(pf);
     finalize_state(&state);
     sandbox_release(sandbox);
-    pid_set_kill(P, SIGUSR1);
+    pid_set_kill(P, SIGTERM);
+    pid_set_wait(P);
     pid_set_destroy(P);
     return exit_code;
 }

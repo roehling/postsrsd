@@ -39,7 +39,7 @@ jobs:
         with:
           usesh: true
           prepare: |
-            pkg_add cmake git gmake libconfuse sqlite3 hiredis
+            pkg_add cmake git gmake libconfuse sqlite3 libhiredis
           run: |
             mkdir _build
             cd _build
@@ -53,8 +53,11 @@ jobs:
         with:
           usesh: true
           prepare: |
-            pkgutil -y -i cmake git make libconfuse_dev libsqlite3_dev
+            curl -fso /root/cmake.sh https://github.com/Kitware/CMake/releases/download/v4.4.0/cmake-4.4.0-sunos-x86_64.sh
+            chmod +x /root/cmake.sh
+            /root/cmake.sh --skip-license --prefix=/usr/local
+            pkgutil -y -i curl git gmake libconfuse_dev libsqlite3_dev
           run: |
             mkdir _build
             cd _build
-            cmake .. -DDEVELOPER_BUILD=ON -DWITH_SQLITE=ON && make VERBOSE=ON && ctest --verbose
+            cmake .. -DDEVELOPER_BUILD=ON -DWITH_SQLITE=ON && gmake VERBOSE=ON && ctest --verbose

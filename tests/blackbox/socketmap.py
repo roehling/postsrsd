@@ -106,7 +106,10 @@ def postsrsd_instance(
         try:
             yield str(tmpdir / "postsrsd.sock").encode(), proc.pid
         finally:
-            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+            try:
+                os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+            except PermissionError:
+                os.kill(proc.pid, signal.SIGTERM)
             proc.wait()
 
 

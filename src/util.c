@@ -66,6 +66,9 @@
 #ifdef HAVE_TIME_H
 #    include <time.h>
 #endif
+#ifdef HAVE_SYS_WAIT_H
+#    include <sys/wait.h>
+#endif
 #ifdef HAVE_UNISTD_H
 #    include <unistd.h>
 #endif
@@ -466,6 +469,18 @@ bool pid_set_kill(pid_set_t* P, int signal)
         ++i;
     }
     return true;
+}
+
+void pid_set_wait(pid_set_t* P)
+{
+    if (P == NULL)
+        return;
+    while (P->size > 0)
+    {
+        int status;
+        pid_t pid = wait(&status);
+        pid_set_remove(P, pid);
+    }
 }
 
 void pid_set_destroy(pid_set_t* P)
