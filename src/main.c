@@ -75,7 +75,6 @@ struct postsrsd
     char* srs_domain;
     domain_set_t* local_domains;
     file_watch_t* file_watch;
-    sandbox_t* sandbox;
     int target_uid, target_gid;
 };
 typedef struct postsrsd postsrsd_t;
@@ -270,7 +269,7 @@ static bool prepare_client(postsrsd_t* state, int conn, database_t** db)
     signal(SIGUSR1, on_reload_requested);
     signal(SIGTERM, SIG_DFL);
     signal(SIGINT, SIG_DFL);
-    if (cfg_getbool(state->cfg, "seccomp") && state->sandbox != NULL
+    if (cfg_getbool(state->cfg, "seccomp") && sandbox != NULL
         && !sandbox_enable(sandbox))
     {
         log_error("failed to activate seccomp sandboxing");
