@@ -38,7 +38,7 @@ jobs:
       - name: Run tests
         run: |
           cd _build
-          ctest --output-on-failure
+          ctest --verbose
       - name: Install and start PostSRSd daemon
         run: |
           cd _build
