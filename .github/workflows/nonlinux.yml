@@ -1,0 +1,60 @@
+# Copyright 2023 Timo Röhling <timo@gaussglocke.de>
+# SPDX-License-Identifier: FSFAP
+#
+# Copying and distribution of this file, with or without modification, are
+# permitted in any medium without royalty provided the copyright notice and
+# this notice are preserved. This file is offered as-is, without any warranty.
+#
+name: CI on non-Linux systems
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+permissions:
+  contents: read
+jobs:
+  freebsd:
+    runs-on: ubuntu-latest
+    name: FreeBSD
+    steps:
+      - uses: actions/checkout@v4
+      - uses: vmactions/freebsd-vm@v1
+        with:
+          usesh: true
+          prepare: |
+            pkg install -y cmake git gmake autoconf automake
+          run: |
+            mkdir _build
+            cd _build
+            cmake .. -DDEVELOPER_BUILD=ON -DWITH_SQLITE=ON -DWITH_REDIS=ON && gmake VERBOSE=ON && ctest --verbose
+  solaris:
+    runs-on: ubuntu-latest
+    name: OpenBSD
+    steps:
+      - uses: actions/checkout@v4
+      - uses: vmactions/openbsd-vm@v1
+        with:
+          usesh: true
+          prepare: |
+            pkg_add cmake git gmake autoconf automake
+          run: |
+            mkdir _build
+            cd _build
+            cmake .. -DDEVELOPER_BUILD=ON -DWITH_SQLITE=ON -DWITH_REDIS=ON && gmake VERBOSE=ON && ctest --verbose
+  haiku:
+    runs-on: ubuntu-latest
+    name: Haiku OS
+    steps:
+      - uses: actions/checkout@v4
+      - uses: vmactions/haiku-vm@v1
+        with:
+          usesh: true
+          prepare: |
+            pkgman install -y cmake git make autoconf automake
+          run: |
+            mkdir _build
+            cd _build
+            cmake .. -DDEVELOPER_BUILD=ON -DWITH_SQLITE=ON -DWITH_REDIS=ON && make VERBOSE=ON && ctest --verbose
