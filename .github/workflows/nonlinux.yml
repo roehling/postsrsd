@@ -54,9 +54,9 @@ jobs:
           usesh: true
           release: "11.4-gcc"
           prepare: |
-            pkgutil -y -i curl git gmake libconfuse_dev libsqlite3_dev
+            pkgutil -y -i curl git gmake autoconf automake
             curl -Lfso cmake.sh https://github.com/Kitware/CMake/releases/download/v4.4.0/cmake-4.4.0-sunos-x86_64.sh
-            sh cmake.sh --skip-license --prefix=/usr
+            sh cmake.sh --skip-license --prefix=/opt/csw
           run: |
             mkdir _build
             cd _build
