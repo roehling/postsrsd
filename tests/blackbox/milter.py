@@ -14,16 +14,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-import contextlib
-import os
-import pathlib
-import socket
-import signal
-import subprocess
 import struct
 import sys
-import tempfile
 import time
+
+from testhelper import *
 
 
 def send_milter(sock: socket.socket, code: bytes, data: bytes):
@@ -81,72 +76,29 @@ def mf_eom(sock: socket.socket):
     return code, new_from, new_rcpt
 
 
-@contextlib.contextmanager
-def postsrsd_instance(
-    postsrsd: str,
-    when: str | None = None,
-    with_sqlite: bool = False,
-    with_redis: bool = False,
-):
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        tmpdir = pathlib.Path(tmpdirname)
-        with open(tmpdir / "postsrsd.conf", "w") as f:
-            db_uri = '""'
-            if with_sqlite:
-                db_uri = f'sqlite:{tmpdir / "postsrsd.db"}'
-            if with_redis:
-                db_uri = "redis:localhost:6379"
-            f.write(
-                'domains = {"example.com"}\n'
-                "keep-alive = 1\n"
-                'chroot-dir = ""\n'
-                'unprivileged-user = ""\n'
-                f'original-envelope = {"database" if with_sqlite or with_redis else "embedded"}\n'
-                f'socketmap = ""\n'
-                f'milter = unix:{tmpdir / "postsrsd.sock"}\n'
-                f'secrets-file = {tmpdir / "postsrsd.secret"}\n'
-                f"envelope-database = {db_uri}\n"
-            )
-        with open(tmpdir / "postsrsd.secret", "w") as f:
-            f.write("tops3cr3t\n")
-        if when is not None:
-            os.environ["POSTSRSD_FAKETIME"] = when
-        proc = subprocess.Popen(
-            [postsrsd, "-C", str(tmpdir / "postsrsd.conf")],
-            start_new_session=True,
-        )
-        wait = 50
-        while not (tmpdir / "postsrsd.sock").exists() and wait > 0:
-            time.sleep(0.1)
-            wait -= 1
-        try:
-            yield str(tmpdir / "postsrsd.sock").encode()
-        finally:
-            try:
-                os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
-            except PermissionError:
-                os.kill(proc.pid, signal.SIGTERM)
-            proc.wait()
-
-
 def execute_queries(
     postsrsd: str,
     when: str,
     queries: list[tuple[tuple[str, str], tuple[bytes, str | None, str | None]]],
-    with_sqlite: bool = False,
-    with_redis: bool = False,
+    database: Database = Database.NONE,
+    socket_family: SocketFamily = SocketFamily.UNIX,
+    reload_between_queries: bool = False,
 ):
-    with postsrsd_instance(
-        postsrsd, when, with_sqlite=with_sqlite, with_redis=with_redis
-    ) as endpoint:
+    with PostSRSd(
+        postsrsd,
+        when=when,
+        database=database,
+        socket_family=socket_family,
+        socket_type=SocketType.MILTER,
+    ) as daemon:
         for query in queries:
             orig_from, orig_rcpt = query[0]
             result, new_from, new_rcpt = query[1]
-            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM, 0)
+            sock = daemon.connect()
             try:
-                sock.settimeout(0.5)
-                sock.connect(endpoint)
                 assert mf_optneg(sock), "milter option negotation failed"
+                if reload_between_queries:
+                    daemon.reload()
                 srs_from = None
                 srs_rcpt = None
                 mf_macro(sock, b"M")
@@ -166,16 +118,20 @@ def execute_queries(
                 assert (
                     srs_rcpt == new_rcpt
                 ), f"expected rcpt {new_rcpt!r} and got {srs_rcpt!r}"
-                sys.stderr.write(f"PASS: {query[0]}\n")
+                sys.stderr.write(f"PASS: {query[0]!r},{database!r},{socket_family!r}\n")
             except AssertionError as e:
-                sys.stderr.write(f"*** FAIL: {query[0]}: {str(e)}\n")
+                sys.stderr.write(
+                    f"*** FAIL: {query[0]!r},{database!r},{socket_family!r}: {str(e)}\n"
+                )
                 return False
             finally:
                 sock.close()
     return True
 
 
-def milter_protocol_violations(postsrsd: str, when: str):
+def milter_protocol_violations(
+    postsrsd: str, when: str, socket_family: SocketFamily = SocketFamily.UNIX
+):
 
     def duplicate_optneg(sock: socket.socket):
         assert mf_optneg(sock), "initial milter option negotiation failed"
@@ -321,7 +277,9 @@ def milter_protocol_violations(postsrsd: str, when: str):
         except (ConnectionError, struct.error, TimeoutError):
             pass
 
-    with postsrsd_instance(postsrsd, when=when) as endpoint:
+    with PostSRSd(
+        postsrsd, when=when, socket_family=socket_family, socket_type=SocketType.MILTER
+    ) as daemon:
         for test_func in [
             duplicate_optneg,
             no_optneg,
@@ -341,10 +299,8 @@ def milter_protocol_violations(postsrsd: str, when: str):
             keep_alive_timeout,
             send_garbage_first,
         ]:
-            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM, 0)
+            sock = daemon.connect()
             try:
-                sock.settimeout(0.5)
-                sock.connect(endpoint)
                 test_func(sock)
                 sys.stderr.write(f"PASS: {test_func.__name__}\n")
             except (IOError, OSError, struct.error) as e:
@@ -638,28 +594,39 @@ DATABASE_QUERIES: list[tuple[tuple[str, str], tuple[bytes, str | None, str | Non
 
 
 if __name__ == "__main__":
-    if not execute_queries(
-        sys.argv[1],
-        when="1577836860",  # 2020-01-01 00:01:00 UTC
-        queries=STATELESS_QUERIES,
-    ):
-        sys.exit(1)
-    if not milter_protocol_violations(sys.argv[1], when="1577836860"):
-        sys.exit(1)
-    if sys.argv[2] == "1":
-        if not execute_queries(
-            sys.argv[1],
-            when="1577836860",  # 2020-01-01 00:01:00 UTC
-            with_sqlite=True,
-            queries=DATABASE_QUERIES,
-        ):
-            sys.exit(1)
-    if sys.argv[3] == "1":
-        if not execute_queries(
-            sys.argv[1],
-            when="1577836860",  # 2020-01-01 00:01:00 UTC
-            with_redis=True,
-            queries=DATABASE_QUERIES,
+    for socket_family in [SocketFamily.UNIX, SocketFamily.IP]:
+        for reload_between_queries in [False, True]:
+            if not execute_queries(
+                sys.argv[1],
+                when="1577836860",  # 2020-01-01 00:01:00 UTC
+                queries=STATELESS_QUERIES,
+                socket_family=socket_family,
+                reload_between_queries=reload_between_queries,
+            ):
+                sys.exit(1)
+            if sys.argv[2] == "1":
+                if not execute_queries(
+                    sys.argv[1],
+                    when="1577836860",  # 2020-01-01 00:01:00 UTC
+                    queries=DATABASE_QUERIES,
+                    database=Database.SQLITE,
+                    socket_family=socket_family,
+                    reload_between_queries=reload_between_queries,
+                ):
+                    sys.exit(1)
+            if sys.argv[3] == "1":
+                if not execute_queries(
+                    sys.argv[1],
+                    when="1577836860",  # 2020-01-01 00:01:00 UTC
+                    queries=DATABASE_QUERIES,
+                    database=Database.REDIS,
+                    socket_family=socket_family,
+                    reload_between_queries=reload_between_queries,
+                ):
+                    sys.exit(1)
+
+        if not milter_protocol_violations(
+            sys.argv[1], when="1577836860", socket_family=socket_family
         ):
             sys.exit(1)
     sys.exit(0)
