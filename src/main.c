@@ -185,8 +185,11 @@ static bool check_unprivileged_work(postsrsd_t* state)
         }
         exit(EXIT_SUCCESS);
     }
+retry:
     if (waitpid(worker_pid, &status, 0) < 0)
     {
+        if (errno == EINTR)
+            goto retry;
         log_perror(errno, "waitpid");
         return false;
     }
