@@ -75,3 +75,21 @@ jobs:
             mkdir _build
             cd _build
             cmake .. -DDEVELOPER_BUILD=ON -DWITH_SQLITE=ON -DWITH_REDIS=ON && make VERBOSE=ON && ctest --verbose
+  macos:
+    runs-on: macos-latest
+    name: MacOS
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          brew install gcc python cmake git confuse check sqlite hiredis
+      - name: Build PostSRSd
+        run: |
+          mkdir _build
+          cd _build
+          cmake .. -DDEVELOPER_BUILD=ON -DWITH_SQLITE=ON -DWITH_REDIS=ON
+          cmake --build . --verbose
+      - name: Run tests
+        run: |
+          cd _build
+          ctest --verbose
