@@ -64,6 +64,7 @@ bool directory_exists(const char* dirname);
 int lock_acquire(const char* path);
 void lock_release(const char* path, int fd);
 
+bool read_all(int fd, void* buffer, size_t size);
 bool writev_all(int fd, struct iovec* iov, size_t numv);
 
 domain_set_t* domain_set_create();

@@ -50,29 +50,20 @@ size_t milter_receive(int fd, void* buffer, size_t size, size_t* truncated)
 {
     static char discardpile[512];
     uint32_t len;
+    ssize_t r;
     if (truncated != NULL)
         *truncated = 0;
-    if (read(fd, &len, 4) != 4)
+    if (!read_all(fd, &len, 4))
         return 0;
     len = BE32(len);
     size_t read_len = len < size ? len : size;
-    size_t total_read = 0;
-    while (total_read < read_len)
-    {
-        ssize_t r = read(fd, buffer + total_read, read_len - total_read);
-        if (r <= 0)
-        {
-            if (r < 0 && errno == EINTR)
-                continue;
-            return 0;
-        }
-        total_read += r;
-    }
-    len -= total_read;
+    if (!read_all(fd, buffer, read_len))
+        return 0;
+    len -= read_len;
     while (len > 0)
     {
         read_len = len < sizeof(discardpile) ? len : sizeof(discardpile);
-        ssize_t r = read(fd, discardpile, read_len);
+        r = read(fd, discardpile, read_len);
         if (r <= 0)
         {
             if (r < 0 && errno == EINTR)
@@ -83,7 +74,7 @@ size_t milter_receive(int fd, void* buffer, size_t size, size_t* truncated)
         if (truncated != NULL)
             *truncated += r;
     }
-    return total_read;
+    return read_len;
 }
 
 bool milter_send_bytes(int fd, char action, const void* data, size_t length)

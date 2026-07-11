@@ -62,19 +62,13 @@ char* netstring_read(int fd, char* buffer, size_t bufsize,
                      size_t* decoded_length)
 {
     size_t length = 0;
-    ssize_t r;
     char ch;
     if (decoded_length != NULL)
         *decoded_length = 0;
     for (;;)
     {
-        r = read(fd, &ch, 1);
-        if (r <= 0)
-        {
-            if (r < 0 && errno == EINTR)
-                continue;
+        if (!read_all(fd, &ch, 1))
             return NULL;
-        }
         if (ch == ':')
             break;
         if (ch < '0' || ch > '9')
@@ -91,23 +85,9 @@ char* netstring_read(int fd, char* buffer, size_t bufsize,
             return NULL;
         }
     }
-    size_t total_read = 0;
-    while (total_read < length)
-    {
-        r = read(fd, buffer + total_read, length - total_read);
-        if (r <= 0)
-        {
-            if (r < 0 && errno == EINTR)
-                continue;
-            return NULL;
-        }
-        total_read += r;
-    }
-    do
-    {
-        r = read(fd, &ch, 1);
-    } while (r < 0 && errno == EINTR);
-    if (r <= 0)
+    if (!read_all(fd, buffer, length))
+        return NULL;
+    if (!read_all(fd, &ch, 1))
         return NULL;
     if (ch != ',')
     {
