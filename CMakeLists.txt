@@ -220,6 +220,10 @@ if(CMAKE_SYSTEM_NAME MATCHES "Solaris|SunOS")
     find_library(LIBNSL nsl)
 endif()
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Haiku")
+    find_library(LIBNETWORK NAMES network net)
+endif()
+
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 find_package(Threads QUIET)
 
@@ -328,9 +332,13 @@ target_include_directories(postsrsd PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 target_compile_features(postsrsd PRIVATE c_std_99)
 target_link_libraries(
     postsrsd
-    PRIVATE Confuse::Confuse $<$<BOOL:${WITH_SQLITE}>:sqlite3::sqlite3>
+    PRIVATE Confuse::Confuse
+            $<$<BOOL:${WITH_SQLITE}>:sqlite3::sqlite3>
             $<$<BOOL:${WITH_REDIS}>:${HIREDIS_TARGET}>
-            $<$<BOOL:${WITH_SECCOMP}>:seccomp::seccomp> ${LIBSOCKET} ${LIBNSL}
+            $<$<BOOL:${WITH_SECCOMP}>:seccomp::seccomp>
+            ${LIBSOCKET}
+            ${LIBNSL}
+            ${LIBNETWORK}
 )
 if(EXECUTABLE_WITH_ASAN)
     target_compile_options(postsrsd PRIVATE -fsanitize=address,undefined)

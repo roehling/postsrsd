@@ -25,7 +25,7 @@ macro(add_postsrsd_test name)
     target_link_libraries(
         ${name}_executable
         PRIVATE Check::check $<$<BOOL:${WITH_SECCOMP}>:seccomp::seccomp>
-                ${LIBSOCKET} ${LIBNSL}
+                ${LIBSOCKET} ${LIBNSL} ${LIBNETWORK}
     )
     target_compile_features(${name}_executable PRIVATE c_std_99)
     if(TESTS_WITH_ASAN)
