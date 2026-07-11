@@ -53,10 +53,11 @@ jobs:
         with:
           usesh: true
           prepare: |
-            curl -fso /root/cmake.sh https://github.com/Kitware/CMake/releases/download/v4.4.0/cmake-4.4.0-sunos-x86_64.sh
-            chmod +x /root/cmake.sh
-            /root/cmake.sh --skip-license --prefix=/usr/local
             pkgutil -y -i curl git gmake libconfuse_dev libsqlite3_dev
+            curl -fso cmake.sh https://github.com/Kitware/CMake/releases/download/v4.4.0/cmake-4.4.0-sunos-x86_64.sh
+            ls -l cmake.sh
+            sh cmake.sh --skip-license --prefix=/usr/local
+            ls -l /usr/local/bin/cmake
           run: |
             mkdir _build
             cd _build
