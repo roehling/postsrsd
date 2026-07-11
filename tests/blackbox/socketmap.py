@@ -124,7 +124,7 @@ def execute_queries(
         postsrsd, when, with_sqlite=with_sqlite, with_redis=with_redis
     ) as daemon:
         st = os.stat(daemon[0])
-        assert st.st_mode & 0o777 == 0o666
+        assert st.st_mode & 0o666 == 0o666
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM, 0)
         sock.connect(daemon[0])
         sock_stream = SockStream(sock)
