@@ -200,7 +200,6 @@ FetchContent_Declare(
 set(saved_CMAKE_REQUIRED_DEFINITIONS "${CMAKE_REQUIRED_DEFINITIONS}")
 list(APPEND CMAKE_REQUIRED_DEFINITIONS "-D_GNU_SOURCE" "-D_FILE_OFFSET_BITS=64")
 
-check_include_file(alloca.h HAVE_ALLOCA_H)
 check_include_file(sys/inotify.h HAVE_SYS_INOTIFY_H)
 check_include_file(sys/time.h HAVE_SYS_TIME_H)
 check_include_file(sys/mman.h HAVE_SYS_MMAN_H)
@@ -208,8 +207,6 @@ check_include_file(time.h HAVE_TIME_H)
 check_symbol_exists(chroot unistd.h HAVE_CHROOT)
 check_symbol_exists(close_range unistd.h HAVE_CLOSE_RANGE)
 check_symbol_exists(setgroups grp.h HAVE_SETGROUPS)
-check_symbol_exists(stpcpy string.h HAVE_STPCPY)
-check_symbol_exists(stpncpy string.h HAVE_STPNCPY)
 check_type_size("unsigned long" SIZEOF_UNSIGNED_LONG)
 test_big_endian(HAVE_BIG_ENDIAN)
 

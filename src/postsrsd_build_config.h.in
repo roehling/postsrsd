@@ -36,10 +36,7 @@
 #cmakedefine HAVE_CHROOT 1
 #cmakedefine HAVE_CLOSE_RANGE 1
 #cmakedefine HAVE_SETGROUPS 1
-#cmakedefine HAVE_STPCPY 1
-#cmakedefine HAVE_STPNCPY 1
 
-#cmakedefine HAVE_ALLOCA_H 1
 #cmakedefine HAVE_SYS_INOTIFY_H 1
 #cmakedefine HAVE_SYS_TIME_H 1
 #cmakedefine HAVE_TIME_H 1
