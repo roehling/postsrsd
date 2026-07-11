@@ -25,7 +25,7 @@ jobs:
         with:
           usesh: true
           prepare: |
-            pkg install -y cmake git gmake libconfuse sqlite3 hiredis
+            pkg install -y cmake git gmake libconfuse check sqlite3 hiredis
           run: |
             mkdir _build
             cd _build
@@ -39,12 +39,12 @@ jobs:
         with:
           usesh: true
           prepare: |
-            pkg_add cmake git gmake libconfuse sqlite3 libhiredis
+            pkg_add cmake git gmake libconfuse check sqlite3 libhiredis
           run: |
             mkdir _build
             cd _build
             cmake .. -DDEVELOPER_BUILD=ON -DWITH_SQLITE=ON -DWITH_REDIS=ON && gmake VERBOSE=ON && ctest --verbose
-  solrais:
+  solaris:
     runs-on: ubuntu-latest
     name: Solaris
     steps:
@@ -61,3 +61,17 @@ jobs:
             mkdir _build
             cd _build
             cmake .. -DDEVELOPER_BUILD=ON -DWITH_SQLITE=ON && gmake VERBOSE=ON && ctest --verbose
+  haiku:
+    runs-on: ubuntu-latest
+    name: Haiku OS
+    steps:
+      - uses: actions/checkout@v4
+      - uses: vmactions/haiku-vm@v1
+        with:
+          usesh: true
+          prepare: |
+            pkgman install -y cmake git make confuse check sqlite hiredis
+          run: |
+            mkdir _build
+            cd _build
+            cmake .. -DDEVELOPER_BUILD=ON -DWITH_SQLITE=ON -DWITH_REDIS=ON && make VERBOSE=ON && ctest --verbose
