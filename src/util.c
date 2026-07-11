@@ -48,8 +48,10 @@
 #    include <time.h>
 #endif
 
-#ifndef O_CLOEXEC
-#    define O_CLOEXEC 0
+#ifdef SOCK_CLOEXEC
+#    define HAVE_SOCK_CLOEXEC 1
+#else
+#    define SOCK_CLOEXEC 0
 #endif
 
 #ifdef WITH_SECCOMP
@@ -987,6 +989,15 @@ bool sd_notify(const char* fmt, ...)
         log_perror(errno, "sd_notify socket");
         return false;
     }
+#ifndef HAVE_SOCK_CLOEXEC
+    int flags = fcntl(fd, F_GETFL);
+    if (fcntl(fd, F_SETFL, flags | O_CLOEXEC) < 0)
+    {
+        log_perror(errno, "sd_notify fcntl");
+        return false;
+    }
+#endif
+
     if (connect(fd, (const struct sockaddr*)&sa,
                 offsetof(struct sockaddr_un, sun_path) + sock_len)
         < 0)
