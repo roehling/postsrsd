@@ -55,7 +55,8 @@ jobs:
           prepare: |
             pkgutil -y -i curl git gmake libconfuse_dev libsqlite3_dev
             curl -Lfso cmake.sh https://github.com/Kitware/CMake/releases/download/v4.4.0/cmake-4.4.0-sunos-x86_64.sh
-            sh cmake.sh --skip-license --prefix=/usr/local
+            sh cmake.sh --skip-license --prefix=/usr
+            echo $PATH
           run: |
             mkdir _build
             cd _build
