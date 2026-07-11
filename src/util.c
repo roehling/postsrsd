@@ -18,73 +18,43 @@
 
 #include "postsrsd_build_config.h"
 
+#include <errno.h>
+#include <fcntl.h>
+#include <poll.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
-#ifdef HAVE_ERRNO_H
-#    include <errno.h>
-#endif
-#ifdef HAVE_FCNTL_H
-#    include <fcntl.h>
-#endif
-#ifdef HAVE_POLL_H
-#    include <poll.h>
-#endif
-#ifdef HAVE_SIGNAL_H
-#    include <signal.h>
-#endif
-#ifdef HAVE_SYS_FILE_H
-#    include <sys/file.h>
-#endif
+#include <sys/file.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/uio.h>
+#include <sys/un.h>
+#include <sys/wait.h>
+#include <syslog.h>
+#include <unistd.h>
+
 #ifdef HAVE_SYS_INOTIFY_H
 #    include <sys/inotify.h>
-#endif
-#ifdef HAVE_SYS_MMAN_H
-#    include <sys/mman.h>
-#endif
-#ifdef HAVE_SYS_TYPES_H
-#    include <sys/types.h>
-#endif
-#ifdef HAVE_SYS_STAT_H
-#    include <sys/stat.h>
-#endif
-#ifdef HAVE_SYSLOG_H
-#    include <syslog.h>
-#endif
-#ifdef HAVE_SYS_SOCKET_H
-#    include <sys/socket.h>
 #endif
 #ifdef HAVE_SYS_TIME_H
 #    include <sys/time.h>
 #endif
-#ifdef HAVE_SYS_UN_H
-#    include <sys/un.h>
-#endif
 #ifdef HAVE_TIME_H
 #    include <time.h>
 #endif
-#ifdef HAVE_SYS_WAIT_H
-#    include <sys/wait.h>
-#endif
-#ifdef HAVE_UNISTD_H
-#    include <unistd.h>
-#endif
-#include <sys/uio.h>
 
-#ifndef HAVE_STRNCASECMP
-#    ifdef HAVE__STRNICMP
-#        define strncasecmp _strnicmp
-#    endif
-#endif
 #ifndef O_CLOEXEC
 #    define O_CLOEXEC 0
 #endif
 
 #ifdef WITH_SECCOMP
 #    include <seccomp.h>
+#    include <sys/mman.h>
 #endif
 
 bool string_equal(const void* s1, const void* s2)
@@ -97,25 +67,6 @@ void string_set(char** var, char* value)
     free(*var);
     *var = value;
 }
-
-#ifndef HAVE_STPNCPY
-char* stpncpy(char* dst, const char* src, size_t len)
-{
-    size_t n = strlen(src);
-    if (n > len)
-        n = len;
-    return strncpy(dst, src, len) + n;
-}
-#endif
-
-#ifndef HAVE_STPCPY
-char* stpcpy(char* dst, const char* src)
-{
-    size_t n = strlen(src);
-    memcpy(dst, src, n + 1);
-    return dst + n;
-}
-#endif
 
 char* b32h_encode(const char* data, size_t length, char* buffer, size_t bufsize)
 {
@@ -710,6 +661,7 @@ file_watch_t* file_watch_create()
     }
     return W;
 #else
+    log_warn("inotify API is not supported on this system");
     return NULL;
 #endif
 }
@@ -906,10 +858,8 @@ char* endpoint_for_redis(const char* s, int* port)
 static enum log_priority log_prio = LogInfo;
 static const char* priority_labels[] = {"debug: ", "", "warn: ", "error: "};
 
-#ifdef HAVE_SYSLOG_H
 static bool use_syslog = false;
 static int syslog_priorities[] = {LOG_DEBUG, LOG_INFO, LOG_WARNING, LOG_ERR};
-#endif
 
 static void vlog(enum log_priority prio, const char* fmt, va_list ap)
 {
@@ -924,17 +874,14 @@ static void vlog(enum log_priority prio, const char* fmt, va_list ap)
     buffer[sizeof(buffer) - 1] = 0;
     fprintf(stderr, "%s\n", buffer);
     fflush(stderr);
-#ifdef HAVE_SYSLOG_H
     if (use_syslog)
     {
         syslog(LOG_MAIL | syslog_priorities[prio], "%s", text);
     }
-#endif
 }
 
 void log_enable_syslog()
 {
-#ifdef HAVE_SYSLOG_H
     if (!use_syslog)
     {
         time_t now;
@@ -943,20 +890,15 @@ void log_enable_syslog()
         localtime(&now);
         use_syslog = true;
     }
-#else
-    log_warn("syslog facility is not available");
-#endif
 }
 
 void log_disable_syslog()
 {
-#ifdef HAVE_SYSLOG_H
     if (use_syslog)
     {
         closelog();
         use_syslog = false;
     }
-#endif
 }
 
 void log_set_verbosity(enum log_priority prio)
@@ -1025,7 +967,6 @@ bool sd_notify(const char* fmt, ...)
         vsnprintf(message, sizeof(message), fmt, ap);  // flawfinder: ignore
     if (message_len <= 0)
         return false;
-#if defined(AF_UNIX)
     const char* notify_socket = getenv("NOTIFY_SOCKET");
     if (notify_socket == NULL)
         return false;
@@ -1063,7 +1004,6 @@ bool sd_notify(const char* fmt, ...)
     }
     close(fd);
     return true;
-#endif
 }
 
 sandbox_t* sandbox_init()
@@ -1107,7 +1047,6 @@ sandbox_t* sandbox_init()
         goto fail;
     if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(madvise), 0) < 0)
         goto fail;
-#    ifdef HAVE_SYS_MMAN_H
     if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(mprotect), 1,
                          SCMP_A2(SCMP_CMP_MASKED_EQ, PROT_EXEC, 0))
         < 0)
@@ -1116,7 +1055,6 @@ sandbox_t* sandbox_init()
                          SCMP_A2(SCMP_CMP_MASKED_EQ, PROT_EXEC, 0))
         < 0)
         goto fail;
-#    endif
     if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(munmap), 0) < 0)
         goto fail;
 #    ifdef WITH_SQLITE

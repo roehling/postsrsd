@@ -20,9 +20,7 @@
 #include <check.h>
 #include <postsrsd_build_config.h>
 #include <stdlib.h>
-#ifdef HAVE_UNISTD_H
-#    include <unistd.h>
-#endif
+#include <unistd.h>
 
 START_TEST(invalid_database)
 {

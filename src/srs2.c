@@ -22,20 +22,8 @@
 
 #include "sha1.h"
 
-#include <postsrsd_build_config.h>
+#include <ctype.h>
 #include <stdarg.h>
-
-#ifndef HAVE_STRCASECMP
-#    ifdef HAVE__STRICMP
-#        define strcasecmp _stricmp
-#    endif
-#endif
-
-#ifndef HAVE_STRNCASECMP
-#    ifdef HAVE__STRNICMP
-#        define strncasecmp _strnicmp
-#    endif
-#endif
 
 /* Use this */
 #define STRINGP(s) ((s != NULL) && (*(s) != '\0'))

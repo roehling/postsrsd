@@ -21,15 +21,12 @@
 #ifndef __SRS2_H__
 #define __SRS2_H__
 
-#include <ctype.h>
 #include <postsrsd_build_config.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
-#ifdef HAVE_SYS_TYPES_H
-#    include <sys/types.h>
-#endif
+#include <sys/types.h>
 #ifdef HAVE_SYS_TIME_H
 #    include <sys/time.h>
 #endif

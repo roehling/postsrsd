@@ -17,7 +17,6 @@
 #ifndef UTIL_H
 #define UTIL_H
 
-#include <postsrsd_build_config.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
@@ -58,13 +57,6 @@ bool string_equal(const void* s1, const void* s2);
 void string_set(char** var, char* value);
 char* b32h_encode(const char* data, size_t length, char* buffer,
                   size_t bufsize);
-
-#ifndef HAVE_STPNCPY
-char* stpncpy(char* dst, const char* src, size_t len);
-#endif
-#ifndef HAVE_STPCPY
-char* stpcpy(char* dst, const char* src);
-#endif
 
 bool file_exists(const char* filename);
 bool directory_exists(const char* dirname);

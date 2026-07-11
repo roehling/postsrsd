@@ -20,12 +20,8 @@
 
 #include <check.h>
 #include <stdio.h>
-#ifdef HAVE_SYS_FILE_H
-#    include <sys/file.h>
-#endif
-#ifdef HAVE_SYS_STAT_H
-#    include <sys/stat.h>
-#endif
+#include <sys/file.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 static char pwd[500];

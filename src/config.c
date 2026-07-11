@@ -20,21 +20,14 @@
 #include "postsrsd_build_config.h"
 #include "util.h"
 
+#include <ctype.h>
 #include <errno.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 #include <unistd.h>
-
-#ifndef HAVE_STRCASECMP
-#    ifdef HAVE__STRICMP
-#        define strcasecmp _stricmp
-#    endif
-#endif
-#ifdef HAVE_PWD_H
-#    include <pwd.h>
-#endif
 
 static int parse_original_envelope(cfg_t* cfg, cfg_opt_t* opt,
                                    const char* value, void* result)
@@ -114,7 +107,6 @@ static int validate_unprivileged_user(cfg_t* cfg, cfg_opt_t* opt)
     const char* user = cfg_opt_getstr(opt);
     if (NONEMPTY_STRING(user))
     {
-#ifdef HAVE_PWD_H
         struct passwd* pwd = NULL;
         pwd = getpwnam(user);
         if (pwd == NULL)
@@ -123,11 +115,6 @@ static int validate_unprivileged_user(cfg_t* cfg, cfg_opt_t* opt)
                       cfg_opt_name(opt), user);
             return -1;
         }
-#else
-        cfg_error(cfg, "option '%s' is unsupported by system",
-                  cfg_opt_name(opt));
-        return -1;
-#endif
     }
     return 0;
 }
@@ -437,7 +424,6 @@ bool unprivileged_user_from_config(cfg_t* cfg, int* target_uid, int* target_gid)
     char* user = cfg_getstr(cfg, "unprivileged-user");
     if (NONEMPTY_STRING(user))
     {
-#ifdef HAVE_PWD_H
         struct passwd* pwd = NULL;
         pwd = getpwnam(user);
         if (pwd == NULL)
@@ -447,10 +433,6 @@ bool unprivileged_user_from_config(cfg_t* cfg, int* target_uid, int* target_gid)
         }
         *target_uid = pwd->pw_uid;
         *target_gid = pwd->pw_gid;
-#else
-        log_error("cannot drop privileges: not supported by system");
-        return false;
-#endif
     }
     else
     {

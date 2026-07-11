@@ -23,34 +23,17 @@
 #include "srs.h"
 #include "util.h"
 
+#include <errno.h>
+#include <fcntl.h>
+#include <grp.h>
+#include <poll.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#ifdef HAVE_FCNTL_H
-#    include <fcntl.h>
-#endif
-#ifdef HAVE_ERRNO_H
-#    include <errno.h>
-#endif
-#ifdef HAVE_SYS_SOCKET_H
-#    include <sys/socket.h>
-#endif
-#ifdef HAVE_SYS_WAIT_H
-#    include <sys/wait.h>
-#endif
-#ifdef HAVE_SIGNAL_H
-#    include <signal.h>
-#endif
-#ifdef HAVE_POLL_H
-#    include <poll.h>
-#endif
-#ifdef HAVE_UNISTD_H
-#    include <unistd.h>
-#endif
-#ifdef HAVE_GRP_H
-#    include <grp.h>
-#endif
+#include <sys/socket.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 #define PAYLOAD_SIZE MILTER_PAYLOAD_SIZE
 
@@ -247,7 +230,6 @@ static bool prepare_client(postsrsd_t* state, int conn, database_t** db)
     *db = NULL;
     if (!drop_privileges(state))
         return false;
-#ifdef HAVE_FCNTL_H
     int flags = fcntl(conn, F_GETFL);
     if (flags & O_NONBLOCK)
     {
@@ -257,7 +239,6 @@ static bool prepare_client(postsrsd_t* state, int conn, database_t** db)
             return false;
         }
     }
-#endif
     if (cfg_getint(state->cfg, "original-envelope") == SRS_ENVELOPE_DATABASE)
     {
         *db = database_connect(cfg_getstr(state->cfg, "envelope-database"),

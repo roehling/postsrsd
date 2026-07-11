@@ -16,45 +16,32 @@
  */
 #include "endpoint.h"
 
-#include "postsrsd_build_config.h"
 #include "util.h"
 
+#include <errno.h>
+#include <netdb.h>
+#include <poll.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef HAVE_ERRNO_H
-#    include <errno.h>
-#endif
-#ifdef HAVE_POLL_H
-#    include <poll.h>
-#endif
-#ifdef HAVE_SYS_TYPES_H
-#    include <sys/types.h>
-#endif
-#ifdef HAVE_SYS_SOCKET_H
-#    include <sys/socket.h>
-#endif
-#ifdef HAVE_SYS_STAT_H
-#    include <sys/stat.h>
-#endif
-#ifdef HAVE_SYS_UN_H
-#    include <sys/un.h>
-#endif
-#ifdef HAVE_NETDB_H
-#    include <netdb.h>
-#endif
-#ifdef HAVE_UNISTD_H
-#    include <unistd.h>
-#endif
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/un.h>
+#include <unistd.h>
 
-#if defined(AF_UNIX)
-#    define HAVE_UNIX_SOCKETS 1
-#endif
-#if defined(HAVE_NETDB_H) && defined(AF_UNSPEC) && defined(AF_INET) \
-    && defined(AF_INET6)
-#    define HAVE_INET_SOCKETS 1
-#endif
 #ifndef SO_REUSEPORT
 #    define SO_REUSEPORT SO_REUSEADDR
+#endif
+#ifdef SOCK_CLOEXEC
+#    define HAVE_SOCK_CLOEXEC 1
+#else
+#    define SOCK_CLOEXEC 0
+#endif
+#ifdef SOCK_NONBLOCK
+#    define HAVE_SOCK_NONBLOCK 1
+#else
+#    define SOCK_NONBLOCK 0
+#    include <fcntl.h>
 #endif
 #define POSTSRSD_SOCKET_LISTEN_QUEUE 16
 #define POSTSRSD_MAX_FDS             4
@@ -67,7 +54,6 @@ struct endpoint
     char* path;
 };
 
-#ifdef HAVE_UNIX_SOCKETS
 static bool create_unix_socket(const char* path, endpoint_t* endpoint)
 {
     struct sockaddr_un sa;
@@ -94,6 +80,11 @@ static bool create_unix_socket(const char* path, endpoint_t* endpoint)
     int sock = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
     if (sock < 0)
         goto fail;
+#if !defined(HAVE_SOCK_NONBLOCK) || !defined(HAVE_SOCK_CLOEXEC)
+    int flags = fcntl(sock, F_GETFL);
+    if (fcntl(sock, F_SETFL, flags | O_NONBLOCK | O_CLOEXEC) < 0)
+        goto fail;
+#endif
     sa.sun_family = AF_UNIX;
     memset(sa.sun_path, 0, sizeof(sa.sun_path));
     memcpy(sa.sun_path, path, path_len);
@@ -119,9 +110,7 @@ fail:
     }
     return false;
 }
-#endif
 
-#ifdef HAVE_INET_SOCKETS
 static bool create_inet_sockets(char* addr, int family, endpoint_t* endpoint)
 {
     const int one = 1;
@@ -200,6 +189,11 @@ static bool create_inet_sockets(char* addr, int family, endpoint_t* endpoint)
                       it->ai_protocol);
         if (sock < 0)
             goto fail;
+#if !defined(HAVE_SOCK_NONBLOCK) || !defined(HAVE_SOCK_CLOEXEC)
+        int flags = fcntl(sock, F_GETFL);
+        if (fcntl(sock, F_SETFL, flags | O_NONBLOCK | O_CLOEXEC) < 0)
+            goto fail;
+#endif
         if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &one, sizeof(one)) < 0)
             goto fail;
         if (bind(sock, it->ai_addr, it->ai_addrlen) < 0)
@@ -221,7 +215,6 @@ fail:
         return -1;
     return count;
 }
-#endif
 
 endpoint_t* endpoint_create(const char* s)
 {
@@ -236,7 +229,6 @@ endpoint_t* endpoint_create(const char* s)
         result->fd[i] = -1;
     result->lock = -1;
     result->path = NULL;
-#ifdef HAVE_UNIX_SOCKETS
     const char* path = NULL;
     if (strncmp(s, "unix:", 5) == 0)
     {
@@ -254,8 +246,6 @@ endpoint_t* endpoint_create(const char* s)
         endpoint_destroy(result);
         return NULL;
     }
-#endif
-#ifdef HAVE_INET_SOCKETS
     char* addr = NULL;
     int family = AF_UNSPEC;
     if (strncmp(s, "inet:", 5) == 0)
@@ -282,7 +272,6 @@ endpoint_t* endpoint_create(const char* s)
         endpoint_destroy(result);
         return NULL;
     }
-#endif
     log_error("unsupported endpoint '%s'", s);
     endpoint_destroy(result);
     return NULL;

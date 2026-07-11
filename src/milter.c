@@ -19,13 +19,10 @@
 #include "util.h"
 
 #include <assert.h>
-#include <postsrsd_build_config.h>
+#include <errno.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef HAVE_ERRNO_H
-#    include <errno.h>
-#endif
 #include <sys/uio.h>
 
 #if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
