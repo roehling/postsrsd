@@ -70,7 +70,7 @@ jobs:
         with:
           usesh: true
           prepare: |
-            pkgman install -y cmake git make confuse check sqlite hiredis
+            pkgman install -y cmake git make confuse_devel check_devel sqlite_devel hiredis_devel
           run: |
             mkdir _build
             cd _build
