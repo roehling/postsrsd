@@ -136,4 +136,9 @@ sandbox_t* sandbox_init();
 bool sandbox_enable(sandbox_t* sandbox);
 void sandbox_release(sandbox_t* sandbox);
 
+typedef void (*signal_handler_t)(int);
+int signal_set_handler(int signum, signal_handler_t handler);
+int signal_set_handler_once(int signum, signal_handler_t handler);
+int signal_reset_handler(int signum);
+
 #endif

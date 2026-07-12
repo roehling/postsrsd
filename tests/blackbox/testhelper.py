@@ -173,9 +173,12 @@ class PostSRSd:
         self._notify_sock.close()
         if self._proc is not None:
             try:
-                os.killpg(os.getpgid(self._proc.pid), signal.SIGTERM)
-            except PermissionError:
-                os.kill(self._proc.pid, signal.SIGTERM)
+                try:
+                    os.killpg(os.getpgid(self._proc.pid), signal.SIGTERM)
+                except PermissionError:
+                    os.kill(self._proc.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
             self._proc.wait()
         self._tmpdir.cleanup()
 

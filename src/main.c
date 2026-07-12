@@ -249,10 +249,9 @@ static bool prepare_client(postsrsd_t* state, int conn, database_t** db)
         if (*db == NULL)
             return false;
     }
-    signal(SIGALRM, on_timeout);
-    signal(SIGUSR1, on_reload_requested);
-    signal(SIGTERM, SIG_DFL);
-    signal(SIGINT, SIG_DFL);
+    signal_set_handler(SIGALRM, on_timeout);
+    signal_reset_handler(SIGTERM);
+    signal_reset_handler(SIGINT);
     if (cfg_getbool(state->cfg, "seccomp") && sandbox != NULL
         && !sandbox_enable(sandbox))
     {
@@ -784,8 +783,6 @@ int main(int argc, char** argv)
     for (int fd = 3; fd < 1024; ++fd)
         close(fd);
 #endif
-    signal(SIGALRM, SIG_IGN);
-    signal(SIGUSR1, SIG_IGN);
     if (!setup_state(argc, argv, &state))
         goto shutdown;
     sandbox = sandbox_init();
@@ -813,9 +810,9 @@ int main(int argc, char** argv)
         pf = NULL;
     }
     exit_code = EXIT_SUCCESS;
-    signal(SIGHUP, on_reload_requested);
-    signal(SIGTERM, on_shutdown_requested);
-    signal(SIGINT, on_shutdown_requested);
+    signal_set_handler(SIGHUP, on_reload_requested);
+    signal_set_handler_once(SIGTERM, on_shutdown_requested);
+    signal_set_handler_once(SIGINT, on_shutdown_requested);
     sd_notify_support = sd_notify("READY=1\nMAINPID=%d", (int)getpid());
     struct pollfd fds[16];
     int fd_types[sizeof(fds) / sizeof(struct pollfd)];
@@ -865,7 +862,7 @@ int main(int argc, char** argv)
             }
             if (setup_state(argc, argv, &state))
             {
-                pid_set_kill(P, SIGUSR1);
+                pid_set_kill(P, SIGHUP);
                 num_fds = setup_poll(&state, fds, fd_types,
                                      sizeof(fds) / sizeof(struct pollfd));
             }
