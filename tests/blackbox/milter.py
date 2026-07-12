@@ -336,6 +336,18 @@ STATELESS_QUERIES: list[
         ("sender@otherdomain.com", ["recipient@thirddomain.com"]),
         (b"a", "SRS0=9KJ-=2W=otherdomain.com=sender@example.com", None),
     ),
+    # Regular rewrite with multiple recipients
+    (
+        (
+            "sender@otherdomain.com",
+            [
+                "recipient@firstdomain.com",
+                "recipient@seconddomain.com",
+                "recipient@thirddomain.com",
+            ],
+        ),
+        (b"a", "SRS0=9KJ-=2W=otherdomain.com=sender@example.com", None),
+    ),
     # No rewrite for sender without domain
     (
         ("foo", ["recipient@thirddomain.com"]),
@@ -366,6 +378,18 @@ STATELESS_QUERIES: list[
             ["SRS0=9KJ-=2W=otherdomain.com=sender@example.com"],
         ),
         (b"a", None, ["sender@otherdomain.com"]),
+    ),
+    # Handle reverse rewrites for multiple recipients
+    (
+        (
+            "sender@example.com",
+            [
+                "SRS0=9KJ-=2W=otherdomain.com=sender@example.com",
+                "recipient@example.com",
+                "SRS1=chaI=otherdomain.com==opaque+string@example.com",
+            ],
+        ),
+        (b"a", None, ["sender@otherdomain.com", "SRS0=opaque+string@otherdomain.com"]),
     ),
     # Rewrite sender if recipient turns out to be non-local
     (
