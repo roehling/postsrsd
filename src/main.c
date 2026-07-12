@@ -825,6 +825,13 @@ int main(int argc, char** argv)
     int child_status;
     for (;;)
     {
+        if (shutdown_requested)
+        {
+            log_info("Signal %d received. shutting down.",
+                     (int)shutdown_requested);
+            shutdown_requested = 0;
+            goto shutdown;
+        }
         if (files_changed_unsafe && time(NULL) - last_file_watch_event >= 1)
         {
             files_changed = true;
@@ -868,13 +875,6 @@ int main(int argc, char** argv)
             }
             if (sd_notify_support)
                 sd_notify("READY=1");
-        }
-        if (shutdown_requested)
-        {
-            log_info("Signal %d received. shutting down.",
-                     (int)shutdown_requested);
-            shutdown_requested = 0;
-            goto shutdown;
         }
         if (poll(fds, num_fds, 1000) < 0)
         {
