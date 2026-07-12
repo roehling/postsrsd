@@ -38,7 +38,7 @@ jobs:
         run: |
           python3 tests/blackbox/socketmap.py _build/postsrsd 1 0
           python3 tests/blackbox/milter.py _build/postsrsd 1 0
-          python3 tests/blackbox/inotify.py _build/postsrsd
+          python3 tests/blackbox/reload.py _build/postsrsd 1
       - name: Install PostSRSd
         run: |
           cd _build
