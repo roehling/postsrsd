@@ -96,18 +96,17 @@ class PostSRSd:
         self._tmpdir = tempfile.TemporaryDirectory()
         self._tmpdir_path = pathlib.Path(self._tmpdir.name)
         self._proc: subprocess.Popen[bytes] | None = None
-        endpoint_type = "socketmap" if socket_type == SocketType.SOCKETMAP else "milter"
-        other_endpoint_type = (
-            "milter" if socket_type == SocketType.SOCKETMAP else "socketmap"
-        )
+        socketmap_endpoint = {SocketType.SOCKETMAP: "", SocketType.MILTER: ""}
         if socket_family == SocketFamily.UNIX:
             self._family = socket.AF_UNIX
             self._addr = str(self._tmpdir_path / "postsrsd.sock")
-            endpoint_addr = f'unix:{self._tmpdir_path / "postsrsd.sock"}'
+            socketmap_endpoint[socket_type] = (
+                f'unix:{self._tmpdir_path / "postsrsd.sock"}'
+            )
         elif socket_family == SocketFamily.IP:
             self._family = socket.AF_INET
             self._addr = ("127.0.0.1", 12345)
-            endpoint_addr = "inet:127.0.0.1:12345"
+            socketmap_endpoint[socket_type] = "inet:127.0.0.1:12345"
         if database == Database.SQLITE:
             database_uri = f'sqlite:{self._tmpdir_path / "postsrsd.db"}'
         elif database == Database.REDIS:
@@ -116,7 +115,6 @@ class PostSRSd:
             database_uri = ""
         with open(self._tmpdir_path / "postsrsd.conf", "w") as f:
             f.write(
-                "domains = {}\n"
                 f'domains-file = "{self._tmpdir_path / "postsrsd.domains"}"\n'
                 f'domains-file-watch = {"on" if use_file_watch else "off"}\n'
                 "keep-alive = 1\n"
@@ -125,8 +123,8 @@ class PostSRSd:
                 f'original-envelope = {"embedded" if database == Database.NONE else "database"}\n'
                 f'envelope-database = "{database_uri}"\n'
                 f'secrets-file = "{self._tmpdir_path / "postsrsd.secret"}"\n'
-                f'{endpoint_type} = "{endpoint_addr}"\n'
-                f'{other_endpoint_type} = ""\n'
+                f'socketmap = "{socketmap_endpoint[SocketType.SOCKETMAP]}"\n'
+                f'milter = "{socketmap_endpoint[SocketType.MILTER]}"\n'
             )
         with open(self._tmpdir_path / "postsrsd.secret", "w") as f:
             f.write("tops3cr3t\n")
@@ -134,7 +132,7 @@ class PostSRSd:
             f.write("example.com\n")
         self._notify_addr = str(self._tmpdir_path / "postsrsd.notify")
         self._notify_sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM, 0)
-        self._notify_sock.settimeout(1)
+        self._notify_sock.settimeout(5)
         self._notify_sock.bind(self._notify_addr)
 
     def __enter__(self) -> "PostSRSd":
@@ -147,13 +145,20 @@ class PostSRSd:
             start_new_session=True,
             env=env,
         )
-        while self._proc.poll() is None:
+        retcode = self._proc.poll()
+        while retcode is None:
             try:
                 data = self._notify_sock.recv(4096)
                 if b"READY=1" in data:
                     break
+            except ConnectionRefusedError:
+                # Solaris seems to enjoy refusing connections from time to time
+                print("(ignoring ConnectionRefusedError)")
             except TimeoutError:
                 pass
+            retcode = self._proc.poll()
+        if retcode is not None:
+            raise RuntimeError(f"PostSRSd daemon failed with exit code {retcode}")
         return self
 
     def __exit__(self, exc_type, exc_value, traceback) -> bool:  # type: ignore
@@ -175,11 +180,22 @@ class PostSRSd:
         self._tmpdir.cleanup()
 
     def connect(self) -> socket.socket:
-        sock = socket.socket(self._family, socket.SOCK_STREAM, 0)
-        sock.settimeout(0.5)
-        sock.connect(self._addr)
-        return sock
+        assert self._proc is not None, "cannot reload daemon if it is not running"
+        retcode = self._proc.poll()
+        while retcode is None:
+            try:
+                sock = socket.socket(self._family, socket.SOCK_STREAM, 0)
+                sock.settimeout(0.5)
+                sock.connect(self._addr)
+                return sock
+            except ConnectionRefusedError:
+                print("(ignoring ConnectionRefusedError)")
+            retcode = self._proc.poll()
+        raise RuntimeError(f"PostSRSd daemon failed with exit code {retcode}")
 
     def reload(self):
-        if self._proc is not None:
-            os.kill(self._proc.pid, signal.SIGHUP)
+        assert self._proc is not None, "cannot reload daemon if it is not running"
+        retcode = self._proc.poll()
+        if retcode is not None:
+            raise RuntimeError(f"PostSRSd daemon failed with exit code {retcode}")
+        os.kill(self._proc.pid, signal.SIGHUP)

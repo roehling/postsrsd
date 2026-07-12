@@ -25,7 +25,7 @@ def send_milter(sock: socket.socket, code: bytes, data: bytes):
     sock.sendall(struct.pack(">Lc", len(data) + 1, code) + data)
 
 
-def recv_milter(sock: socket.socket):
+def recv_milter(sock: socket.socket) -> tuple[bytes, bytes]:
     size_bytes = sock.recv(4)
     if not size_bytes:
         raise ConnectionResetError("cannot read milter packet from socket")
@@ -36,7 +36,7 @@ def recv_milter(sock: socket.socket):
     return data[:1], data[1:]
 
 
-def mf_optneg(sock: socket.socket):
+def mf_optneg(sock: socket.socket) -> bool:
     send_milter(sock, b"O", struct.pack(">LLL", 6, 0xFF, 0xFF))
     code, _ = recv_milter(sock)
     return code == b"O"
@@ -46,21 +46,21 @@ def mf_macro(sock: socket.socket, code: bytes):
     send_milter(sock, b"D", code + b"i\x0001234567\x00")
 
 
-def mf_envfrom(sock: socket.socket, envfrom: str):
+def mf_envfrom(sock: socket.socket, envfrom: str) -> bytes:
     send_milter(sock, b"M", b"<" + envfrom.encode() + b">\x00")
     code, _ = recv_milter(sock)
     return code
 
 
-def mf_rcptto(sock: socket.socket, rcptto: str):
+def mf_rcptto(sock: socket.socket, rcptto: str) -> bytes:
     send_milter(sock, b"R", b"<" + rcptto.encode() + b">\x00")
     code, _ = recv_milter(sock)
     return code
 
 
-def mf_eom(sock: socket.socket):
+def mf_eom(sock: socket.socket) -> tuple[bytes, str | None, list[str] | None]:
     new_from = None
-    new_rcpt = None
+    new_rcpts: list[str] | None = None
     send_milter(sock, b"E", b"")
     code, data = recv_milter(sock)
     while code in [b"+", b"-", b"e"]:
@@ -68,21 +68,25 @@ def mf_eom(sock: socket.socket):
             new_rcpt = data[:-1].decode()
             if new_rcpt[0] == "<" and new_rcpt[-1] == ">":
                 new_rcpt = new_rcpt[1:-2]
+            if new_rcpts is None:
+                new_rcpts = list()
+            new_rcpts.append(new_rcpt)
         if code == b"e":
             new_from = data[:-1].decode()
             if new_from[0] == "<" and new_from[-1] == ">":
                 new_from = new_from[1:-2]
         code, data = recv_milter(sock)
-    return code, new_from, new_rcpt
+    return code, new_from, new_rcpts
 
 
 def execute_queries(
     postsrsd: str,
     when: str,
-    queries: list[tuple[tuple[str, str], tuple[bytes, str | None, str | None]]],
+    queries: list[
+        tuple[tuple[str, list[str]], tuple[bytes, str | None, list[str] | None]]
+    ],
     database: Database = Database.NONE,
     socket_family: SocketFamily = SocketFamily.UNIX,
-    reload_between_queries: bool = False,
 ):
     with PostSRSd(
         postsrsd,
@@ -92,23 +96,24 @@ def execute_queries(
         socket_type=SocketType.MILTER,
     ) as daemon:
         for query in queries:
-            orig_from, orig_rcpt = query[0]
-            result, new_from, new_rcpt = query[1]
+            orig_from, orig_rcpts = query[0]
+            result, new_from, new_rcpts = query[1]
             sock = daemon.connect()
             try:
                 assert mf_optneg(sock), "milter option negotation failed"
-                if reload_between_queries:
-                    daemon.reload()
                 srs_from = None
-                srs_rcpt = None
+                srs_rcpts = None
                 mf_macro(sock, b"M")
                 srs_result = mf_envfrom(sock, orig_from)
                 if srs_result == b"c":
                     mf_macro(sock, b"R")
-                    srs_result = mf_rcptto(sock, orig_rcpt)
+                    for orig_rcpt in orig_rcpts:
+                        srs_result = mf_rcptto(sock, orig_rcpt)
+                        if srs_result != b"c":
+                            break
                     if srs_result == b"c":
                         mf_macro(sock, b"E")
-                        srs_result, srs_from, srs_rcpt = mf_eom(sock)
+                        srs_result, srs_from, srs_rcpts = mf_eom(sock)
                 assert (
                     srs_result == result
                 ), f"expected action {result!r} and got {srs_result!r}"
@@ -116,12 +121,12 @@ def execute_queries(
                     srs_from == new_from
                 ), f"expected from {new_from!r} and got {srs_from!r}"
                 assert (
-                    srs_rcpt == new_rcpt
-                ), f"expected rcpt {new_rcpt!r} and got {srs_rcpt!r}"
-                sys.stderr.write(f"PASS: {query[0]!r},{database!r},{socket_family!r}\n")
+                    srs_rcpts == new_rcpts
+                ), f"expected rcpt {new_rcpts!r} and got {srs_rcpts!r}"
+                sys.stderr.write(f"PASS: {database!r},{socket_family!r},{query[0]!r}\n")
             except AssertionError as e:
                 sys.stderr.write(
-                    f"*** FAIL: {query[0]!r},{database!r},{socket_family!r}: {str(e)}\n"
+                    f"*** FAIL: {database!r},{socket_family!r},{query[0]!r}: {str(e)}\n"
                 )
                 return False
             finally:
@@ -192,9 +197,9 @@ def milter_protocol_violations(
         assert (
             new_from == "SRS0=9KJ-=2W=otherdomain.com=sender@example.com"
         ), f"unexpected rewrite of envelope sender: {new_from!r}"
-        assert (
-            new_rcpt == "test@otherdomain.com"
-        ), f"unexpected rewrite of recipient: {new_rcpt!r}"
+        assert new_rcpt == [
+            "test@otherdomain.com"
+        ], f"unexpected rewrite of recipient: {new_rcpt!r}"
 
     def oversized_mail_command(sock: socket.socket):
         assert mf_optneg(sock), "milter option negotiation failed"
@@ -224,9 +229,9 @@ def milter_protocol_violations(
         assert (
             new_from == "SRS0=9KJ-=2W=otherdomain.com=sender@example.com"
         ), f"unexpected rewrite of envelope sender: {new_from!r}"
-        assert (
-            new_rcpt == "test@otherdomain.com"
-        ), f"unexpected rewrite of recipient: {new_rcpt!r}"
+        assert new_rcpt == [
+            "test@otherdomain.com"
+        ], f"unexpected rewrite of recipient: {new_rcpt!r}"
 
     def close_on_quit(sock: socket.socket):
         assert mf_optneg(sock), "milter option negotiation failed"
@@ -234,7 +239,7 @@ def milter_protocol_violations(
         try:
             mf_envfrom(sock, "mail@example.com")
             raise AssertionError("milter should have disconnected")
-        except (ConnectionError, struct.error, TimeoutError):
+        except (ConnectionError, TimeoutError):
             pass
 
     def oversized_rcpt_command(sock: socket.socket):
@@ -265,16 +270,16 @@ def milter_protocol_violations(
         assert (
             new_from == "SRS0=9KJ-=2W=otherdomain.com=sender@example.com"
         ), f"unexpected rewrite of envelope sender: {new_from!r}"
-        assert (
-            new_rcpt == "test@otherdomain.com"
-        ), f"unexpected rewrite of recipient: {new_rcpt!r}"
+        assert new_rcpt == [
+            "test@otherdomain.com"
+        ], f"unexpected rewrite of recipient: {new_rcpt!r}"
 
     def keep_alive_timeout(sock: socket.socket):
         time.sleep(1.1)
         try:
             mf_optneg(sock)
             raise AssertionError("milter should have disconnected")
-        except (ConnectionError, struct.error, TimeoutError):
+        except (ConnectionError, TimeoutError):
             pass
 
     with PostSRSd(
@@ -303,11 +308,13 @@ def milter_protocol_violations(
             try:
                 test_func(sock)
                 sys.stderr.write(f"PASS: {test_func.__name__}\n")
-            except (IOError, OSError, struct.error) as e:
-                sys.stderr.write(f"*** FAIL: {test_func.__name__}: {str(e)}\n")
-                return False
             except AssertionError as e:
                 sys.stderr.write(f"*** FAIL: {test_func.__name__}: {str(e)}\n")
+                return False
+            except RuntimeError as e:
+                sys.stderr.write(
+                    f"*** FAIL: {test_func.__name__}: {e.__class__.__name__}: {str(e)}\n"
+                )
                 return False
             finally:
                 sock.close()
@@ -315,40 +322,40 @@ def milter_protocol_violations(
 
 
 STATELESS_QUERIES: list[
-    tuple[tuple[str, str], tuple[bytes, str | None, str | None]]
+    tuple[tuple[str, list[str]], tuple[bytes, str | None, list[str] | None]]
 ] = [
     # No rewrite for local domain
-    (("sender@example.com", "recipient@example.com"), (b"a", None, None)),
+    (("sender@example.com", ["recipient@example.com"]), (b"a", None, None)),
     # No rewrite if recipient is local
     (
-        ("sender@otherdomain.com", "recipient@example.com"),
+        ("sender@otherdomain.com", ["recipient@example.com"]),
         (b"a", None, None),
     ),
     # Regular rewrite
     (
-        ("sender@otherdomain.com", "recipient@thirddomain.com"),
+        ("sender@otherdomain.com", ["recipient@thirddomain.com"]),
         (b"a", "SRS0=9KJ-=2W=otherdomain.com=sender@example.com", None),
     ),
     # No rewrite for sender without domain
     (
-        ("foo", "recipient@thirddomain.com"),
+        ("foo", ["recipient@thirddomain.com"]),
         (b"a", None, None),
     ),
     # Treat recipient without domain as local
     (
-        ("sender@otherdomain.com", "bar"),
+        ("sender@otherdomain.com", ["bar"]),
         (b"a", None, None),
     ),
     # Convert foreign SRS0 address to SRS1 address
     (
-        ("SRS0=opaque+string@otherdomain.com", "recipient@thirddomain.com"),
+        ("SRS0=opaque+string@otherdomain.com", ["recipient@thirddomain.com"]),
         (b"a", "SRS1=chaI=otherdomain.com==opaque+string@example.com", None),
     ),
     # Change domain part of foreign SRS1 address
     (
         (
             "SRS1=X=thirddomain.com==opaque+string@otherdomain.com",
-            "recipient@thirddomain.com",
+            ["recipient@thirddomain.com"],
         ),
         (b"a", "SRS1=JIBX=thirddomain.com==opaque+string@example.com", None),
     ),
@@ -356,35 +363,35 @@ STATELESS_QUERIES: list[
     (
         (
             "sender@example.com",
-            "SRS0=9KJ-=2W=otherdomain.com=sender@example.com",
+            ["SRS0=9KJ-=2W=otherdomain.com=sender@example.com"],
         ),
-        (b"a", None, "sender@otherdomain.com"),
+        (b"a", None, ["sender@otherdomain.com"]),
     ),
     # Rewrite sender if recipient turns out to be non-local
     (
         (
             "sender@otherdomain.com",
-            "SRS0=9KJ-=2W=otherdomain.com=sender@example.com",
+            ["SRS0=9KJ-=2W=otherdomain.com=sender@example.com"],
         ),
         (
             b"a",
             "SRS0=9KJ-=2W=otherdomain.com=sender@example.com",
-            "sender@otherdomain.com",
+            ["sender@otherdomain.com"],
         ),
     ),
     # Recover original SRS0 address from valid SRS1 address
     (
         (
             "sender@example.com",
-            "SRS1=JIBX=thirddomain.com==opaque+string@example.com",
+            ["SRS1=JIBX=thirddomain.com==opaque+string@example.com"],
         ),
-        (b"a", None, "SRS0=opaque+string@thirddomain.com"),
+        (b"a", None, ["SRS0=opaque+string@thirddomain.com"]),
     ),
     # Reject valid SRS0 address with time stamp older than 6 months
     (
         (
             "sender@otherdomain.com",
-            "SRS0=te87=T7=otherdomain.com=test@example.com",
+            ["SRS0=te87=T7=otherdomain.com=test@example.com"],
         ),
         (b"r", None, None),
     ),
@@ -392,7 +399,7 @@ STATELESS_QUERIES: list[
     (
         (
             "sender@otherdomain.com",
-            "SRS0=VcIb=7N=otherdomain.com=test@example.com",
+            ["SRS0=VcIb=7N=otherdomain.com=test@example.com"],
         ),
         (b"r", None, None),
     ),
@@ -400,23 +407,23 @@ STATELESS_QUERIES: list[
     (
         (
             "sender@example.com",
-            "srs0=xjo9=2v=otherdomain.com=test@example.com",
+            ["srs0=xjo9=2v=otherdomain.com=test@example.com"],
         ),
-        (b"a", None, "test@otherdomain.com"),
+        (b"a", None, ["test@otherdomain.com"]),
     ),
     # Recover mail address from all-uppercase SRS0 address
     (
         (
             "sender@example.com",
-            "SRS0=XJO9=2V=OTHERDOMAIN.COM=TEST@EXAMPLE.COM",
+            ["SRS0=XJO9=2V=OTHERDOMAIN.COM=TEST@EXAMPLE.COM"],
         ),
-        (b"a", None, "TEST@OTHERDOMAIN.COM"),
+        (b"a", None, ["TEST@OTHERDOMAIN.COM"]),
     ),
     # Accept SRS0 address with invalid hash but from a different signer
     (
         (
             "sender@example.com",
-            "SRS0=FAKE=2V=otherdomain.com=test@foreign-signer.com",
+            ["SRS0=FAKE=2V=otherdomain.com=test@foreign-signer.com"],
         ),
         (b"a", None, None),
     ),
@@ -424,7 +431,7 @@ STATELESS_QUERIES: list[
     (
         (
             "sender@example.com",
-            "SRS1=FAKE=otherdomain.com==opaque+string@foreign-signer.com",
+            ["SRS1=FAKE=otherdomain.com==opaque+string@foreign-signer.com"],
         ),
         (b"a", None, None),
     ),
@@ -432,7 +439,7 @@ STATELESS_QUERIES: list[
     (
         (
             "sender@otherdomain.com",
-            "SRS0=FAKE=2V=otherdomain.com=test@example.com",
+            ["SRS0=FAKE=2V=otherdomain.com=test@example.com"],
         ),
         (b"r", None, None),
     ),
@@ -440,7 +447,7 @@ STATELESS_QUERIES: list[
     (
         (
             "sender@otherdomain.com",
-            "SRS0=@example.com",
+            ["SRS0=@example.com"],
         ),
         (b"r", None, None),
     ),
@@ -448,7 +455,7 @@ STATELESS_QUERIES: list[
     (
         (
             "sender@otherdomain.com",
-            "SRS0=XjO9@example.com",
+            ["SRS0=XjO9@example.com"],
         ),
         (b"r", None, None),
     ),
@@ -456,7 +463,7 @@ STATELESS_QUERIES: list[
     (
         (
             "sender@otherdomain.com",
-            "SRS0=XjO9=2V@example.com",
+            ["SRS0=XjO9=2V@example.com"],
         ),
         (b"r", None, None),
     ),
@@ -464,7 +471,7 @@ STATELESS_QUERIES: list[
     (
         (
             "sender@otherdomain.com",
-            "SRS0=XjO9=2V=otherdomain.com@example.com",
+            ["SRS0=XjO9=2V=otherdomain.com@example.com"],
         ),
         (b"r", None, None),
     ),
@@ -472,7 +479,7 @@ STATELESS_QUERIES: list[
     (
         (
             "sender@otherdomain.com",
-            "SRS0=bxzH=2W=1=DCJGDE6N24LCRT41A4T0G1UIF0DTKKQJ@example.com",
+            ["SRS0=bxzH=2W=1=DCJGDE6N24LCRT41A4T0G1UIF0DTKKQJ@example.com"],
         ),
         (b"r", None, None),
     ),
@@ -480,7 +487,7 @@ STATELESS_QUERIES: list[
     (
         (
             "test@" + "a" * (508 - 9) + ".net",
-            "recipient@otherdomain.com",
+            ["recipient@otherdomain.com"],
         ),
         (b"a", "SRS0=ckoK=2W=" + "a" * (508 - 9) + ".net=test@example.com", None),
     ),
@@ -488,15 +495,15 @@ STATELESS_QUERIES: list[
     (
         (
             "sender@example.com",
-            "SRS0=845K=2W=" + "a" * (508 - 34) + ".net=test@example.com",
+            ["SRS0=845K=2W=" + "a" * (508 - 34) + ".net=test@example.com"],
         ),
-        (b"a", None, "test@" + "a" * (508 - 34) + ".net"),
+        (b"a", None, ["test@" + "a" * (508 - 34) + ".net"]),
     ),
     # Test too long address
     (
         (
             "test@" + "a" * (509 - 9) + ".net",
-            "recipient@otherdomain.com",
+            ["recipient@otherdomain.com"],
         ),
         (b"r", None, None),
     ),
@@ -504,57 +511,62 @@ STATELESS_QUERIES: list[
     (
         (
             "",
-            "SRS0=9KJ-=2W=otherdomain.com=sender@example.com",
+            ["SRS0=9KJ-=2W=otherdomain.com=sender@example.com"],
         ),
-        (b"a", None, "sender@otherdomain.com"),
+        (b"a", None, ["sender@otherdomain.com"]),
     ),
 ]
 
-DATABASE_QUERIES: list[tuple[tuple[str, str], tuple[bytes, str | None, str | None]]] = [
+DATABASE_QUERIES: list[
+    tuple[tuple[str, list[str]], tuple[bytes, str | None, list[str] | None]]
+] = [
     # Regular rewrite
     (
-        ("test@otherdomain.com", "recipient@thirddomain.com"),
+        ("test@otherdomain.com", ["recipient@thirddomain.com"]),
         (b"a", "SRS0=bxzH=2W=1=DCJGDE6N24LCRT41A4T0G1UIF0DTKKQJ@example.com", None),
     ),
     # Recover address from alias
     (
         (
             "sender@example.com",
-            "SRS0=bxzH=2W=1=DCJGDE6N24LCRT41A4T0G1UIF0DTKKQJ@example.com",
+            ["SRS0=bxzH=2W=1=DCJGDE6N24LCRT41A4T0G1UIF0DTKKQJ@example.com"],
         ),
-        (b"a", None, "test@otherdomain.com"),
+        (b"a", None, ["test@otherdomain.com"]),
     ),
     # Recover address from case-munged alias
     (
         (
             "sender@example.com",
-            "SRS0=bxzH=2W=1=dcjgde6n24lcrt41a4t0g1uif0dtkkqj@example.com",
+            ["SRS0=bxzH=2W=1=dcjgde6n24lcrt41a4t0g1uif0dtkkqj@example.com"],
         ),
-        (b"a", None, "test@otherdomain.com"),
+        (b"a", None, ["test@otherdomain.com"]),
     ),
     # Reject unknown alias
     (
         (
             "sender@example.com",
-            "SRS0=hdxW=2W=1=VVVVVVUNVVVVVVS1VVVVVVUIVVVTKKQJ@example.com",
+            ["SRS0=hdxW=2W=1=VVVVVVUNVVVVVVS1VVVVVVUIVVVTKKQJ@example.com"],
         ),
         (b"r", None, None),
     ),
     # No rewrite for SRS address which is already in the local domain
     (
-        ("SRS0=XjO9=2V=otherdomain.com=test@example.com", "recipient@otherdomain.com"),
+        (
+            "SRS0=XjO9=2V=otherdomain.com=test@example.com",
+            ["recipient@otherdomain.com"],
+        ),
         (b"a", None, None),
     ),
     # Convert foreign SRS0 address to SRS1 address
     (
-        ("SRS0=opaque+string@otherdomain.com", "recipient@thirddomain.com"),
+        ("SRS0=opaque+string@otherdomain.com", ["recipient@thirddomain.com"]),
         (b"a", "SRS1=chaI=otherdomain.com==opaque+string@example.com", None),
     ),
     # Change domain part of foreign SRS1 address
     (
         (
             "SRS1=X=thirddomain.com==opaque+string@otherdomain.com",
-            "recipient@thirddomain.com",
+            ["recipient@thirddomain.com"],
         ),
         (b"a", "SRS1=JIBX=thirddomain.com==opaque+string@example.com", None),
     ),
@@ -562,7 +574,7 @@ DATABASE_QUERIES: list[tuple[tuple[str, str], tuple[bytes, str | None, str | Non
     (
         (
             "sender@example.com",
-            "SRS0=FAKE=2V=otherdomain.com=test@foreign-signer.com",
+            ["SRS0=FAKE=2V=otherdomain.com=test@foreign-signer.com"],
         ),
         (b"a", None, None),
     ),
@@ -570,7 +582,7 @@ DATABASE_QUERIES: list[tuple[tuple[str, str], tuple[bytes, str | None, str | Non
     (
         (
             "sender@example.com",
-            "SRS1=FAKE=otherdomain.com==opaque+string@foreign-signer.com",
+            ["SRS1=FAKE=otherdomain.com==opaque+string@foreign-signer.com"],
         ),
         (b"a", None, None),
     ),
@@ -578,53 +590,48 @@ DATABASE_QUERIES: list[tuple[tuple[str, str], tuple[bytes, str | None, str | Non
     (
         (
             "sender@example.com",
-            "SRS0=9KJ-=2W=otherdomain.com=sender@example.com",
+            ["SRS0=9KJ-=2W=otherdomain.com=sender@example.com"],
         ),
-        (b"a", None, "sender@otherdomain.com"),
+        (b"a", None, ["sender@otherdomain.com"]),
     ),
     # Handle bounce mail (empty sender)
     (
         (
             "",
-            "SRS0=9KJ-=2W=otherdomain.com=sender@example.com",
+            ["SRS0=9KJ-=2W=otherdomain.com=sender@example.com"],
         ),
-        (b"a", None, "sender@otherdomain.com"),
+        (b"a", None, ["sender@otherdomain.com"]),
     ),
 ]
 
 
 if __name__ == "__main__":
     for socket_family in [SocketFamily.UNIX, SocketFamily.IP]:
-        for reload_between_queries in [False, True]:
+        if not execute_queries(
+            sys.argv[1],
+            when="1577836860",  # 2020-01-01 00:01:00 UTC
+            queries=STATELESS_QUERIES,
+            socket_family=socket_family,
+        ):
+            sys.exit(1)
+        if sys.argv[2] == "1":
             if not execute_queries(
                 sys.argv[1],
                 when="1577836860",  # 2020-01-01 00:01:00 UTC
-                queries=STATELESS_QUERIES,
+                queries=DATABASE_QUERIES,
+                database=Database.SQLITE,
                 socket_family=socket_family,
-                reload_between_queries=reload_between_queries,
             ):
                 sys.exit(1)
-            if sys.argv[2] == "1":
-                if not execute_queries(
-                    sys.argv[1],
-                    when="1577836860",  # 2020-01-01 00:01:00 UTC
-                    queries=DATABASE_QUERIES,
-                    database=Database.SQLITE,
-                    socket_family=socket_family,
-                    reload_between_queries=reload_between_queries,
-                ):
-                    sys.exit(1)
-            if sys.argv[3] == "1":
-                if not execute_queries(
-                    sys.argv[1],
-                    when="1577836860",  # 2020-01-01 00:01:00 UTC
-                    queries=DATABASE_QUERIES,
-                    database=Database.REDIS,
-                    socket_family=socket_family,
-                    reload_between_queries=reload_between_queries,
-                ):
-                    sys.exit(1)
-
+        if sys.argv[3] == "1":
+            if not execute_queries(
+                sys.argv[1],
+                when="1577836860",  # 2020-01-01 00:01:00 UTC
+                queries=DATABASE_QUERIES,
+                database=Database.REDIS,
+                socket_family=socket_family,
+            ):
+                sys.exit(1)
         if not milter_protocol_violations(
             sys.argv[1], when="1577836860", socket_family=socket_family
         ):

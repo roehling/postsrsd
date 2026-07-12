@@ -32,8 +32,8 @@ def run_query(sock_stream: SockStream, test_domain: str | None):
         )
 
 
-if __name__ == "__main__":
-    with PostSRSd(sys.argv[1], use_file_watch=True) as daemon:
+def reload_daemon(postsrsd: str, use_file_watch: bool):
+    with PostSRSd(postsrsd, use_file_watch=use_file_watch) as daemon:
         sock = daemon.connect()
         sock_stream = SockStream(sock)
         try:
@@ -48,7 +48,7 @@ if __name__ == "__main__":
                     ]
                 )
             ):
-                if counter % 3 == 0:
+                if counter % 3 == 0 or not use_file_watch:
                     sys.stderr.write("Opening domain file and modifying content\n")
                     with open(daemon.domains_file, "w") as f:
                         f.write(f"{test_domain}\n")
@@ -67,6 +67,9 @@ if __name__ == "__main__":
                     daemon.domains_file.unlink()
                     with open(daemon.domains_file, "w") as f:
                         f.write(f"{test_domain}\n")
+                if not use_file_watch:
+                    sys.stderr.write("Sending reload signal to daemon\n")
+                    daemon.reload()
                 try:
                     # We deliberately keep the connection open and continue querying
                     # PostSRSd. The daemon should close the connection as soon as the
@@ -83,13 +86,22 @@ if __name__ == "__main__":
                 sock = daemon.connect()
                 sock_stream = SockStream(sock)
                 run_query(sock_stream, test_domain)
-                sys.stderr.write(f"PASS: inotify test {counter + 1} [{test_domain}]\n")
+                sys.stderr.write(f"PASS: reload test {counter + 1} [{test_domain}]\n")
                 previous_domain = test_domain
                 if counter == 8:
                     break
         except Exception as e:
             sys.stderr.write(f"*** FAIL: {e.__class__.__name__}: {str(e)}\n")
-            sys.exit(1)
+            return False
         finally:
             sock.close()
+    return True
+
+
+if __name__ == "__main__":
+    if not reload_daemon(sys.argv[1], use_file_watch=False):
+        sys.exit(1)
+    if sys.argv[2] == "1":
+        if not reload_daemon(sys.argv[1], use_file_watch=True):
+            sys.exit(1)
     sys.exit(0)

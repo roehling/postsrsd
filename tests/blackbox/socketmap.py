@@ -26,7 +26,6 @@ def execute_queries(
     queries: Iterable[tuple[str, str]],
     database: Database = Database.NONE,
     socket_family: SocketFamily = SocketFamily.UNIX,
-    reload_between_queries: bool = False,
 ):
     with PostSRSd(
         postsrsd,
@@ -39,36 +38,25 @@ def execute_queries(
         sock_stream = SockStream(sock)
         try:
             for query in queries:
-                while True:
-                    try:
-                        write_netstring(sock_stream, query[0])
-                        result = read_netstring(sock_stream)
-                        break
-                    except ConnectionError:
-                        if reload_between_queries:
-                            sys.stderr.write("(reconnect after reload)\n")
-                            sock.close()
-                            sock = daemon.connect()
-                            sock_stream = SockStream(sock)
-                        else:
-                            raise
+                write_netstring(sock_stream, query[0])
+                result = read_netstring(sock_stream)
                 if result != query[1]:
                     raise AssertionError(
-                        f"{query[0]!r},{database!r},{socket_family!r}: expected reply {query[1]!r}, got: {result!r}"
+                        f"{query[0]!r}: expected reply {query[1]!r}, got: {result!r}"
                     )
-                sys.stderr.write(f"PASS: {query[0]!r},{database!r},{socket_family!r}\n")
-                if reload_between_queries:
-                    daemon.reload()
+                sys.stderr.write(f"PASS: {database!r},{socket_family!r},{query[0]!r}\n")
         except AssertionError as e:
-            sys.stderr.write(f"*** FAIL: {str(e)}\n")
+            sys.stderr.write(f"*** FAIL: {database!r},{socket_family!r},{str(e)}\n")
             return False
         finally:
             sock.close()
     return True
 
 
-def execute_death_tests(postsrsd: str, when: str, queries: Iterable[bytes]):
-    with PostSRSd(postsrsd, when) as daemon:
+def socketmap_protocol_violations(
+    postsrsd: str, when: str, queries: Iterable[bytes], socket_family: SocketFamily
+):
+    with PostSRSd(postsrsd, when=when, socket_family=socket_family) as daemon:
         for query in queries:
             sock = None
             try:
@@ -87,9 +75,9 @@ def execute_death_tests(postsrsd: str, when: str, queries: Iterable[bytes]):
                 except ConnectionError:
                     # Expected behavior
                     pass
-                sys.stderr.write(f"PASS: {query!r}\n")
+                sys.stderr.write(f"PASS: {socket_family!r},{query!r}\n")
             except AssertionError as e:
-                sys.stderr.write(f"*** FAIL: {query!r}: {str(e)}\n")
+                sys.stderr.write(f"*** FAIL: {socket_family!r},{query!r}: {str(e)}\n")
                 return False
             finally:
                 if sock is not None:
@@ -284,32 +272,46 @@ DATABASE_QUERIES = [
 
 if __name__ == "__main__":
     for socket_family in [SocketFamily.UNIX, SocketFamily.IP]:
-        for reload_between_queries in [False, True]:
+        if not execute_queries(
+            sys.argv[1],
+            when="1577836860",  # 2020-01-01 00:01:00 UTC
+            queries=STATELESS_QUERIES,
+            socket_family=socket_family,
+        ):
+            sys.exit(1)
+        if sys.argv[2] == "1":
             if not execute_queries(
                 sys.argv[1],
                 when="1577836860",  # 2020-01-01 00:01:00 UTC
-                queries=STATELESS_QUERIES,
+                queries=DATABASE_QUERIES,
+                database=Database.SQLITE,
                 socket_family=socket_family,
-                reload_between_queries=reload_between_queries,
             ):
                 sys.exit(1)
-            if sys.argv[2] == "1":
-                if not execute_queries(
-                    sys.argv[1],
-                    when="1577836860",  # 2020-01-01 00:01:00 UTC
-                    queries=DATABASE_QUERIES,
-                    database=Database.SQLITE,
-                    socket_family=socket_family,
-                    reload_between_queries=reload_between_queries,
-                ):
-                    sys.exit(1)
-            if sys.argv[3] == "1":
-                if not execute_queries(
-                    sys.argv[1],
-                    when="1577836860",  # 2020-01-01 00:01:00 UTC
-                    queries=DATABASE_QUERIES,
-                    database=Database.REDIS,
-                    socket_family=socket_family,
-                    reload_between_queries=reload_between_queries,
-                ):
-                    sys.exit(1)
+        if sys.argv[3] == "1":
+            if not execute_queries(
+                sys.argv[1],
+                when="1577836860",  # 2020-01-01 00:01:00 UTC
+                queries=DATABASE_QUERIES,
+                database=Database.REDIS,
+                socket_family=socket_family,
+            ):
+                sys.exit(1)
+        if not socketmap_protocol_violations(
+            sys.argv[1],
+            when="1577836860",
+            queries=[
+                # Empty query
+                b"0:,",
+                # Netstring that exceeds the allowed length
+                (b"1024:forward " + b"a" * 1016 + b","),
+                # Old-style TCP table query
+                b"get test@example.com\n",
+                # Excessively large netstring length
+                b"18446744073709551616:some data...",
+                # Invalid netstring terminator
+                b"28:forward test@otherdomain.com;",
+            ],
+            socket_family=socket_family,
+        ):
+            sys.exit(1)

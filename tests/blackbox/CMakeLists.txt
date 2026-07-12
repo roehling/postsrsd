@@ -31,13 +31,9 @@ if(Python3_EXECUTABLE)
             "$<TARGET_FILE:postsrsd>" "$<BOOL:${WITH_SQLITE}>"
             "$<AND:$<BOOL:${WITH_REDIS}>,$<BOOL:${TESTS_WITH_REDIS}>>"
     )
-    if(HAVE_SYS_INOTIFY_H)
-        add_test(
-            NAME test_inotify
-            COMMAND
-                "${Python3_EXECUTABLE}"
-                "${CMAKE_CURRENT_SOURCE_DIR}/inotify.py"
-                "$<TARGET_FILE:postsrsd>"
-        )
-    endif()
+    add_test(
+        NAME test_reload
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/reload.py"
+                "$<TARGET_FILE:postsrsd>" "$<BOOL:${HAVE_SYS_INOTIFY_H}>"
+    )
 endif()
