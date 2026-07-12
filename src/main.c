@@ -813,6 +813,7 @@ int main(int argc, char** argv)
     signal_set_handler(SIGHUP, on_reload_requested);
     signal_set_handler_once(SIGTERM, on_shutdown_requested);
     signal_set_handler_once(SIGINT, on_shutdown_requested);
+    signal_ignore(SIGPIPE);
     sd_notify_support = sd_notify("READY=1\nMAINPID=%d", (int)getpid());
     struct pollfd fds[16];
     int fd_types[sizeof(fds) / sizeof(struct pollfd)];

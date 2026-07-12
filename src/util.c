@@ -1218,3 +1218,12 @@ int signal_set_handler_once(int signum, signal_handler_t handler)
         .sa_handler = handler, .sa_mask = no_signals, .sa_flags = SA_RESETHAND};
     return sigaction(signum, &sact, NULL);
 }
+
+int signal_ignore(int signum)
+{
+    sigset_t no_signals;
+    sigemptyset(&no_signals);
+    struct sigaction sact = {
+        .sa_handler = SIG_IGN, .sa_mask = no_signals, .sa_flags = 0};
+    return sigaction(signum, &sact, NULL);
+}

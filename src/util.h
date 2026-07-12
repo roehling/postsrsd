@@ -139,6 +139,7 @@ void sandbox_release(sandbox_t* sandbox);
 typedef void (*signal_handler_t)(int);
 int signal_set_handler(int signum, signal_handler_t handler);
 int signal_set_handler_once(int signum, signal_handler_t handler);
+int signal_ignore(int signum);
 int signal_reset_handler(int signum);
 
 #endif
