@@ -36,7 +36,7 @@ macro(add_postsrsd_test name)
             ${name}_executable PRIVATE -fsanitize=address,undefined
         )
     endif()
-    add_test(NAME ${name} COMMAND ${name}_executable)
+    add_test(NAME unit_${name} COMMAND ${name}_executable)
 endmacro()
 
 set(SRCDIR ../../src)

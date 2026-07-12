@@ -18,21 +18,21 @@ find_package(Python3 3.5 QUIET)
 
 if(Python3_EXECUTABLE)
     add_test(
-        NAME test_socketmap
+        NAME blackbox_test_socketmap
         COMMAND
             "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/socketmap.py"
             "$<TARGET_FILE:postsrsd>" "$<BOOL:${WITH_SQLITE}>"
             "$<AND:$<BOOL:${WITH_REDIS}>,$<BOOL:${TESTS_WITH_REDIS}>>"
     )
     add_test(
-        NAME test_milter
+        NAME blackbox_test_milter
         COMMAND
             "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/milter.py"
             "$<TARGET_FILE:postsrsd>" "$<BOOL:${WITH_SQLITE}>"
             "$<AND:$<BOOL:${WITH_REDIS}>,$<BOOL:${TESTS_WITH_REDIS}>>"
     )
     add_test(
-        NAME test_reload
+        NAME blackbox_test_daemon_reload
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/reload.py"
                 "$<TARGET_FILE:postsrsd>" "$<BOOL:${HAVE_SYS_INOTIFY_H}>"
     )
