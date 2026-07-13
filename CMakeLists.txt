@@ -308,6 +308,12 @@ configure_file(
 
 if(DEVELOPER_BUILD AND CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     add_compile_options(-Wall -Wextra -Werror)
+    if(CMAKE_C_COMPILER_ID STREQUAL "GNU" AND CMAKE_C_COMPILER_VERSION
+                                              VERSION_LESS 11.0
+    )
+        # isspace() / isalnum() / tolower() / toupper() trigger this warning
+        add_compile_options(-Wno-char-subscripts)
+    endif()
 endif()
 
 add_executable(
