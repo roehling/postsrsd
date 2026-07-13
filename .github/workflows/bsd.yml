@@ -57,7 +57,7 @@ jobs:
         with:
           usesh: true
           prepare: |
-            pkg_add cmake git gmake libconfuse check sqlite3 libhiredis
+            pkg_add cmake git gmake confuse check sqlite3 hiredis
           run: |
             mkdir _build
             cd _build
