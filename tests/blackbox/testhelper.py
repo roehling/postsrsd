@@ -148,14 +148,11 @@ class PostSRSd:
         retcode = self._proc.poll()
         while retcode is None:
             try:
-                data = self._notify_sock.recv(4096)
-                if b"READY=1" in data:
+                data = self._notify_sock.recvmsg(4096)
+                if b"READY=1" in data[0]:
                     break
-            except ConnectionRefusedError:
-                # Solaris seems to enjoy refusing connections from time to time
-                print("(ignoring ConnectionRefusedError)")
-            except TimeoutError:
-                pass
+            except TimeoutError as e:
+                raise RuntimeError("PostSRSd daemon failed to notify") from e
             retcode = self._proc.poll()
         if retcode is not None:
             raise RuntimeError(f"PostSRSd daemon failed with exit code {retcode}")

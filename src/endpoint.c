@@ -76,7 +76,7 @@ static bool create_unix_socket(const char* path, endpoint_t* endpoint)
     endpoint->lock = lock_acquire(path);
     if (endpoint->lock >= 0)
         unlink(path);
-    mode_t old_mask = umask(0111);
+    mode_t old_mask = umask(0);
     int sock = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
     if (sock < 0)
         goto fail;

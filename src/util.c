@@ -1023,10 +1023,14 @@ bool sd_notify(const char* fmt, ...)
         close(fd);
         return false;
     }
-    ssize_t written = write(fd, message, message_len);
+    ssize_t written;
+    do
+    {
+        written = send(fd, message, message_len, MSG_NOSIGNAL);
+    } while (written < 0 && errno == EINTR);
     if (written != (ssize_t)message_len)
     {
-        log_perror(EPROTO, "sd_notify write");
+        log_perror(errno, "sd_notify write");
         close(fd);
         return false;
     }
