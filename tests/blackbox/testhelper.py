@@ -176,7 +176,15 @@ class PostSRSd:
                     os.kill(self._proc.pid, signal.SIGTERM)
             except ProcessLookupError:
                 pass
-            self._proc.wait()
+            try:
+                self._proc.wait(5)
+            except subprocess.TimeoutExpired:
+                print("(PostSRSd does not terminate, escalating to SIGKILL)")
+                try:
+                    os.killpg(os.getpgid(self._proc.pid), signal.SIGKILL)
+                except PermissionError:
+                    os.kill(self._proc.pid, signal.SIGKILL)
+                self._proc.wait()
         self._tmpdir.cleanup()
 
     def connect(self) -> socket.socket:

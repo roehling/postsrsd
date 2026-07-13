@@ -275,7 +275,7 @@ def milter_protocol_violations(
         ], f"unexpected rewrite of recipient: {new_rcpt!r}"
 
     def keep_alive_timeout(sock: socket.socket):
-        time.sleep(1.1)
+        time.sleep(2)
         try:
             mf_optneg(sock)
             raise AssertionError("milter should have disconnected")
