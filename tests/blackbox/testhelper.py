@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+import contextlib
 import enum
 import os
 import pathlib
@@ -96,69 +97,77 @@ class PostSRSd:
         self._tmpdir = tempfile.TemporaryDirectory()
         self._tmpdir_path = pathlib.Path(self._tmpdir.name)
         self._proc: subprocess.Popen[bytes] | None = None
-        socketmap_endpoint = {SocketType.SOCKETMAP: "", SocketType.MILTER: ""}
-        if socket_family == SocketFamily.UNIX:
-            self._family = socket.AF_UNIX
-            self._addr = str(self._tmpdir_path / "postsrsd.sock")
-            socketmap_endpoint[socket_type] = (
-                f'unix:{self._tmpdir_path / "postsrsd.sock"}'
-            )
-        elif socket_family == SocketFamily.IP:
-            self._family = socket.AF_INET
-            self._addr = ("127.0.0.1", 12345)
-            socketmap_endpoint[socket_type] = "inet:127.0.0.1:12345"
-        if database == Database.SQLITE:
-            database_uri = f'sqlite:{self._tmpdir_path / "postsrsd.db"}'
-        elif database == Database.REDIS:
-            database_uri = "redis:localhost:6379"
-        else:
-            database_uri = ""
-        with open(self._tmpdir_path / "postsrsd.conf", "w") as f:
-            f.write(
-                f'domains-file = "{self._tmpdir_path / "postsrsd.domains"}"\n'
-                f'domains-file-watch = {"on" if use_file_watch else "off"}\n'
-                "keep-alive = 1\n"
-                'chroot-dir = ""\n'
-                'unprivileged-user = ""\n'
-                f'original-envelope = {"embedded" if database == Database.NONE else "database"}\n'
-                f'envelope-database = "{database_uri}"\n'
-                f'secrets-file = "{self._tmpdir_path / "postsrsd.secret"}"\n'
-                f'socketmap = "{socketmap_endpoint[SocketType.SOCKETMAP]}"\n'
-                f'milter = "{socketmap_endpoint[SocketType.MILTER]}"\n'
-            )
-        with open(self._tmpdir_path / "postsrsd.secret", "w") as f:
-            f.write("tops3cr3t\n")
-        with open(self._tmpdir_path / "postsrsd.domains", "w") as f:
-            f.write("example.com\n")
-        self._notify_addr = str(self._tmpdir_path / "postsrsd.notify")
-        self._notify_sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM, 0)
-        self._notify_sock.settimeout(5)
-        self._notify_sock.bind(self._notify_addr)
+        self._notify_sock: socket.socket | None = None
+        with contextlib.ExitStack() as on_failure:
+            on_failure.push(self)
+            socketmap_endpoint = {SocketType.SOCKETMAP: "", SocketType.MILTER: ""}
+            if socket_family == SocketFamily.UNIX:
+                self._family = socket.AF_UNIX
+                self._addr = str(self._tmpdir_path / "postsrsd.sock")
+                socketmap_endpoint[socket_type] = (
+                    f'unix:{self._tmpdir_path / "postsrsd.sock"}'
+                )
+            elif socket_family == SocketFamily.IP:
+                self._family = socket.AF_INET
+                self._addr = ("127.0.0.1", 12345)
+                socketmap_endpoint[socket_type] = "inet:127.0.0.1:12345"
+            if database == Database.SQLITE:
+                database_uri = f'sqlite:{self._tmpdir_path / "postsrsd.db"}'
+            elif database == Database.REDIS:
+                database_uri = "redis:localhost:6379"
+            else:
+                database_uri = ""
+            with open(self._tmpdir_path / "postsrsd.conf", "w") as f:
+                f.write(
+                    f'domains-file = "{self._tmpdir_path / "postsrsd.domains"}"\n'
+                    f'domains-file-watch = {"on" if use_file_watch else "off"}\n'
+                    "keep-alive = 1\n"
+                    'chroot-dir = ""\n'
+                    'unprivileged-user = ""\n'
+                    f'original-envelope = {"embedded" if database == Database.NONE else "database"}\n'
+                    f'envelope-database = "{database_uri}"\n'
+                    f'secrets-file = "{self._tmpdir_path / "postsrsd.secret"}"\n'
+                    f'socketmap = "{socketmap_endpoint[SocketType.SOCKETMAP]}"\n'
+                    f'milter = "{socketmap_endpoint[SocketType.MILTER]}"\n'
+                )
+            with open(self._tmpdir_path / "postsrsd.secret", "w") as f:
+                f.write("tops3cr3t\n")
+            with open(self._tmpdir_path / "postsrsd.domains", "w") as f:
+                f.write("example.com\n")
+            self._notify_addr = str(self._tmpdir_path / "postsrsd.notify")
+            self._notify_sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM, 0)
+            self._notify_sock.settimeout(5)
+            self._notify_sock.bind(self._notify_addr)
+            on_failure.pop_all()
 
     def __enter__(self) -> "PostSRSd":
-        env = os.environ.copy()
-        env["NOTIFY_SOCKET"] = self._notify_addr
-        if self._when is not None:
-            env["POSTSRSD_FAKETIME"] = self._when
-        self._proc = subprocess.Popen(
-            [self._executable, "-C", str(self._tmpdir_path / "postsrsd.conf")],
-            start_new_session=True,
-            env=env,
-        )
-        retcode = self._proc.poll()
-        while retcode is None:
-            try:
-                data = self._notify_sock.recvmsg(4096)
-                if b"READY=1" in data[0]:
-                    break
-            except TimeoutError as e:
-                raise RuntimeError("PostSRSd daemon failed to notify") from e
+        with contextlib.ExitStack() as on_failure:
+            on_failure.push(self)
+            env = os.environ.copy()
+            env["NOTIFY_SOCKET"] = self._notify_addr
+            if self._when is not None:
+                env["POSTSRSD_FAKETIME"] = self._when
+            self._proc = subprocess.Popen(
+                [self._executable, "-C", str(self._tmpdir_path / "postsrsd.conf")],
+                start_new_session=True,
+                env=env,
+            )
+            assert self._notify_sock is not None
             retcode = self._proc.poll()
-        if retcode is not None:
-            raise RuntimeError(f"PostSRSd daemon failed with exit code {retcode}")
-        return self
+            while retcode is None:
+                try:
+                    data = self._notify_sock.recvmsg(4096)
+                    if b"READY=1" in data[0]:
+                        break
+                except TimeoutError as e:
+                    raise RuntimeError("PostSRSd daemon failed to notify") from e
+                retcode = self._proc.poll()
+            if retcode is not None:
+                raise RuntimeError(f"PostSRSd daemon failed with exit code {retcode}")
+            on_failure.pop_all()
+            return self
 
-    def __exit__(self, exc_type, exc_value, traceback) -> bool:  # type: ignore
+    def __exit__(self, *exc_args) -> bool:  # type: ignore
         self.cleanup()
         return False
 
@@ -167,7 +176,8 @@ class PostSRSd:
         return self._tmpdir_path / "postsrsd.domains"
 
     def cleanup(self):
-        self._notify_sock.close()
+        if self._notify_sock is not None:
+            self._notify_sock.close()
         if self._proc is not None:
             try:
                 try:
