@@ -12,9 +12,13 @@ Sender Rewriting Scheme daemon for Postfix
 |Linux| |nbsp| |BSD| |nbsp| |Solaris| |nbsp| |Release|
 
 .. |Linux| image:: https://github.com/roehling/postsrsd/actions/workflows/linux.yml/badge.svg
+   :target: https://github.com/roehling/postsrsd/actions/workflows/linux.yml
 .. |BSD| image:: https://github.com/roehling/postsrsd/actions/workflows/bsd.yml/badge.svg
+   :target: https://github.com/roehling/postsrsd/actions/workflows/bsd.yml
 .. |Solaris| image:: https://github.com/roehling/postsrsd/actions/workflows/solaris.yml/badge.svg
+   :target: https://github.com/roehling/postsrsd/actions/workflows/solaris.yml
 .. |Release| image:: https://github.com/roehling/postsrsd/actions/workflows/release.yml/badge.svg
+   :target: https://github.com/roehling/postsrsd/actions/workflows/release.yml
 .. |nbsp| unicode:: 0xA0
 
 Overview
