@@ -87,7 +87,7 @@ bool milter_send_bytes(int fd, char action, const void* data, size_t length)
     struct iovec iov[2];
     packet.length = BE32(1 + length);
     packet.code = action;
-    iov[0].iov_base = &packet;
+    iov[0].iov_base = (void*)&packet;
     iov[0].iov_len = sizeof(milter_packet_t);
     if (length != 0)
     {
@@ -158,7 +158,7 @@ bool milter_send_str_list(int fd, char action, list_t* L)
     milter_packet_t packet;
     packet.length = BE32(1 + length);
     packet.code = action;
-    iov[0].iov_base = &packet;
+    iov[0].iov_base = (void*)&packet;
     iov[0].iov_len = sizeof(milter_packet_t);
     return writev_all(fd, iov, j);
 }

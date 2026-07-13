@@ -111,7 +111,7 @@ int netstring_write(int fd, const char* data, size_t length)
         if (data == NULL)
             return -1;
         size_t n = snprintf(prefix, sizeof(prefix), "%zu:", length);
-        iov[0].iov_base = prefix;
+        iov[0].iov_base = (void*)prefix;
         iov[0].iov_len = n;
         iov[1].iov_base = (void*)data;
         iov[1].iov_len = length;
