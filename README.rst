@@ -9,6 +9,13 @@ PostSRSd
 
 Sender Rewriting Scheme daemon for Postfix
 
+|Linux| |nbsp| |BSD| |nbsp| |Solaris| |nbsp| |Release|
+
+.. |Linux| image:: https://github.com/roehling/postsrsd/actions/workflows/linux.yml/badge.svg
+.. |BSD| image:: https://github.com/roehling/postsrsd/actions/workflows/bsd.yml/badge.svg
+.. |Solaris| image:: https://github.com/roehling/postsrsd/actions/workflows/solaris.yml/badge.svg
+.. |Release| image:: https://github.com/roehling/postsrsd/actions/workflows/release.yml/badge.svg
+.. |nbsp| unicode:: 0xA0
 
 Overview
 --------

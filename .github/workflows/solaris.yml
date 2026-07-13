@@ -1,0 +1,54 @@
+# Copyright 2023-2026 Timo Röhling <timo@gaussglocke.de>
+# SPDX-License-Identifier: FSFAP
+#
+# Copying and distribution of this file, with or without modification, are
+# permitted in any medium without royalty provided the copyright notice and
+# this notice are preserved. This file is offered as-is, without any warranty.
+#
+name: CI (Solaris)
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+permissions:
+  contents: read
+jobs:
+  solaris:
+    runs-on: ubuntu-latest
+    name: Solaris
+    steps:
+      - uses: actions/checkout@v4
+      - uses: vmactions/solaris-vm@v1
+        with:
+          usesh: true
+          release: "11.4-gcc"
+          prepare: |
+            pkgutil -y -i curl flex git gmake autoconf automake
+            curl -Lfso cmake.sh https://github.com/Kitware/CMake/releases/download/v4.4.0/cmake-4.4.0-sunos-x86_64.sh
+            sh cmake.sh --skip-license --prefix=/opt/csw
+          run: |
+            mkdir _build
+            cd _build
+            cmake .. -DDEVELOPER_BUILD=ON -DWITH_SQLITE=ON
+            cmake --build . --verbose
+            ctest --verbose
+  omnios:
+    runs-on: ubuntu-latest
+    name: OmniOS
+    steps:
+      - uses: actions/checkout@v4
+      - uses: vmactions/omnios-vm@v1
+        with:
+          usesh: true
+          release: "r151058-build"
+          prepare: |
+            pkg install cmake git gnu-make autoconf automake
+          run: |
+            mkdir _build
+            cd _build
+            cmake .. -DDEVELOPER_BUILD=ON -DWITH_SQLITE=ON -DWITH_REDIS=ON
+            cmake --build . --verbose
+            ctest --verbose
