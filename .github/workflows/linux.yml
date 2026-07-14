@@ -76,7 +76,7 @@ jobs:
       - uses: actions/checkout@v7
       - name: Install dependencies
         run: |
-          dnf install -y cmake gcc make libconfuse-devel libseccomp-devel hiredis-devel sqlite-devel
+          dnf install -y cmake gcc make python3 check-devel libconfuse-devel libseccomp-devel hiredis-devel sqlite-devel
       - name: Build PostSRSd
         run: |
           mkdir _build
@@ -95,7 +95,7 @@ jobs:
       - uses: actions/checkout@v7
       - name: Install dependencies
         run: |
-          apk add cmake gcc make musl-dev libseccomp-dev confuse-dev hiredis-dev sqlite-dev
+          apk add cmake gcc make python3 musl-dev check-dev libseccomp-dev confuse-dev hiredis-dev sqlite-dev
       - name: Build PostSRSd
         run: |
           mkdir _build
