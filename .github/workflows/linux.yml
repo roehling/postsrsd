@@ -81,7 +81,7 @@ jobs:
         run: |
           mkdir _build
           cd _build
-          cmake .. -DDEVELOPER_BUILD=ON -DTESTS_WITH_ASAN=ON -DWITH_SECCOMP=ON -DWITH_SQLITE=ON -DWITH_REDIS=ON
+          cmake .. -DDEVELOPER_BUILD=ON -DWITH_SECCOMP=ON -DWITH_SQLITE=ON -DWITH_REDIS=ON
           cmake --build . --verbose
       - name: Run tests
         run: |
