@@ -22,6 +22,7 @@ import signal
 import socket
 import subprocess
 import tempfile
+import threading
 
 
 class SocketType(enum.Enum):
@@ -136,9 +137,27 @@ class PostSRSd:
                 f.write("example.com\n")
             self._notify_addr = str(self._tmpdir_path / "postsrsd.notify")
             self._notify_sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM, 0)
-            self._notify_sock.settimeout(5)
+            self._notify_sock.settimeout(1)
             self._notify_sock.bind(self._notify_addr)
+            self._ready = 0
+            self._notify_thread = threading.Thread(target=self._notify_thread_run)
+            self._notify_cv = threading.Condition(lock=threading.Lock())
+            self._notify_thread.start()
             on_failure.pop_all()
+
+    def _notify_thread_run(self):
+        try:
+            while self._notify_sock is not None:
+                try:
+                    data = self._notify_sock.recv(4096)
+                    if b"READY=1" in data:
+                        with self._notify_cv:
+                            self._ready += 1
+                            self._notify_cv.notify()
+                except TimeoutError:
+                    pass
+        except OSError:
+            pass
 
     def __enter__(self) -> "PostSRSd":
         with contextlib.ExitStack() as on_failure:
@@ -152,16 +171,14 @@ class PostSRSd:
                 start_new_session=True,
                 env=env,
             )
-            assert self._notify_sock is not None
+            with self._notify_cv:
+                if not self._notify_cv.wait_for(
+                    lambda: self._ready > 0
+                    or (self._proc is not None and self._proc.poll() is not None),
+                    5.0,
+                ):
+                    raise RuntimeError("PostSRSd daemon failed to notify")
             retcode = self._proc.poll()
-            while retcode is None:
-                try:
-                    data = self._notify_sock.recvmsg(4096)
-                    if b"READY=1" in data[0]:
-                        break
-                except TimeoutError as e:
-                    raise RuntimeError("PostSRSd daemon failed to notify") from e
-                retcode = self._proc.poll()
             if retcode is not None:
                 raise RuntimeError(f"PostSRSd daemon failed with exit code {retcode}")
             on_failure.pop_all()
@@ -178,6 +195,7 @@ class PostSRSd:
     def cleanup(self):
         if self._notify_sock is not None:
             self._notify_sock.close()
+            self._notify_sock = None
         if self._proc is not None:
             try:
                 try:
@@ -217,14 +235,3 @@ class PostSRSd:
         if retcode is not None:
             raise RuntimeError(f"PostSRSd daemon failed with exit code {retcode}")
         os.kill(self._proc.pid, signal.SIGHUP)
-        if self._notify_sock is not None:
-            while retcode is None:
-                try:
-                    data = self._notify_sock.recvmsg(4096)
-                    if b"READY=1" in data[0]:
-                        break
-                except TimeoutError as e:
-                    raise RuntimeError("PostSRSd daemon failed to notify") from e
-                retcode = self._proc.poll()
-            if retcode is not None:
-                raise RuntimeError(f"PostSRSd daemon failed with exit code {retcode}")
