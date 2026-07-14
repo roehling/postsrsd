@@ -217,3 +217,14 @@ class PostSRSd:
         if retcode is not None:
             raise RuntimeError(f"PostSRSd daemon failed with exit code {retcode}")
         os.kill(self._proc.pid, signal.SIGHUP)
+        if self._notify_sock is not None:
+            while retcode is None:
+                try:
+                    data = self._notify_sock.recvmsg(4096)
+                    if b"READY=1" in data[0]:
+                        break
+                except TimeoutError as e:
+                    raise RuntimeError("PostSRSd daemon failed to notify") from e
+                retcode = self._proc.poll()
+            if retcode is not None:
+                raise RuntimeError(f"PostSRSd daemon failed with exit code {retcode}")
