@@ -20,10 +20,11 @@ jobs:
     runs-on: ubuntu-latest
     name: FreeBSD
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: vmactions/freebsd-vm@v1
         with:
           usesh: true
+          copyback: false
           prepare: |
             pkg install -y cmake git gmake libconfuse check sqlite3 hiredis
           run: |
@@ -36,10 +37,11 @@ jobs:
     runs-on: ubuntu-latest
     name: OpenBSD
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: vmactions/openbsd-vm@v1
         with:
           usesh: true
+          copyback: false
           prepare: |
             pkg_add cmake git gmake libconfuse check sqlite3 libhiredis
           run: |
@@ -52,10 +54,11 @@ jobs:
     runs-on: ubuntu-latest
     name: NetBSD
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: vmactions/netbsd-vm@v1
         with:
           usesh: true
+          copyback: false
           prepare: |
             pkg_add cmake git gmake confuse check sqlite3 hiredis
           run: |
@@ -68,7 +71,7 @@ jobs:
     runs-on: macos-latest
     name: MacOS
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install dependencies
         run: |
           brew install gcc python cmake git confuse check sqlite hiredis

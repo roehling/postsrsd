@@ -20,11 +20,12 @@ jobs:
     runs-on: ubuntu-latest
     name: Solaris
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: vmactions/solaris-vm@v1
         with:
           usesh: true
           release: "11.4-gcc"
+          copyback: false
           prepare: |
             pkgutil -y -i curl flex git gmake autoconf automake
             curl -Lfso cmake.sh https://github.com/Kitware/CMake/releases/download/v4.4.0/cmake-4.4.0-sunos-x86_64.sh
@@ -39,11 +40,12 @@ jobs:
     runs-on: ubuntu-latest
     name: OmniOS
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: vmactions/omnios-vm@v1
         with:
           usesh: true
           release: "r151058-build"
+          copyback: false
           prepare: |
             pkg install cmake git gnu-make autoconf automake
           run: |
