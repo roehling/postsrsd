@@ -201,7 +201,7 @@ int srs_timestamp_create(srs_t* srs __attribute__((unused)), char* buf,
 int srs_timestamp_check(srs_t* srs, const char* stamp)
 {
     const char* sp;
-    char* bp;
+    const char* bp;
     int off;
     time_t now;
     time_t then;
@@ -551,26 +551,25 @@ int srs_forward(srs_t* srs, char* buf, unsigned buflen, const char* sender,
                 const char* alias)
 {
     char* sendhost;
-    char* tmp;
+    const char* at;
     unsigned len;
 
     if (srs->noforward)
         return SRS_ENOTREWRITTEN;
 
     /* This is allowed to be a plain domain */
-    while ((tmp = strchr(alias, '@')) != NULL)
-        alias = tmp + 1;
+    while ((at = strchr(alias, '@')) != NULL)
+        alias = at + 1;
 
-    tmp = strchr(sender, '@');
-    if (tmp == NULL)
+    at = strchr(sender, '@');
+    if (at == NULL)
         return SRS_ENOSENDERATSIGN;
-    sendhost = tmp + 1;
 
     len = strlen(sender);
 
     if (!srs->alwaysrewrite)
     {
-        if (strcasecmp(sendhost, alias) == 0)
+        if (strcasecmp(at + 1, alias) == 0)
         {
             if (strlen(sender) >= buflen)
                 return SRS_EBUFTOOSMALL;
@@ -581,7 +580,7 @@ int srs_forward(srs_t* srs, char* buf, unsigned buflen, const char* sender,
 
     char senduser[len + 1];
     strcpy(senduser, sender);
-    tmp = (senduser + (tmp - sender));
+    char* tmp = (senduser + (at - sender));
     sendhost = tmp + 1;
     *tmp = '\0';
 
