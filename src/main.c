@@ -193,7 +193,16 @@ retry:
         log_perror(errno, "waitpid");
         return false;
     }
-    return (WEXITSTATUS(status) == EXIT_SUCCESS);
+    if (WIFEXITED(status))
+    {
+        return (WEXITSTATUS(status) == EXIT_SUCCESS);
+    }
+    if (WIFSIGNALED(status))
+    {
+        log_error("Worker process was terminated with signal %d",
+                  (int)WTERMSIG(status));
+    }
+    return false;
 }
 
 static bool daemonize(postsrsd_t* state)
@@ -938,10 +947,16 @@ int main(int argc, char** argv)
             pid = waitpid(0, &child_status, WNOHANG);
             if (pid > 0)
             {
-                if (WEXITSTATUS(child_status) != EXIT_SUCCESS)
+                if (WIFEXITED(child_status)
+                    && WEXITSTATUS(child_status) != EXIT_SUCCESS)
                 {
                     log_warn("child process %d exited with status code %d", pid,
                              WEXITSTATUS(child_status));
+                }
+                if (WIFSIGNALED(child_status))
+                {
+                    log_warn("child process %d was terminated by signal %d",
+                             pid, WTERMSIG(child_status));
                 }
                 pid_set_remove(P, pid);
             }
