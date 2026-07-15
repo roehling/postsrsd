@@ -95,12 +95,12 @@ def execute_queries(
         socket_family=socket_family,
         socket_type=SocketType.MILTER,
     ) as daemon:
+        sock = daemon.connect()
+        assert mf_optneg(sock), "milter option negotation failed"
         for query in queries:
             orig_from, orig_rcpts = query[0]
             result, new_from, new_rcpts = query[1]
-            sock = daemon.connect()
             try:
-                assert mf_optneg(sock), "milter option negotation failed"
                 srs_from = None
                 srs_rcpts = None
                 mf_macro(sock, b"M")
@@ -129,8 +129,7 @@ def execute_queries(
                     f"*** FAIL: {database!r},{socket_family!r},{query[0]!r}: {str(e)}\n"
                 )
                 return False
-            finally:
-                sock.close()
+        sock.close()
     return True
 
 
