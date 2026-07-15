@@ -1105,11 +1105,17 @@ sandbox_t* sandbox_init()
         goto fail;
     if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(openat), 0) < 0)
         goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(openat2), 0) < 0)
+        goto fail;
     if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(pread64), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(preadv), 0) < 0)
         goto fail;
     if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(preadv2), 0) < 0)
         goto fail;
     if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(pwrite64), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(pwritev), 0) < 0)
         goto fail;
     if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(pwritev2), 0) < 0)
         goto fail;
