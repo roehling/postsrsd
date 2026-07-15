@@ -779,6 +779,31 @@ static size_t setup_poll(postsrsd_t* state, struct pollfd* fds, int* fd_types,
     return num_fds;
 }
 
+static void collect_finished_workers(pid_set_t* P)
+{
+    pid_t pid;
+    int child_status;
+    do
+    {
+        pid = waitpid(0, &child_status, WNOHANG);
+        if (pid > 0)
+        {
+            if (WIFEXITED(child_status)
+                && WEXITSTATUS(child_status) != EXIT_SUCCESS)
+            {
+                log_warn("child process %d exited with status code %d",
+                         (int)pid, WEXITSTATUS(child_status));
+            }
+            if (WIFSIGNALED(child_status))
+            {
+                log_warn("child process %d was terminated by signal %d",
+                         (int)pid, WTERMSIG(child_status));
+            }
+            pid_set_remove(P, pid);
+        }
+    } while (pid > 0);
+}
+
 int main(int argc, char** argv)
 {
     postsrsd_t state;
@@ -828,8 +853,6 @@ int main(int argc, char** argv)
     int fd_types[sizeof(fds) / sizeof(struct pollfd)];
     size_t num_fds =
         setup_poll(&state, fds, fd_types, sizeof(fds) / sizeof(struct pollfd));
-    pid_t pid;
-    int child_status;
     for (;;)
     {
         if (shutdown_requested)
@@ -906,7 +929,7 @@ int main(int argc, char** argv)
                         log_perror(errno, "accept");
                         continue;
                     }
-                    pid = fork();
+                    pid_t pid = fork();
                     if (pid == 0)
                     {
                         endpoint_release(state.socketmap);
@@ -942,31 +965,14 @@ int main(int argc, char** argv)
                 }
             }
         }
-        do
-        {
-            pid = waitpid(0, &child_status, WNOHANG);
-            if (pid > 0)
-            {
-                if (WIFEXITED(child_status)
-                    && WEXITSTATUS(child_status) != EXIT_SUCCESS)
-                {
-                    log_warn("child process %d exited with status code %d", pid,
-                             WEXITSTATUS(child_status));
-                }
-                if (WIFSIGNALED(child_status))
-                {
-                    log_warn("child process %d was terminated by signal %d",
-                             pid, WTERMSIG(child_status));
-                }
-                pid_set_remove(P, pid);
-            }
-        } while (pid > 0);
+        collect_finished_workers(P);
     }
 shutdown:
     if (pf != NULL)
         fclose(pf);
     finalize_state(&state);
     sandbox_release(sandbox);
+    collect_finished_workers(P);
     pid_set_kill(P, SIGTERM);
     pid_set_wait(P);
     pid_set_destroy(P);
