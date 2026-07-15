@@ -1046,10 +1046,6 @@ sandbox_t* sandbox_init()
     if (scmp_ctx == NULL)
         return NULL;
     /* Syscalls without database access */
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(fstat), 0) < 0)
-        goto fail;
-    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(stat), 0) < 0)
-        goto fail;
     if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(read), 0) < 0)
         goto fail;
     if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(readv), 0) < 0)
@@ -1091,6 +1087,10 @@ sandbox_t* sandbox_init()
         goto fail;
 #    ifdef WITH_SQLITE
     /* Syscalls for SQlite database access */
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(fstat), 0) < 0)
+        goto fail;
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(stat), 0) < 0)
+        goto fail;
     if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(getpid), 0) < 0)
         goto fail;
     if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(geteuid), 0) < 0)
@@ -1124,6 +1124,10 @@ sandbox_t* sandbox_init()
     if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(fdatasync), 0) < 0)
         goto fail;
     if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ALLOW, SCMP_SYS(unlink), 0) < 0)
+        goto fail;
+    /* SQLite calls fchown if it detects that it is run as root */
+    if (seccomp_rule_add(scmp_ctx, SCMP_ACT_ERRNO(EPERM), SCMP_SYS(fchown), 0)
+        < 0)
         goto fail;
 #    endif
 #    ifdef WITH_REDIS

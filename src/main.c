@@ -796,8 +796,21 @@ static void collect_finished_workers(pid_set_t* P)
             }
             if (WIFSIGNALED(child_status))
             {
-                log_warn("child process %d was terminated by signal %d",
-                         (int)pid, WTERMSIG(child_status));
+                switch (WTERMSIG(child_status))
+                {
+#if defined(WITH_SECCOMP) && defined(SIGSYS)
+                    case SIGSYS:
+                        log_error(
+                            "child process %d was terminated due to a sandbox "
+                            "violation",
+                            (int)pid);
+                        break;
+#endif
+                    default:
+                        log_warn("child process %d was terminated by signal %d",
+                                 (int)pid, WTERMSIG(child_status));
+                        break;
+                }
             }
             pid_set_remove(P, pid);
         }
