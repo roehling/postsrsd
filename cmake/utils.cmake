@@ -9,6 +9,28 @@ include(CMakeParseArguments)
 include(ExternalProject)
 include(FetchContent)
 
+function(fetchcontent_makeavailable_override name)
+    foreach(override IN ITEMS ${ARGN})
+        if(override MATCHES "^([A-Z_0-9]+):([A-Z]+)=(.*)")
+            set(saved_${CMAKE_MATCH_1} "${${CMAKE_MATCH_1}}")
+            unset(${CMAKE_MATCH_1})
+            set(${CMAKE_MATCH_1}
+                "${CMAKE_MATCH_3}"
+                CACHE "${CMAKE_MATCH_2}" "" FORCE
+            )
+        endif()
+    endforeach()
+    FetchContent_MakeAvailable(${name})
+    foreach(override IN ITEMS ${ARGN})
+        if(override MATCHES "^([A-Z_0-9]+):([A-Z]+)=(.*)")
+            set(${CMAKE_MATCH_1}
+                "${saved_${CMAKE_MATCH_1}}"
+                CACHE "${CMAKE_MATCH_2}" "" FORCE
+            )
+        endif()
+    endforeach()
+endfunction()
+
 function(add_autotools_dependency name)
     cmake_parse_arguments(arg "" "LIBRARY_NAME;EXPORTED_TARGET" "" ${ARGN})
     FetchContent_MakeAvailable(${name})

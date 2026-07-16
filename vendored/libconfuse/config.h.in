@@ -1,0 +1,28 @@
+/* PostSRSd - Sender Rewriting Scheme daemon for Postfix
+ * Copyright 2026 Timo Röhling <timo@gaussglocke.de>
+ * SPDX-License-Identifier: FSFUL
+ *
+ * The copyright holder gives unlimited permission to copy, distribute and modify
+ * this file.
+ */
+#ifndef LIBCONFUSE_CONFIG_H
+#define LIBCONFUSE_CONFIG_H
+
+#define PACKAGE_STRING "@LIBCONFUSE_NAME@"
+#define PACKAGE_VERSION "@LIBCONFUSE_VERSION@"
+
+#cmakedefine HAVE_STRING_H 1
+#cmakedefine HAVE_SYS_STAT_H 1
+#cmakedefine HAVE_UNISTD_H 1
+#cmakedefine HAVE_FILENO 1
+#cmakedefine HAVE_FMEMOPEN 1
+#cmakedefine HAVE_ISATTTY 1
+#cmakedefine HAVE_REALLOCARRAY 1
+#cmakedefine HAVE_SETENV 1
+#cmakedefine HAVE_STRCASECMP 1
+#cmakedefine HAVE_STRDUP 1
+#cmakedefine HAVE_STRNDUP 1
+#cmakedefine HAVE_UNSETENV 1
+#cmakedefine HAVE__PUTENV 1
+
+#endif

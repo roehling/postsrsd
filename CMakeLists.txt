@@ -144,6 +144,7 @@ else()
 endif()
 
 mark_as_advanced(
+    BUILD_SHARED_LIBS
     TESTS_WITH_ASAN
     TESTS_WITH_REDIS
     GENERATE_SRS_SECRET
@@ -159,7 +160,7 @@ mark_as_advanced(
 )
 
 FetchContent_Declare(
-    Confuse
+    libconfuse
     URL https://github.com/libconfuse/libconfuse/releases/download/v3.3/confuse-3.3.tar.gz
     URL_HASH
         SHA3_256=da895d91a7755941872e73ff6522fd16810f1599862990df569459a0eee94515
@@ -224,22 +225,68 @@ endif()
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 find_package(Threads QUIET)
 
-add_autotools_dependency(
-    Confuse
-    LIBRARY_NAME confuse
-    EXPORTED_TARGET Confuse::Confuse
-)
+FetchContent_MakeAvailable(libconfuse)
+if(IS_DIRECTORY "${libconfuse_SOURCE_DIR}")
+    set(saved_CMAKE_REQUIRED_DEFINITIONS "${CMAKE_REQUIRED_DEFINITIONS}")
+    list(APPEND CMAKE_REQUIRED_DEFINITIONS "-D_GNU_SOURCE"
+         "-D_FILE_OFFSET_BITS=64"
+    )
+    check_include_file(string.h HAVE_STRING_H)
+    check_include_file(strings.h HAVE_STRINGS_H)
+    check_include_file(sys/stat.h HAVE_SYS_STAT_H)
+    check_include_file(unistd.h HAVE_UNISTD_H)
+    check_include_file(windows.h HAVE_WINDOWS_H)
+    check_symbol_exists(fileno stdio.h HAVE_FILENO)
+    check_symbol_exists(fmemopen stdio.h HAVE_FMEMOPEN)
+    check_symbol_exists(funopen stdio.h HAVE_FUNOPEN)
+    check_symbol_exists(isatty unistd.h HAVE_ISATTY)
+    check_symbol_exists(reallocarray stdlib.h HAVE_REALLOCARRAY)
+    check_symbol_exists(strcasecmp string.h HAVE_STRCASECMP)
+    check_symbol_exists(strdup string.h HAVE_STRDUP)
+    check_symbol_exists(strndup string.h HAVE_STRNDUP)
+    check_symbol_exists(setenv stdlib.h HAVE_SETENV)
+    check_symbol_exists(unsetenv stdlib.h HAVE_UNSETENV)
+    check_symbol_exists(_putenv windows.h HAVE__PUTENV)
+    set(CMAKE_REQUIRED_DEFINITIONS "${saved_CMAKE_REQUIRED_DEFINITIONS}")
+    file(READ "${libconfuse_SOURCE_DIR}/configure.ac" content)
+    if(content MATCHES "AC_INIT\\(([^ ,]+), *([^ ,]+)")
+        set(LIBCONFUSE_NAME "${CMAKE_MATCH_1}")
+        set(LIBCONFUSE_VERSION "${CMAKE_MATCH_2}")
+    endif()
+    configure_file(
+        vendored/libconfuse/config.h.in
+        ${CMAKE_CURRENT_BINARY_DIR}/libconfuse/config.h
+    )
+    find_package(FLEX)
+    if(FLEX_FOUND)
+        flex_target(
+            libconfuse ${libconfuse_SOURCE_DIR}/src/lexer.l
+            ${CMAKE_CURRENT_BINARY_DIR}/lexer.c COMPILE_FLAGS -Pcfg_yy
+        )
+        set(LEXER_C ${FLEX_libconfuse_OUTPUTS})
+    else()
+        set(LEXER_C vendored/libconfuse/lexer.c)
+    endif()
+    add_library(
+        confuse STATIC
+        ${libconfuse_SOURCE_DIR}/src/confuse.c ${LEXER_C}
+        $<$<NOT:$<BOOL:${HAVE_FMEMOPEN}>>:src/fmemopen.c>
+        $<$<NOT:$<BOOL:${HAVE_REALLOCARRAY}>>:src/reallocarray.c>
+    )
+    target_compile_definitions(
+        confuse PRIVATE HAVE_CONFIG_H=1 _FILE_OFFSET_BITS=64
+    )
+    target_include_directories(
+        confuse PUBLIC $<BUILD_INTERFACE:${libconfuse_SOURCE_DIR}/src>
+                       ${CMAKE_CURRENT_BINARY_DIR}/libconfuse
+    )
+    add_library(libconfuse::confuse ALIAS confuse)
+endif()
 
 if(WITH_REDIS)
-    set(DISABLE_TESTS
-        ON
-        CACHE BOOL "" FORCE
+    fetchcontent_makeavailable_override(
+        Hiredis DISABLE_TESTS:BOOL=ON BUILD_SHARED_LIBS:BOOL=OFF
     )
-    set(BUILD_SHARED_LIBS
-        OFF
-        CACHE BOOL "" FORCE
-    )
-    FetchContent_MakeAvailable(Hiredis)
     mark_as_advanced(
         ENABLE_ASYNC_TESTS
         ENABLE_SSL_TESTS
@@ -247,7 +294,6 @@ if(WITH_REDIS)
         ENABLE_NUGET
         ENABLE_EXAMPLES
         DISABLE_TESTS
-        BUILD_SHARED_LIBS
         hiredis_export_name
     )
     if(IS_DIRECTORY "${hiredis_SOURCE_DIR}")
@@ -335,7 +381,7 @@ target_include_directories(postsrsd PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 target_compile_features(postsrsd PRIVATE c_std_99)
 target_link_libraries(
     postsrsd
-    PRIVATE Confuse::Confuse
+    PRIVATE libconfuse::confuse
             $<$<BOOL:${WITH_SQLITE}>:sqlite3::sqlite3>
             $<$<BOOL:${WITH_REDIS}>:${HIREDIS_TARGET}>
             $<$<BOOL:${WITH_SECCOMP}>:seccomp::seccomp>

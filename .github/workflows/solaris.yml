@@ -27,7 +27,7 @@ jobs:
           release: "11.4-gcc"
           copyback: false
           prepare: |
-            pkgutil -y -i curl flex git gmake autoconf automake
+            pkgutil -y -i curl flex git gmake
             curl -Lfso cmake.sh https://github.com/Kitware/CMake/releases/download/v4.4.0/cmake-4.4.0-sunos-x86_64.sh
             sh cmake.sh --skip-license --prefix=/opt/csw
           run: |
@@ -47,7 +47,7 @@ jobs:
           release: "r151058-build"
           copyback: false
           prepare: |
-            pkg install cmake git gnu-make autoconf automake
+            pkg install cmake git gnu-make
           run: |
             mkdir _build
             cd _build

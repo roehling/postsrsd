@@ -54,5 +54,5 @@ add_postsrsd_test(
     test_config ${SRCDIR}/config.c ${SRCDIR}/sha1.c ${SRCDIR}/srs2.c
     ${SRCDIR}/util.c
 )
-target_link_libraries(test_config_executable PRIVATE Confuse::Confuse)
+target_link_libraries(test_config_executable PRIVATE libconfuse::confuse)
 add_postsrsd_test(test_milter ${SRCDIR}/milter.c ${SRCDIR}/util.c)
