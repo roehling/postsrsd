@@ -106,3 +106,22 @@ jobs:
         run: |
           cd _build
           ctest --verbose
+  archlinux:
+    name: Arch Linux
+    runs-on: ubuntu-latest
+    container: archlinux:base
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install dependencies
+        run: |
+          pacman -Syu cmake gcc make python3 confuse check libseccomp hiredis sqlite
+      - name: Build PostSRSd
+        run: |
+          mkdir _build
+          cd _build
+          cmake .. -DDEVELOPER_BUILD=ON -DWITH_SECCOMP=ON -DWITH_SQLITE=ON -DWITH_REDIS=ON
+          cmake --build . --verbose
+      - name: Run tests
+        run: |
+          cd _build
+          ctest --verbose
