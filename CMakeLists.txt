@@ -254,7 +254,7 @@ if(IS_DIRECTORY "${libconfuse_SOURCE_DIR}")
         set(LIBCONFUSE_VERSION "${CMAKE_MATCH_2}")
     endif()
     configure_file(
-        vendored/libconfuse/config.h.in
+        misc/libconfuse/config.h.in
         ${CMAKE_CURRENT_BINARY_DIR}/libconfuse/config.h
     )
     find_package(FLEX)
@@ -265,7 +265,7 @@ if(IS_DIRECTORY "${libconfuse_SOURCE_DIR}")
         )
         set(LEXER_C ${FLEX_libconfuse_OUTPUTS})
     else()
-        set(LEXER_C vendored/libconfuse/lexer.c)
+        set(LEXER_C ${libconfuse_SOURCE_DIR}/src/lexer.c)
     endif()
     add_library(
         confuse STATIC
