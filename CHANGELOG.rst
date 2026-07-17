@@ -7,6 +7,22 @@
 Changelog
 #########
 
+2.3.0
+=====
+
+Changed
+-------
+
+* Some code has been refactored to improve robustness and compatibility with
+  different operating systems. Tested with: Arch Linux, Alpine Linux,
+  Debian, Fedora, FreeBSD, MacOS, NetBSD, OmniOS, OpenBSD, Solaris, and Ubuntu.
+
+Added
+-----
+
+* Improved diagnostics for errors in the worker process, especially if the
+  worker process is killed due to a seccomp violation.
+
 2.2.7
 =====
 

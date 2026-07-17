@@ -14,10 +14,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-cmake_minimum_required(VERSION 3.24...4.3)
+cmake_minimum_required(VERSION 3.24...4.4)
 project(
     postsrsd
-    VERSION 2.2.7
+    VERSION 2.3.0
     LANGUAGES C
     DESCRIPTION "Sender Rewriting Scheme daemon for Postfix"
     HOMEPAGE_URL "https://github.com/roehling/postsrsd"
