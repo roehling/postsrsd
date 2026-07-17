@@ -20,6 +20,7 @@ import os
 import pathlib
 import signal
 import socket
+import struct
 import subprocess
 import tempfile
 import threading
@@ -59,16 +60,26 @@ class SockStream:
         self._rdbuf = self._rdbuf[remaining:]
         return result
 
+    def __enter__(self) -> "SockStream":
+        return self
+
+    def __exit__(self, *exc_info):  # type: ignore
+        self._sock.close()
+        return False
+
     def write(self, data: bytes):
         self._sock.sendall(data)
 
+    def close(self):
+        self._sock.close()
 
-def write_netstring(sock_stream: SockStream, data: str):
+
+def netstring_write(sock_stream: SockStream, data: str):
     data_bytes = data.encode()
     sock_stream.write(f"{len(data_bytes)}:".encode() + data_bytes + b",")
 
 
-def read_netstring(sock_stream: SockStream):
+def netstring_read(sock_stream: SockStream):
     digit = sock_stream.read(1)
     data_size = 0
     while digit >= b"0" and digit <= b"9":
@@ -81,6 +92,16 @@ def read_netstring(sock_stream: SockStream):
     if comma != b",":
         raise ValueError("invalid netstring")
     return data.decode()
+
+
+def milter_write(sock_stream: SockStream, data: bytes):
+    sock_stream.write(struct.pack(">L", len(data)) + data)
+
+
+def milter_read(sock_stream: SockStream) -> bytes:
+    size_bytes = sock_stream.read(4)
+    size = struct.unpack(">L", size_bytes)
+    return sock_stream.read(*size)
 
 
 class PostSRSd:
@@ -99,6 +120,7 @@ class PostSRSd:
         self._tmpdir_path = pathlib.Path(self._tmpdir.name)
         self._proc: subprocess.Popen[bytes] | None = None
         self._notify_sock: socket.socket | None = None
+        self._notify_thread: threading.Thread | None = None
         with contextlib.ExitStack() as on_failure:
             on_failure.push(self)
             socketmap_endpoint = {SocketType.SOCKETMAP: "", SocketType.MILTER: ""}
@@ -213,6 +235,8 @@ class PostSRSd:
                 except PermissionError:
                     os.kill(self._proc.pid, signal.SIGKILL)
                 self._proc.wait()
+        if self._notify_thread is not None:
+            self._notify_thread.join()
         self._tmpdir.cleanup()
 
     def connect(self) -> socket.socket:
@@ -228,6 +252,9 @@ class PostSRSd:
                 print("(ignoring ConnectionRefusedError)")
             retcode = self._proc.poll()
         raise RuntimeError(f"PostSRSd daemon failed with exit code {retcode}")
+
+    def connect_stream(self) -> SockStream:
+        return SockStream(self.connect())
 
     def reload(self):
         assert self._proc is not None, "cannot reload daemon if it is not running"

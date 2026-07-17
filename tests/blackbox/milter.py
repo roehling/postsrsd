@@ -21,61 +21,45 @@ import time
 from testhelper import *
 
 
-def send_milter(sock: socket.socket, code: bytes, data: bytes):
-    sock.sendall(struct.pack(">Lc", len(data) + 1, code) + data)
+def mf_optneg(sock_stream: SockStream) -> bool:
+    milter_write(sock_stream, struct.pack(">cLLL", b"O", 6, 0xFF, 0xFF))
+    return milter_read(sock_stream)[:1] == b"O"
 
 
-def recv_milter(sock: socket.socket) -> tuple[bytes, bytes]:
-    size_bytes = sock.recv(4)
-    if not size_bytes:
-        raise ConnectionResetError("cannot read milter packet from socket")
-    size = struct.unpack(">L", size_bytes)
-    data = sock.recv(*size)
-    if not data:
-        raise ConnectionResetError("cannot read milter packet from socket")
-    return data[:1], data[1:]
+def mf_macro(sock_stream: SockStream, code: bytes):
+    milter_write(sock_stream, b"D" + code + b"i\x0001234567\x00")
 
 
-def mf_optneg(sock: socket.socket) -> bool:
-    send_milter(sock, b"O", struct.pack(">LLL", 6, 0xFF, 0xFF))
-    code, _ = recv_milter(sock)
-    return code == b"O"
+def mf_envfrom(sock_stream: SockStream, envfrom: str) -> bytes:
+    milter_write(sock_stream, b"M<" + envfrom.encode() + b">\x00")
+    return milter_read(sock_stream)[:1]
 
 
-def mf_macro(sock: socket.socket, code: bytes):
-    send_milter(sock, b"D", code + b"i\x0001234567\x00")
+def mf_rcptto(sock_stream: SockStream, rcptto: str) -> bytes:
+    milter_write(sock_stream, b"R<" + rcptto.encode() + b">\x00")
+    return milter_read(sock_stream)[:1]
 
 
-def mf_envfrom(sock: socket.socket, envfrom: str) -> bytes:
-    send_milter(sock, b"M", b"<" + envfrom.encode() + b">\x00")
-    code, _ = recv_milter(sock)
-    return code
-
-
-def mf_rcptto(sock: socket.socket, rcptto: str) -> bytes:
-    send_milter(sock, b"R", b"<" + rcptto.encode() + b">\x00")
-    code, _ = recv_milter(sock)
-    return code
-
-
-def mf_eom(sock: socket.socket) -> tuple[bytes, str | None, list[str] | None]:
+def mf_eom(sock_stream: SockStream) -> tuple[bytes, str | None, list[str] | None]:
     new_from = None
     new_rcpts: list[str] | None = None
-    send_milter(sock, b"E", b"")
-    code, data = recv_milter(sock)
+    milter_write(sock_stream, b"E")
+    data = milter_read(sock_stream)
+    code = data[:1]
     while code in [b"+", b"-", b"e"]:
         if code == b"+":
-            new_rcpt = data[:-1].decode()
+            new_rcpt = data[1:-1].decode()
             if new_rcpt[0] == "<" and new_rcpt[-1] == ">":
                 new_rcpt = new_rcpt[1:-2]
             if new_rcpts is None:
                 new_rcpts = list()
             new_rcpts.append(new_rcpt)
         if code == b"e":
-            new_from = data[:-1].decode()
+            new_from = data[1:-1].decode()
             if new_from[0] == "<" and new_from[-1] == ">":
                 new_from = new_from[1:-2]
-        code, data = recv_milter(sock)
+        data = milter_read(sock_stream)
+        code = data[:1]
     return code, new_from, new_rcpts
 
 
@@ -95,41 +79,42 @@ def execute_queries(
         socket_family=socket_family,
         socket_type=SocketType.MILTER,
     ) as daemon:
-        sock = daemon.connect()
-        assert mf_optneg(sock), "milter option negotation failed"
-        for query in queries:
-            orig_from, orig_rcpts = query[0]
-            result, new_from, new_rcpts = query[1]
-            try:
-                srs_from = None
-                srs_rcpts = None
-                mf_macro(sock, b"M")
-                srs_result = mf_envfrom(sock, orig_from)
-                if srs_result == b"c":
-                    mf_macro(sock, b"R")
-                    for orig_rcpt in orig_rcpts:
-                        srs_result = mf_rcptto(sock, orig_rcpt)
-                        if srs_result != b"c":
-                            break
+        with daemon.connect_stream() as sock_stream:
+            assert mf_optneg(sock_stream), "milter option negotation failed"
+            for query in queries:
+                orig_from, orig_rcpts = query[0]
+                result, new_from, new_rcpts = query[1]
+                try:
+                    srs_from = None
+                    srs_rcpts = None
+                    mf_macro(sock_stream, b"M")
+                    srs_result = mf_envfrom(sock_stream, orig_from)
                     if srs_result == b"c":
-                        mf_macro(sock, b"E")
-                        srs_result, srs_from, srs_rcpts = mf_eom(sock)
-                assert (
-                    srs_result == result
-                ), f"expected action {result!r} and got {srs_result!r}"
-                assert (
-                    srs_from == new_from
-                ), f"expected from {new_from!r} and got {srs_from!r}"
-                assert (
-                    srs_rcpts == new_rcpts
-                ), f"expected rcpt {new_rcpts!r} and got {srs_rcpts!r}"
-                sys.stderr.write(f"PASS: {database!r},{socket_family!r},{query[0]!r}\n")
-            except AssertionError as e:
-                sys.stderr.write(
-                    f"*** FAIL: {database!r},{socket_family!r},{query[0]!r}: {str(e)}\n"
-                )
-                return False
-        sock.close()
+                        mf_macro(sock_stream, b"R")
+                        for orig_rcpt in orig_rcpts:
+                            srs_result = mf_rcptto(sock_stream, orig_rcpt)
+                            if srs_result != b"c":
+                                break
+                        if srs_result == b"c":
+                            mf_macro(sock_stream, b"E")
+                            srs_result, srs_from, srs_rcpts = mf_eom(sock_stream)
+                    assert (
+                        srs_result == result
+                    ), f"expected action {result!r} and got {srs_result!r}"
+                    assert (
+                        srs_from == new_from
+                    ), f"expected from {new_from!r} and got {srs_from!r}"
+                    assert (
+                        srs_rcpts == new_rcpts
+                    ), f"expected rcpt {new_rcpts!r} and got {srs_rcpts!r}"
+                    sys.stderr.write(
+                        f"PASS: {database!r},{socket_family!r},{query[0]!r}\n"
+                    )
+                except AssertionError as e:
+                    sys.stderr.write(
+                        f"*** FAIL: {database!r},{socket_family!r},{query[0]!r}: {str(e)}\n"
+                    )
+                    return False
     return True
 
 
@@ -137,61 +122,61 @@ def milter_protocol_violations(
     postsrsd: str, when: str, socket_family: SocketFamily = SocketFamily.UNIX
 ):
 
-    def duplicate_optneg(sock: socket.socket):
-        assert mf_optneg(sock), "initial milter option negotiation failed"
-        send_milter(sock, b"O", struct.pack(">LLL", 6, 0xFF, 0xFF))
-        code, _ = recv_milter(sock)
+    def duplicate_optneg(sock_stream: SockStream):
+        assert mf_optneg(sock_stream), "initial milter option negotiation failed"
+        milter_write(sock_stream, struct.pack(">cLLL", b"O", 6, 0xFF, 0xFF))
+        code = milter_read(sock_stream)[:1]
         assert (
             code == b"t"
         ), "milter should have temp-failed on repeated option negotiation"
 
-    def no_optneg(sock: socket.socket):
-        code = mf_envfrom(sock, "sender@jumps-the-gun.com>")
+    def no_optneg(sock_stream: SockStream):
+        code = mf_envfrom(sock_stream, "sender@jumps-the-gun.com>")
         assert code == b"t", "milter should have temp-failed"
 
-    def no_mail_command(sock: socket.socket):
-        assert mf_optneg(sock), "milter option negotiation failed"
-        code = mf_rcptto(sock, "somewhere@over-the-rainbow.com")
+    def no_mail_command(sock_stream: SockStream):
+        assert mf_optneg(sock_stream), "milter option negotiation failed"
+        code = mf_rcptto(sock_stream, "somewhere@over-the-rainbow.com")
         assert code == b"t", "milter should have temp-failed"
 
-    def no_rcpt_command(sock: socket.socket):
-        assert mf_optneg(sock), "milter option negotiation failed"
-        code = mf_envfrom(sock, "sender@jumps-the-gun.com")
+    def no_rcpt_command(sock_stream: SockStream):
+        assert mf_optneg(sock_stream), "milter option negotiation failed"
+        code = mf_envfrom(sock_stream, "sender@jumps-the-gun.com")
         assert code == b"c", "milter should have continued"
-        code, _, _ = mf_eom(sock)
+        code, _, _ = mf_eom(sock_stream)
         assert code == b"t", "milter should have temp-failed"
 
-    def send_mail_command_twice(sock: socket.socket):
-        assert mf_optneg(sock), "milter option negotiation failed"
-        code = mf_envfrom(sock, "sender@example.com")
+    def send_mail_command_twice(sock_stream: SockStream):
+        assert mf_optneg(sock_stream), "milter option negotiation failed"
+        code = mf_envfrom(sock_stream, "sender@example.com")
         assert code == b"c", "milter should have continued"
-        code = mf_envfrom(sock, "sender2@example.com")
+        code = mf_envfrom(sock_stream, "sender2@example.com")
         assert code == b"t", "milter should have temp-failed"
 
-    def unsupported_chgfrom_action(sock: socket.socket):
-        send_milter(sock, b"O", struct.pack(">LLL", 6, 0x3F, 0xFF))
-        code, _ = recv_milter(sock)
+    def unsupported_chgfrom_action(sock_stream: SockStream):
+        milter_write(sock_stream, struct.pack(">cLLL", b"O", 6, 0x3F, 0xFF))
+        code = milter_read(sock_stream)[:1]
         assert code == b"t", "milter should have temp-failed"
 
-    def unsupported_addrcpt_action(sock: socket.socket):
-        send_milter(sock, b"O", struct.pack(">LLL", 6, 0xFB, 0xFF))
-        code, _ = recv_milter(sock)
+    def unsupported_addrcpt_action(sock_stream: SockStream):
+        milter_write(sock_stream, struct.pack(">cLLL", b"O", 6, 0xFB, 0xFF))
+        code = milter_read(sock_stream)[:1]
         assert code == b"t", "milter should have temp-failed"
 
-    def unsupported_delrcpt_action(sock: socket.socket):
-        send_milter(sock, b"O", struct.pack(">LLL", 6, 0xF7, 0xFF))
-        code, _ = recv_milter(sock)
+    def unsupported_delrcpt_action(sock_stream: SockStream):
+        milter_write(sock_stream, struct.pack(">cLLL", b"O", 6, 0xF7, 0xFF))
+        code = milter_read(sock_stream)[:1]
         assert code == b"t", "milter should have temp-failed"
 
-    def missing_null_terminators(sock: socket.socket):
-        assert mf_optneg(sock), "milter option negotiation failed"
-        send_milter(sock, b"M", b"<sender@otherdomain.com>")
-        code, _ = recv_milter(sock)
+    def missing_null_terminators(sock_stream: SockStream):
+        assert mf_optneg(sock_stream), "milter option negotiation failed"
+        milter_write(sock_stream, b"M<sender@otherdomain.com>")
+        code = milter_read(sock_stream)[:1]
         assert code == b"c", "milter should have continued"
-        send_milter(sock, b"R", b"<SRS0=vmyz=2W=otherdomain.com=test@example.com>")
-        code, _ = recv_milter(sock)
+        milter_write(sock_stream, b"R<SRS0=vmyz=2W=otherdomain.com=test@example.com>")
+        code = milter_read(sock_stream)[:1]
         assert code == b"c", "milter should have continued"
-        code, new_from, new_rcpt = mf_eom(sock)
+        code, new_from, new_rcpt = mf_eom(sock_stream)
         assert code == b"a", f"milter should have accepted"
         assert (
             new_from == "SRS0=9KJ-=2W=otherdomain.com=sender@example.com"
@@ -200,30 +185,30 @@ def milter_protocol_violations(
             "test@otherdomain.com"
         ], f"unexpected rewrite of recipient: {new_rcpt!r}"
 
-    def oversized_mail_command(sock: socket.socket):
-        assert mf_optneg(sock), "milter option negotiation failed"
-        send_milter(sock, b"M", b"<" + (b"a" * 509) + b">\x00")
-        code, _ = recv_milter(sock)
+    def oversized_mail_command(sock_stream: SockStream):
+        assert mf_optneg(sock_stream), "milter option negotiation failed"
+        milter_write(sock_stream, b"M<" + (b"a" * 509) + b">\x00")
+        code = milter_read(sock_stream)[:1]
         assert code == b"r", "milter should have rejected"
 
-    def malformed_mail_command(sock: socket.socket):
-        assert mf_optneg(sock), "milter option negotiation failed"
-        send_milter(sock, b"M", b">test@example.com<")
-        code, _ = recv_milter(sock)
+    def malformed_mail_command(sock_stream: SockStream):
+        assert mf_optneg(sock_stream), "milter option negotiation failed"
+        milter_write(sock_stream, b"M>test@example.com<")
+        code = milter_read(sock_stream)[:1]
         assert code == b"r", "milter should have rejected"
 
-    def aborted_transaction(sock: socket.socket):
-        assert mf_optneg(sock), "milter option negotiation failed"
-        code = mf_envfrom(sock, "mail@example.com")
+    def aborted_transaction(sock_stream: SockStream):
+        assert mf_optneg(sock_stream), "milter option negotiation failed"
+        code = mf_envfrom(sock_stream, "mail@example.com")
         assert code == b"c", "milter should have continued"
-        code = mf_rcptto(sock, "recipient@example.com")
+        code = mf_rcptto(sock_stream, "recipient@example.com")
         assert code == b"c", "milter should have continued"
-        send_milter(sock, b"A", b"")
-        code = mf_envfrom(sock, "sender@otherdomain.com")
+        milter_write(sock_stream, b"A")
+        code = mf_envfrom(sock_stream, "sender@otherdomain.com")
         assert code == b"c", "milter should have continued"
-        code = mf_rcptto(sock, "SRS0=vmyz=2W=otherdomain.com=test@example.com")
+        code = mf_rcptto(sock_stream, "SRS0=vmyz=2W=otherdomain.com=test@example.com")
         assert code == b"c", "milter should have continued"
-        code, new_from, new_rcpt = mf_eom(sock)
+        code, new_from, new_rcpt = mf_eom(sock_stream)
         assert code == b"a", f"milter should have accepted"
         assert (
             new_from == "SRS0=9KJ-=2W=otherdomain.com=sender@example.com"
@@ -232,39 +217,39 @@ def milter_protocol_violations(
             "test@otherdomain.com"
         ], f"unexpected rewrite of recipient: {new_rcpt!r}"
 
-    def close_on_quit(sock: socket.socket):
-        assert mf_optneg(sock), "milter option negotiation failed"
-        send_milter(sock, b"Q", b"")
+    def close_on_quit(sock_stream: SockStream):
+        assert mf_optneg(sock_stream), "milter option negotiation failed"
+        milter_write(sock_stream, b"Q")
         try:
-            mf_envfrom(sock, "mail@example.com")
+            mf_envfrom(sock_stream, "mail@example.com")
             raise AssertionError("milter should have disconnected")
         except (ConnectionError, TimeoutError):
             pass
 
-    def oversized_rcpt_command(sock: socket.socket):
-        assert mf_optneg(sock), "milter option negotiation failed"
-        assert mf_envfrom(sock, "a" * 508), "milter MAIL command failed"
-        send_milter(sock, b"R", b"<" + (b"a" * 509) + b">\x00")
-        code, _ = recv_milter(sock)
+    def oversized_rcpt_command(sock_stream: SockStream):
+        assert mf_optneg(sock_stream), "milter option negotiation failed"
+        assert mf_envfrom(sock_stream, "a" * 508), "milter MAIL command failed"
+        milter_write(sock_stream, b"R<" + (b"a" * 509) + b">\x00")
+        code = milter_read(sock_stream)[:1]
         assert code == b"r", "milter should have rejected"
 
-    def malformed_rcpt_command(sock: socket.socket):
-        assert mf_optneg(sock), "milter option negotiation failed"
-        assert mf_envfrom(sock, "a" * 508), "milter MAIL command failed"
-        send_milter(sock, b"R", b">recipient@otherdomain.com<")
-        code, _ = recv_milter(sock)
+    def malformed_rcpt_command(sock_stream: SockStream):
+        assert mf_optneg(sock_stream), "milter option negotiation failed"
+        assert mf_envfrom(sock_stream, "a" * 508), "milter MAIL command failed"
+        milter_write(sock_stream, b"R>recipient@otherdomain.com<")
+        code = milter_read(sock_stream)[:1]
         assert code == b"c", "milter should have continued"
-        code, _, _ = mf_eom(sock)
+        code, _, _ = mf_eom(sock_stream)
         assert code == b"r", "milter should have rejected"
 
-    def send_garbage_first(sock: socket.socket):
-        sock.sendall(b"\x00\x00\xff\xff" + b"!" * 65535)
-        assert mf_optneg(sock), "milter option negotiation failed"
-        code = mf_envfrom(sock, "sender@otherdomain.com")
+    def send_garbage_first(sock_stream: SockStream):
+        sock_stream.write(b"\x00\x00\xff\xff" + b"!" * 65535)
+        assert mf_optneg(sock_stream), "milter option negotiation failed"
+        code = mf_envfrom(sock_stream, "sender@otherdomain.com")
         assert code == b"c", "milter should have continued"
-        code = mf_rcptto(sock, "SRS0=vmyz=2W=otherdomain.com=test@example.com")
+        code = mf_rcptto(sock_stream, "SRS0=vmyz=2W=otherdomain.com=test@example.com")
         assert code == b"c", "milter should have continued"
-        code, new_from, new_rcpt = mf_eom(sock)
+        code, new_from, new_rcpt = mf_eom(sock_stream)
         assert code == b"a", f"milter should have accepted"
         assert (
             new_from == "SRS0=9KJ-=2W=otherdomain.com=sender@example.com"
@@ -273,10 +258,10 @@ def milter_protocol_violations(
             "test@otherdomain.com"
         ], f"unexpected rewrite of recipient: {new_rcpt!r}"
 
-    def keep_alive_timeout(sock: socket.socket):
+    def keep_alive_timeout(sock_stream: SockStream):
         time.sleep(2)
         try:
-            mf_optneg(sock)
+            mf_optneg(sock_stream)
             raise AssertionError("milter should have disconnected")
         except (ConnectionError, TimeoutError):
             pass
@@ -303,20 +288,18 @@ def milter_protocol_violations(
             keep_alive_timeout,
             send_garbage_first,
         ]:
-            sock = daemon.connect()
-            try:
-                test_func(sock)
-                sys.stderr.write(f"PASS: {test_func.__name__}\n")
-            except AssertionError as e:
-                sys.stderr.write(f"*** FAIL: {test_func.__name__}: {str(e)}\n")
-                return False
-            except RuntimeError as e:
-                sys.stderr.write(
-                    f"*** FAIL: {test_func.__name__}: {e.__class__.__name__}: {str(e)}\n"
-                )
-                return False
-            finally:
-                sock.close()
+            with daemon.connect_stream() as sock_stream:
+                try:
+                    test_func(sock_stream)
+                    sys.stderr.write(f"PASS: {test_func.__name__}\n")
+                except AssertionError as e:
+                    sys.stderr.write(f"*** FAIL: {test_func.__name__}: {str(e)}\n")
+                    return False
+                except RuntimeError as e:
+                    sys.stderr.write(
+                        f"*** FAIL: {test_func.__name__}: {e.__class__.__name__}: {str(e)}\n"
+                    )
+                    return False
     return True
 
 

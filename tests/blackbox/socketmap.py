@@ -34,22 +34,21 @@ def execute_queries(
         socket_family=socket_family,
         socket_type=SocketType.SOCKETMAP,
     ) as daemon:
-        sock = daemon.connect()
-        sock_stream = SockStream(sock)
-        try:
-            for query in queries:
-                write_netstring(sock_stream, query[0])
-                result = read_netstring(sock_stream)
-                if result != query[1]:
-                    raise AssertionError(
-                        f"{query[0]!r}: expected reply {query[1]!r}, got: {result!r}"
+        with daemon.connect_stream() as sock_stream:
+            try:
+                for query in queries:
+                    netstring_write(sock_stream, query[0])
+                    result = netstring_read(sock_stream)
+                    if result != query[1]:
+                        raise AssertionError(
+                            f"{query[0]!r}: expected reply {query[1]!r}, got: {result!r}"
+                        )
+                    sys.stderr.write(
+                        f"PASS: {database!r},{socket_family!r},{query[0]!r}\n"
                     )
-                sys.stderr.write(f"PASS: {database!r},{socket_family!r},{query[0]!r}\n")
-        except AssertionError as e:
-            sys.stderr.write(f"*** FAIL: {database!r},{socket_family!r},{str(e)}\n")
-            return False
-        finally:
-            sock.close()
+            except AssertionError as e:
+                sys.stderr.write(f"*** FAIL: {database!r},{socket_family!r},{str(e)}\n")
+                return False
     return True
 
 
@@ -58,30 +57,29 @@ def socketmap_protocol_violations(
 ):
     with PostSRSd(postsrsd, when=when, socket_family=socket_family) as daemon:
         for query in queries:
-            sock = None
-            try:
-                sock = daemon.connect()
-                sock_stream = SockStream(sock)
-                sock_stream.write(query)
-                result = read_netstring(sock_stream)
-                if result != "PERM Invalid query.":
-                    raise AssertionError(
-                        f"expected reply 'PERM Invalid query.', got: {result!r}"
-                    )
+            with daemon.connect_stream() as sock_stream:
                 try:
-                    write_netstring(sock_stream, "forward test@example.com")
-                    result = read_netstring(sock_stream)
-                    raise AssertionError(f"expected connection closed, got: {result!r}")
-                except ConnectionError:
-                    # Expected behavior
-                    pass
-                sys.stderr.write(f"PASS: {socket_family!r},{query!r}\n")
-            except AssertionError as e:
-                sys.stderr.write(f"*** FAIL: {socket_family!r},{query!r}: {str(e)}\n")
-                return False
-            finally:
-                if sock is not None:
-                    sock.close()
+                    sock_stream.write(query)
+                    result = netstring_read(sock_stream)
+                    if result != "PERM Invalid query.":
+                        raise AssertionError(
+                            f"expected reply 'PERM Invalid query.', got: {result!r}"
+                        )
+                    try:
+                        netstring_write(sock_stream, "forward test@example.com")
+                        result = netstring_read(sock_stream)
+                        raise AssertionError(
+                            f"expected connection closed, got: {result!r}"
+                        )
+                    except ConnectionError:
+                        # Expected behavior
+                        pass
+                    sys.stderr.write(f"PASS: {socket_family!r},{query!r}\n")
+                except AssertionError as e:
+                    sys.stderr.write(
+                        f"*** FAIL: {socket_family!r},{query!r}: {str(e)}\n"
+                    )
+                    return False
     return True
 
 

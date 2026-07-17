@@ -21,9 +21,9 @@ import time
 from testhelper import *
 
 
-def run_query(sock_stream: SockStream, test_domain: str | None):
-    write_netstring(sock_stream, "forward test@otherdomain.com")
-    result = read_netstring(sock_stream)
+def run_query(sock_stream: SockStream, test_domain: str):
+    netstring_write(sock_stream, "forward test@otherdomain.com")
+    result = netstring_read(sock_stream)
     if not result.startswith("OK SRS0=") or not result.endswith(
         f"=otherdomain.com=test@{test_domain}"
     ):
@@ -34,8 +34,7 @@ def run_query(sock_stream: SockStream, test_domain: str | None):
 
 def reload_daemon(postsrsd: str, use_file_watch: bool):
     with PostSRSd(postsrsd, use_file_watch=use_file_watch) as daemon:
-        sock = daemon.connect()
-        sock_stream = SockStream(sock)
+        sock_stream = daemon.connect_stream()
         try:
             previous_domain = "example.com"
             run_query(sock_stream, previous_domain)
@@ -82,9 +81,8 @@ def reload_daemon(postsrsd: str, use_file_watch: bool):
                     raise AssertionError("configuration update failed")
                 except ConnectionError:
                     pass
-                sock.close()
-                sock = daemon.connect()
-                sock_stream = SockStream(sock)
+                sock_stream.close()
+                sock_stream = daemon.connect_stream()
                 run_query(sock_stream, test_domain)
                 sys.stderr.write(f"PASS: reload test {counter + 1} [{test_domain}]\n")
                 previous_domain = test_domain
@@ -94,7 +92,7 @@ def reload_daemon(postsrsd: str, use_file_watch: bool):
             sys.stderr.write(f"*** FAIL: {e.__class__.__name__}: {str(e)}\n")
             return False
         finally:
-            sock.close()
+            sock_stream.close()
     return True
 
 
