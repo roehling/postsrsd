@@ -28,9 +28,9 @@ char* netstring_encode(const char* data, size_t length, char* buffer,
     if (data == NULL)
         return NULL;
     int i = snprintf(buffer, bufsize, "%zu:", length);
-    if (i <= 0 || length >= bufsize - i)
+    if (i <= 0 || i >= bufsize || length >= bufsize - i)
         return NULL;
-    strncpy(&buffer[i], data, length);
+    memcpy(&buffer[i], data, length);
     buffer[length + i] = ',';
     if (encoded_length != NULL)
         *encoded_length = length + i + 1;
@@ -50,7 +50,7 @@ char* netstring_decode(const char* netstring, char* buffer, size_t bufsize,
         return NULL;
     if (netstring[i] != ':' || netstring[length + i + 1] != ',')
         return NULL;
-    strncpy(buffer, &netstring[i + 1], length);
+    memcpy(buffer, &netstring[i + 1], length);
     if (decoded_length != NULL)
         *decoded_length = length;
     buffer[length] = 0;
@@ -110,6 +110,8 @@ int netstring_write(int fd, const char* data, size_t length)
         if (data == NULL)
             return -1;
         size_t n = snprintf(prefix, sizeof(prefix), "%zu:", length);
+        if (n >= sizeof(prefix))
+            return -1;
         iov[0].iov_base = (void*)prefix;
         iov[0].iov_len = n;
         iov[1].iov_base = (void*)data;

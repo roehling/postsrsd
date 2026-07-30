@@ -62,8 +62,9 @@ size_t milter_receive(int fd, void* buffer, size_t size, size_t* truncated)
     len -= read_len;
     while (len > 0)
     {
-        read_len = len < sizeof(discardpile) ? len : sizeof(discardpile);
-        r = read(fd, discardpile, read_len);
+        size_t discard_len =
+            len < sizeof(discardpile) ? len : sizeof(discardpile);
+        r = read(fd, discardpile, discard_len);
         if (r <= 0)
         {
             if (r < 0 && errno == EINTR)
@@ -137,6 +138,8 @@ bool milter_send_str_list(int fd, char action, list_t* L)
     size_t numv = list_size(L);
     if (numv == 0)
         return milter_send(fd, action);
+    if (numv > 127)
+        return false;
     struct iovec iov[numv + 1];
     size_t j = 1, length = 0;
     for (size_t i = 0; i < numv; ++i)

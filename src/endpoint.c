@@ -97,6 +97,7 @@ static bool create_unix_socket(const char* path, endpoint_t* endpoint)
     endpoint->fd[endpoint->num_fds++] = sock;
     if (endpoint->lock >= 0)
         endpoint->path = strdup(path);
+    umask(old_mask);
     return true;
 fail:
     umask(old_mask);
@@ -177,7 +178,7 @@ static bool create_inet_sockets(char* addr, int family, endpoint_t* endpoint)
     if (err != 0)
     {
         log_error("%s", gai_strerror(err));
-        return -1;
+        return false;
     }
     int sock = -1, count = 0, free_fds = POSTSRSD_MAX_FDS - endpoint->num_fds;
     for (struct addrinfo* it = ai; it; it = it->ai_next)
@@ -212,8 +213,8 @@ fail:
     }
     freeaddrinfo(ai);
     if (count == 0 && err != 0)
-        return -1;
-    return count;
+        return false;
+    return true;
 }
 
 endpoint_t* endpoint_create(const char* s)
@@ -225,7 +226,7 @@ endpoint_t* endpoint_create(const char* s)
         return NULL;
     }
     result->num_fds = 0;
-    for (unsigned i = 0; i < result->num_fds; ++i)
+    for (unsigned i = 0; i < POSTSRSD_MAX_FDS; ++i)
         result->fd[i] = -1;
     result->lock = -1;
     result->path = NULL;
@@ -243,6 +244,7 @@ endpoint_t* endpoint_create(const char* s)
         if (create_unix_socket(path, result))
             return result;
         log_error("failed to create endpoint '%s'", s);
+
         endpoint_destroy(result);
         return NULL;
     }

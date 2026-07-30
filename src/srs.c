@@ -149,7 +149,7 @@ char* postsrsd_reverse(const char* addr, srs_t* srs, database_t* db,
     {
         if (db != NULL)
         {
-            char* p = buffer;
+            unsigned char* p = (unsigned char*)buffer;
             while (*p)
             {
                 *p = toupper(*p);
