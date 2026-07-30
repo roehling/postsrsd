@@ -34,6 +34,30 @@ static srs_malloc_t srs_f_malloc = malloc;
 static srs_realloc_t srs_f_realloc = realloc;
 static srs_free_t srs_f_free = free;
 
+int base64_equivalent(const char* s1, const char* s2, size_t length)
+{
+    static const int TRANSLATION_START = 43;
+    static const char TRANSLATION[] = {
+        '-', 0,   '-', 0,   '_', '0', '1', '2', '3', '4', '5', '6', '7', '8',
+        '9', 0,   0,   0,   0,   0,   0,   0,   'a', 'b', 'c', 'd', 'e', 'f',
+        'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't',
+        'u', 'v', 'w', 'x', 'y', 'z', 0,   0,   0,   0,   '_', 0,   'a', 'b',
+        'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p',
+        'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'};
+    int comp = 0;
+    for (size_t i = 0; i < length; ++i)
+    {
+        int h1 = (int)s1[i] - TRANSLATION_START;
+        int h2 = (int)s2[i] - TRANSLATION_START;
+        int v1 =
+            (h1 >= 0 && (size_t)h1 < sizeof(TRANSLATION)) ? TRANSLATION[h1] : 0;
+        int v2 =
+            (h2 >= 0 && (size_t)h2 < sizeof(TRANSLATION)) ? TRANSLATION[h2] : 0;
+        comp |= (v1 ^ v2) | (v1 == 0) | (v2 == 0);
+    }
+    return comp == 0;
+}
+
 int srs_set_malloc(srs_malloc_t m, srs_realloc_t r, srs_free_t f)
 {
     srs_f_malloc = m;
@@ -361,16 +385,7 @@ int srs_hash_check(srs_t* srs, char* hash, int nargs, ...)
         va_start(ap, nargs);
         srs_hash_create_v(srs, i, srshash, nargs, ap);
         va_end(ap);
-        if (strncasecmp(hash, srshash, len) == 0)
-            return SRS_SUCCESS;
-        for (j = 0; j < len; ++j)
-        {
-            if (srshash[j] == '-')
-                srshash[j] = '+';
-            if (srshash[j] == '_')
-                srshash[j] = '/';
-        }
-        if (strncasecmp(hash, srshash, len) == 0)
+        if (base64_equivalent(hash, srshash, len))
             return SRS_SUCCESS;
     }
 
