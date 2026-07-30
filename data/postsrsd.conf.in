@@ -83,6 +83,17 @@ socketmap = unix:/var/spool/postfix/srs
 #
 #keep-alive = 30
 
+# Connection limit.
+# This is a hard limit for the number of concurrent connections. It is
+# a fail-safe to prevent PostSRSd from forking an unbounded number of
+# child processes. Once this limit is reached, PostSRSd will accept but
+# immediately close incoming connections without serving requests.
+#
+# Default:
+#     connection-limit = 200
+#
+#connection-limit = 200
+
 # Secret keys for signing and verifying SRS addresses.
 # Rewritten addresses are tagged with a truncated HMAC-SHA1 signature, to
 # prevent tampering and forged envelope addresses. You can have more than

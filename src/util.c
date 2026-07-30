@@ -369,6 +369,11 @@ pid_set_t* pid_set_create()
     return P;
 }
 
+size_t pid_set_size(pid_set_t* P)
+{
+    return P != NULL ? P->size : 0;
+}
+
 bool pid_set_add(pid_set_t* P, pid_t pid)
 {
     if (P == NULL)

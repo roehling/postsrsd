@@ -59,6 +59,7 @@ struct postsrsd
     domain_set_t* local_domains;
     file_watch_t* file_watch;
     int target_uid, target_gid;
+    size_t connection_limit;
 };
 typedef struct postsrsd postsrsd_t;
 
@@ -73,6 +74,7 @@ static void init_state(postsrsd_t* state)
     state->file_watch = NULL;
     state->target_uid = 0;
     state->target_gid = 0;
+    state->connection_limit = 0;
 }
 
 static void finalize_state(postsrsd_t* state)
@@ -727,6 +729,7 @@ static bool setup_state(int argc, char** argv, postsrsd_t* state)
     }
     /* If we reached this point, the new configuration is valid, so we commit */
     finalize_state(state);
+    new_state.connection_limit = cfg_getint(new_state.cfg, "connection-limit");
     *state = new_state;
     return true;
 fail:
@@ -940,6 +943,12 @@ int main(int argc, char** argv)
                     if (conn < 0)
                     {
                         log_perror(errno, "accept");
+                        continue;
+                    }
+                    if (pid_set_size(P) >= state.connection_limit)
+                    {
+                        log_warn("connection limit reached");
+                        close(conn);
                         continue;
                     }
                     pid_t pid = fork();

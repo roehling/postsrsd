@@ -170,6 +170,7 @@ cfg_t* config_defaults()
         CFG_BOOL("always-rewrite", cfg_false, CFGF_NONE),
         CFG_STR("socketmap", "unix:/var/spool/postfix/srs", CFGF_NONE),
         CFG_INT("keep-alive", 30, CFGF_NONE),
+        CFG_INT("connection-limit", 200, CFGF_NONE),
         CFG_STR("milter", NULL, CFGF_NODEFAULT),
         CFG_BOOL("milter-rewrite-local", cfg_false, CFGF_NONE),
         CFG_STR("secrets-file", DEFAULT_SECRETS_FILE, CFGF_NONE),

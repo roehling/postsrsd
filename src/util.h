@@ -73,6 +73,7 @@ bool domain_set_contains(domain_set_t* D, const char* domain);
 void domain_set_destroy(domain_set_t* D);
 
 pid_set_t* pid_set_create();
+size_t pid_set_size(pid_set_t* P);
 bool pid_set_add(pid_set_t* P, pid_t pid);
 bool pid_set_remove(pid_set_t* P, pid_t pid);
 bool pid_set_kill(pid_set_t* P, int signal);
