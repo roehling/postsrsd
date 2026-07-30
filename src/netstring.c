@@ -28,7 +28,7 @@ char* netstring_encode(const char* data, size_t length, char* buffer,
     if (data == NULL)
         return NULL;
     int i = snprintf(buffer, bufsize, "%zu:", length);
-    if (i <= 0 || i >= bufsize || length >= bufsize - i)
+    if (i <= 0 || (size_t)i >= bufsize || length >= bufsize - i)
         return NULL;
     memcpy(&buffer[i], data, length);
     buffer[length + i] = ',';

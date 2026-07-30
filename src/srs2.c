@@ -369,7 +369,7 @@ int srs_hash_check(srs_t* srs, char* hash, int nargs, ...)
 {
     va_list ap;
     int len;
-    int i, j;
+    int i;
 
     len = strlen(hash);
     if (len < srs->hashmin)
