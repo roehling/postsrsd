@@ -70,7 +70,9 @@ static char* db_sqlite_read(database_t* db, const char* key)
     }
     if (result == SQLITE_ROW)
     {
-        value = strdup((const char*)sqlite3_column_text(db->read_stmt, 0));
+        const char* column_text =
+            (const char*)sqlite3_column_text(db->read_stmt, 0);
+        value = NONEMPTY_STRING(column_text) ? strdup(column_text) : NULL;
     }
     sqlite3_reset(db->read_stmt);
     sqlite3_clear_bindings(db->read_stmt);
@@ -195,7 +197,7 @@ static char* db_redis_read(database_t* db, const char* key)
     }
     if (reply->type == REDIS_REPLY_STRING)
     {
-        value = strdup(reply->str);
+        value = NONEMPTY_STRING(reply->str) ? strdup(reply->str) : NULL;
     }
     freeReplyObject(reply);
     return value;
