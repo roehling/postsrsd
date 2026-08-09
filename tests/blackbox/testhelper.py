@@ -145,6 +145,7 @@ class PostSRSd:
                     f'domains-file = "{self._tmpdir_path / "postsrsd.domains"}"\n'
                     f'domains-file-watch = {"on" if use_file_watch else "off"}\n'
                     "keep-alive = 1\n"
+                    "milter-recipient-limit = 5\n"
                     'chroot-dir = ""\n'
                     'unprivileged-user = ""\n'
                     f'original-envelope = {"embedded" if database == Database.NONE else "database"}\n'

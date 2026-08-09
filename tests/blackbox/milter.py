@@ -233,6 +233,16 @@ def milter_protocol_violations(
         code = milter_read(sock_stream)[:1]
         assert code == b"r", "milter should have rejected"
 
+    def too_many_recipients(sock_stream: SockStream):
+        assert mf_optneg(sock_stream), "milter option negotiation failed"
+        assert mf_envfrom(sock_stream, "a" * 508), "milter MAIL command failed"
+        code = None
+        for number in range(10):
+            code = mf_rcptto(sock_stream, f"recipient{number}@example.com")
+            if code == b"r":
+                break
+        assert code == b"r", "milter should have rejected"
+
     def malformed_rcpt_command(sock_stream: SockStream):
         assert mf_optneg(sock_stream), "milter option negotiation failed"
         assert mf_envfrom(sock_stream, "a" * 508), "milter MAIL command failed"
@@ -282,6 +292,7 @@ def milter_protocol_violations(
             malformed_mail_command,
             oversized_rcpt_command,
             malformed_rcpt_command,
+            too_many_recipients,
             missing_null_terminators,
             aborted_transaction,
             close_on_quit,

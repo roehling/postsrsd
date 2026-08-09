@@ -185,6 +185,7 @@ cfg_t* config_defaults()
         CFG_INT("connection-limit", 200, CFGF_NONE),
         CFG_STR("milter", NULL, CFGF_NODEFAULT),
         CFG_BOOL("milter-rewrite-local", cfg_false, CFGF_NONE),
+        CFG_INT("milter-recipient-limit", 1000, CFGF_NONE),
         CFG_STR("secrets-file", DEFAULT_SECRETS_FILE, CFGF_NONE),
         CFG_STR("envelope-database", NULL, CFGF_NODEFAULT),
         CFG_STR("pid-file", NULL, CFGF_NODEFAULT),
@@ -204,6 +205,7 @@ cfg_t* config_defaults()
     cfg_set_validate_func(cfg, "hash-minimum", validate_hash_size);
     cfg_set_validate_func(cfg, "keep-alive", validate_uint);
     cfg_set_validate_func(cfg, "connection-limit", validate_uint);
+    cfg_set_validate_func(cfg, "milter-recipient-limit", validate_uint);
     cfg_set_validate_func(cfg, "unprivileged-user", validate_unprivileged_user);
     return cfg;
 }

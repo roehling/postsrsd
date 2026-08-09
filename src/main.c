@@ -375,6 +375,8 @@ static void handle_milter_client(postsrsd_t* state, int conn)
         return;
     const bool always_rewrite = cfg_getbool(state->cfg, "always-rewrite");
     const bool rewrite_local = cfg_getbool(state->cfg, "milter-rewrite-local");
+    const size_t milter_recipient_limit =
+        cfg_getint(state->cfg, "milter-recipient-limit");
     const int keep_alive = cfg_getint(state->cfg, "keep-alive");
     int milter_state = MILTER_AWAIT_OPTNEG;
     char* queue_id = NULL;
@@ -472,6 +474,16 @@ static void handle_milter_client(postsrsd_t* state, int conn)
                 {
                     log_error("%s: MTA sent oversized milter RCPT command",
                               queue_id);
+                    if (!milter_reject(conn))
+                        goto done;
+                    goto cleanup;
+                }
+                if (list_size(recipients) >= milter_recipient_limit)
+                {
+                    log_error(
+                        "%s: MTA exceeded the recipient limit per mail "
+                        "transaction",
+                        queue_id);
                     if (!milter_reject(conn))
                         goto done;
                     goto cleanup;
