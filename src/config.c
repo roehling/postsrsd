@@ -68,6 +68,18 @@ static int validate_uint(cfg_t* cfg, cfg_opt_t* opt)
     return 0;
 }
 
+static int validate_hash_size(cfg_t* cfg, cfg_opt_t* opt)
+{
+    int value = cfg_opt_getnint(opt, cfg_opt_size(opt) - 1);
+    if (value < 1 || value > 20)
+    {
+        cfg_error(cfg, "option '%s' must be between 1 and 20 inclusive.",
+                  cfg_opt_name(opt));
+        return -1;
+    }
+    return 0;
+}
+
 static bool is_valid_domain_name(const char* s)
 {
     char prev = 0;
@@ -188,7 +200,10 @@ cfg_t* config_defaults()
     cfg_set_validate_func(cfg, "separator", validate_separator);
     cfg_set_validate_func(cfg, "srs-domain", validate_domain_names);
     cfg_set_validate_func(cfg, "domains", validate_domain_names);
+    cfg_set_validate_func(cfg, "hash-length", validate_hash_size);
+    cfg_set_validate_func(cfg, "hash-minimum", validate_hash_size);
     cfg_set_validate_func(cfg, "keep-alive", validate_uint);
+    cfg_set_validate_func(cfg, "connection-limit", validate_uint);
     cfg_set_validate_func(cfg, "unprivileged-user", validate_unprivileged_user);
     return cfg;
 }
@@ -281,10 +296,18 @@ cfg_t* config_from_commandline(int argc, char* const* argv)
 
 srs_t* srs_from_config(cfg_t* cfg)
 {
+    int hash_length = cfg_getint(cfg, "hash-length");
+    int hash_minimum = cfg_getint(cfg, "hash-minimum");
+    if (hash_minimum > hash_length)
+    {
+        log_error("hash-minimum (%d) exceeds hash-length (%d)", hash_minimum,
+                  hash_length);
+        return NULL;
+    }
     srs_t* srs = srs_new();
     srs_set_alwaysrewrite(srs, cfg_getbool(cfg, "always-rewrite"));
-    srs_set_hashlength(srs, cfg_getint(cfg, "hash-length"));
-    srs_set_hashmin(srs, cfg_getint(cfg, "hash-minimum"));
+    srs_set_hashlength(srs, hash_length);
+    srs_set_hashmin(srs, hash_minimum);
     srs_set_separator(srs, cfg_getstr(cfg, "separator")[0]);
     char* secrets_file = cfg_getstr(cfg, "secrets-file");
     if (NONEMPTY_STRING(secrets_file))
