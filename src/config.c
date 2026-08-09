@@ -79,7 +79,7 @@ static bool is_valid_domain_name(const char* s)
     {
         if (*s == '.' && prev == '.')
             return false;
-        if (!isalnum(*s) && *s != '-' && *s != '.')
+        if (!isalnum((unsigned char)*s) && *s != '-' && *s != '.')
             return false;
         prev = *s++;
     }
@@ -376,9 +376,9 @@ bool srs_domains_from_config(cfg_t* cfg, char** srs_domain,
                     *end = 0;
                 else
                     end = domain + strlen(domain);
-                while (isspace(domain[0]))
+                while (isspace((unsigned char)domain[0]))
                     ++domain;
-                while (end != domain && isspace(*(end - 1)))
+                while (end != domain && isspace((unsigned char)*(end - 1)))
                     *--end = 0;
                 if (NULL_OR_EMPTY_STRING(domain))
                     continue;
