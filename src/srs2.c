@@ -236,7 +236,7 @@ int srs_timestamp_check(srs_t* srs, const char* stamp)
     then = 0;
     for (sp = stamp; *sp; sp++)
     {
-        bp = strchr(SRS_TIME_BASECHARS, toupper(*sp));
+        bp = strchr(SRS_TIME_BASECHARS, toupper((unsigned char)*sp));
         if (bp == NULL)
             return SRS_EBADTIMESTAMPCHAR;
         off = bp - SRS_TIME_BASECHARS;
@@ -296,8 +296,8 @@ static void srs_hash_create_v(srs_t* srs, int idx, char* buf, int nargs,
         char lcdata[len + 1];
         for (j = 0; j < len; j++)
         {
-            if (isupper(data[j]))
-                lcdata[j] = tolower(data[j]);
+            if (isupper((unsigned char)data[j]))
+                lcdata[j] = tolower((unsigned char)data[j]);
             else
                 lcdata[j] = data[j];
         }
