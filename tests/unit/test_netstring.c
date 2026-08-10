@@ -58,34 +58,38 @@ START_TEST(netstring_decode_test)
     char* result;
     size_t length;
 
-    result = netstring_decode("8:PostSRSd,", buffer, sizeof(buffer), &length);
+    result =
+        netstring_decode("8:PostSRSd,", 12, buffer, sizeof(buffer), &length);
     ck_assert_ptr_nonnull(result);
     ck_assert_uint_eq(length, 8);
     ck_assert_mem_eq(result, "PostSRSd", length);
 
-    result = netstring_decode("16:0123456789abcdef,", buffer, sizeof(buffer),
-                              &length);
+    result = netstring_decode("16:0123456789abcdef,", 21, buffer,
+                              sizeof(buffer), &length);
     ck_assert_ptr_nonnull(result);
     ck_assert_uint_eq(length, 16);
     ck_assert_mem_eq(result, "0123456789abcdef", length);
 
-    result = netstring_decode("0:,", buffer, sizeof(buffer), &length);
+    result = netstring_decode("0:,", 4, buffer, sizeof(buffer), &length);
     ck_assert_ptr_nonnull(result);
     ck_assert_uint_eq(length, 0);
 
-    result = netstring_decode(NULL, buffer, sizeof(buffer), &length);
+    result = netstring_decode(NULL, 0, buffer, sizeof(buffer), &length);
     ck_assert_ptr_null(result);
 
-    result = netstring_decode("1a,", buffer, sizeof(buffer), &length);
+    result = netstring_decode("1a,", 4, buffer, sizeof(buffer), &length);
     ck_assert_ptr_null(result);
 
-    result = netstring_decode("1:a*", buffer, sizeof(buffer), &length);
+    result = netstring_decode("1:a*", 5, buffer, sizeof(buffer), &length);
     ck_assert_ptr_null(result);
 
-    result = netstring_decode("0x1:a,", buffer, sizeof(buffer), &length);
+    result = netstring_decode("0x1:a,", 7, buffer, sizeof(buffer), &length);
     ck_assert_ptr_null(result);
 
-    result = netstring_decode("000001:a,", buffer, sizeof(buffer), &length);
+    result = netstring_decode("2:,", 3, buffer, sizeof(buffer), &length);
+    ck_assert_ptr_null(result);
+
+    result = netstring_decode("0:", 2, buffer, sizeof(buffer), &length);
     ck_assert_ptr_null(result);
 }
 END_TEST

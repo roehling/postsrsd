@@ -37,16 +37,24 @@ char* netstring_encode(const char* data, size_t length, char* buffer,
     return buffer;
 }
 
-char* netstring_decode(const char* netstring, char* buffer, size_t bufsize,
-                       size_t* decoded_length)
+char* netstring_decode(const char* netstring, size_t encoded_length,
+                       char* buffer, size_t bufsize, size_t* decoded_length)
 {
     if (netstring == NULL)
         return NULL;
-    int i = -1;
-    size_t length;
-    if (sscanf(netstring, "%5zu%n", &length, &i) < 1)
-        return NULL;
-    if (i < 0 || length >= bufsize)
+    size_t i = 0;
+    size_t length = 0;
+    char ch;
+    while (i < encoded_length && netstring[i] != ':')
+    {
+        if (netstring[i] < '0' || netstring[i] > '9')
+            return NULL;
+        length = 10 * length + (netstring[i] - '0');
+        if (length > 100000 || length >= bufsize)
+            return NULL;
+        ++i;
+    }
+    if (i == 0 || length >= bufsize || length + i + 1 >= encoded_length)
         return NULL;
     if (netstring[i] != ':' || netstring[length + i + 1] != ',')
         return NULL;
