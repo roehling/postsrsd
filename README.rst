@@ -145,19 +145,14 @@ something like ``socketmap:inet:localhost:10003:forward``.
 
 .. _example: doc/postsrsd.conf
 
-Experimental Milter Support
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Milter Support
+~~~~~~~~~~~~~~
 
-PostSRSd 2.x has added optional support for the Milter protocol. You can set
-the ``milter`` option in ``postsrsd.conf`` and add the corresponding line to
-your ``etc/postfix/main.cf``::
+PostSRSd 2.x has added support for the Milter protocol. You can set the
+``milter`` option in ``postsrsd.conf`` and add the corresponding line to your
+``etc/postfix/main.cf``::
 
     smtpd_milters = unix:srs_milter
-
-Note that the Milter code is less tested and should be considered experimental
-for now and not ready for production. Feel free to report bugs or open pull
-requests if you try it out, though. Until PostSRSd 2.1, the milter support was
-implemented with the external libMilter library from Sendmail.
 
 Inotify Support
 ~~~~~~~~~~~~~~~
