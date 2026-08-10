@@ -634,7 +634,9 @@ int srs_forward_alloc(srs_t* srs, char** sptr, const char* sender,
 int srs_reverse(srs_t* srs, char* buf, unsigned buflen, const char* sender)
 {
     char* tmp;
-    unsigned len;
+    unsigned len = strlen(sender);
+    if (len < 5)
+        return SRS_ENOTSRSADDRESS;
 
     if (!SRS_IS_SRS_ADDRESS(sender))
         return SRS_ENOTSRSADDRESS;
@@ -642,7 +644,6 @@ int srs_reverse(srs_t* srs, char* buf, unsigned buflen, const char* sender)
     if (srs->noreverse)
         return SRS_ENOTREWRITTEN;
 
-    len = strlen(sender);
     if (len >= buflen)
         return SRS_EBUFTOOSMALL;
     char senduser[len + 1];
