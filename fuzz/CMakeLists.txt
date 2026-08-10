@@ -64,7 +64,9 @@ function(add_fuzzer_harness name)
     )
     target_link_libraries(${name}_harness PRIVATE postsrsd_fuzz)
     file(MAKE_DIRECTORY ${PROJECT_BINARY_DIR}/FUZZING/${name})
-    set(fuzzer_call ${AFL_FUZZ} -o "${PROJECT_BINARY_DIR}/FUZZING/${name}")
+    set(fuzzer_call ${AFL_FUZZ} -G 4096 -o
+                    "${PROJECT_BINARY_DIR}/FUZZING/${name}"
+    )
     if(arg_SEED)
         list(APPEND fuzzer_call -i
              "${CMAKE_CURRENT_SOURCE_DIR}/seeds/${arg_SEED}"
@@ -87,3 +89,4 @@ endfunction()
 add_fuzzer_harness(fuzz_netstring SEED netstring)
 add_fuzzer_harness(fuzz_srs SEED srs DICT srs)
 add_fuzzer_harness(fuzz_socketmap SEED socketmap DICT socketmap)
+add_fuzzer_harness(fuzz_milter SEED milter DICT milter)

@@ -18,8 +18,12 @@
 #define FUZZ_H
 
 #include <main.h>
+#include <stdint.h>
+
+typedef void (*network_client_t)(postsrsd_t*, int);
 
 postsrsd_t* fuzz_state_create();
 void fuzz_state_destroy(postsrsd_t* state);
+void fuzz_client(network_client_t client, const uint8_t* data, size_t size);
 
 #endif
