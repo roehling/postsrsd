@@ -44,7 +44,6 @@ char* netstring_decode(const char* netstring, size_t encoded_length,
         return NULL;
     size_t i = 0;
     size_t length = 0;
-    char ch;
     while (i < encoded_length && netstring[i] != ':')
     {
         if (netstring[i] < '0' || netstring[i] > '9')
