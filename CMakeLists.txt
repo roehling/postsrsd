@@ -54,6 +54,8 @@ set(POSTSRSD_USER
     CACHE STRING "The default unprivileged user as which PostSRSd will run"
 )
 
+option(BUILD_FUZZING "Build fuzzing harnesses" OFF)
+
 option(WITH_SQLITE
        "Enable sqlite-based storage for opaque SRS tokens (requires sqlite3)"
        OFF
@@ -499,6 +501,10 @@ if(BUILD_TESTING)
         endif()
     endif()
     add_subdirectory(tests)
+endif()
+
+if(BUILD_FUZZING)
+    add_subdirectory(fuzz)
 endif()
 
 feature_summary(WHAT ENABLED_FEATURES DISABLED_FEATURES)

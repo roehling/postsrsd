@@ -14,14 +14,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "config.h"
+#include "main.h"
+
 #include "database.h"
-#include "endpoint.h"
 #include "milter.h"
 #include "netstring.h"
 #include "postsrsd_build_config.h"
 #include "srs.h"
-#include "util.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -49,21 +48,7 @@ static time_t last_file_watch_event = 0;
 static bool sd_notify_support = false;
 static sandbox_t* sandbox = NULL;
 
-struct postsrsd
-{
-    cfg_t* cfg;
-    srs_t* srs;
-    endpoint_t* socketmap;
-    endpoint_t* milter;
-    char* srs_domain;
-    domain_set_t* local_domains;
-    file_watch_t* file_watch;
-    int target_uid, target_gid;
-    size_t connection_limit;
-};
-typedef struct postsrsd postsrsd_t;
-
-static void init_state(postsrsd_t* state)
+void init_state(postsrsd_t* state)
 {
     state->cfg = NULL;
     state->srs = NULL;
@@ -77,7 +62,7 @@ static void init_state(postsrsd_t* state)
     state->connection_limit = 0;
 }
 
-static void finalize_state(postsrsd_t* state)
+void finalize_state(postsrsd_t* state)
 {
     if (state->file_watch != NULL)
     {
@@ -272,7 +257,7 @@ static bool prepare_client(postsrsd_t* state, int conn, database_t** db)
     return true;
 }
 
-static void handle_socketmap_client(postsrsd_t* state, int conn)
+void handle_socketmap_client(postsrsd_t* state, int conn)
 {
     database_t* db;
     if (!prepare_client(state, conn, &db))
@@ -360,7 +345,7 @@ static void handle_socketmap_client(postsrsd_t* state, int conn)
     database_disconnect(db);
 }
 
-static void handle_milter_client(postsrsd_t* state, int conn)
+void handle_milter_client(postsrsd_t* state, int conn)
 {
 #define MILTER_AWAIT_OPTNEG      0
 #define MILTER_AWAIT_MAIL        1
@@ -832,6 +817,7 @@ static void collect_finished_workers(pid_set_t* P)
     } while (pid > 0);
 }
 
+#ifndef POSTSRSD_FUZZING
 int main(int argc, char** argv)
 {
     postsrsd_t state;
@@ -839,12 +825,12 @@ int main(int argc, char** argv)
     FILE* pf = NULL;
     pid_set_t* P = NULL;
     int exit_code = EXIT_FAILURE;
-#ifdef HAVE_CLOSE_RANGE
+#    ifdef HAVE_CLOSE_RANGE
     close_range(3, ~0U, 0);
-#else
+#    else
     for (int fd = 3; fd < 1024; ++fd)
         close(fd);
-#endif
+#    endif
     if (!setup_state(argc, argv, &state))
         goto shutdown;
     sandbox = sandbox_init();
@@ -1012,3 +998,4 @@ shutdown:
     pid_set_destroy(P);
     return exit_code;
 }
+#endif
