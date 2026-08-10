@@ -85,4 +85,5 @@ function(add_fuzzer_harness name)
 endfunction()
 
 add_fuzzer_harness(fuzz_netstring SEED netstring)
-add_fuzzer_harness(fuzz_srs SEED srs)
+add_fuzzer_harness(fuzz_srs SEED srs DICT srs)
+add_fuzzer_harness(fuzz_socketmap SEED socketmap DICT socketmap)

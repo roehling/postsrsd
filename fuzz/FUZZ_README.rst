@@ -15,6 +15,7 @@ This is a simple fuzzing harness for AFL_ which I used to shake out some bugs::
     cmake --build . --target $FUZZING_TARGET
     cmake --build . --target
 
-Currently implemented fuzzing targets are: ``fuzz_netstring``, ``fuzz_srs``
+Currently implemented fuzzing targets are:
+``fuzz_netstring``, ``fuzz_srs``, ``fuzz_socketmap``.
 
 .. _AFL: https://aflplus.plus/
