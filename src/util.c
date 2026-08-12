@@ -207,11 +207,7 @@ bool read_all(int fd, void* buffer, size_t size)
     {
         ssize_t r = read(fd, buffer + total, size - total);
         if (r <= 0)
-        {
-            if (r < 0 && errno == EINTR)
-                continue;
             return false;
-        }
         total += r;
     }
     return true;
@@ -223,9 +219,7 @@ bool writev_all(int fd, struct iovec* iov, size_t numv)
     do
     {
         ssize_t written = writev(fd, iov + i, numv - i);
-        if (written < 0 && errno != EINTR)
-            return false;
-        if (written == 0)
+        if (written <= 0)
             return false;
         while (written > 0)
         {

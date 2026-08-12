@@ -66,11 +66,7 @@ size_t milter_receive(int fd, void* buffer, size_t size, size_t* truncated)
             len < sizeof(discardpile) ? len : sizeof(discardpile);
         r = read(fd, discardpile, discard_len);
         if (r <= 0)
-        {
-            if (r < 0 && errno == EINTR)
-                continue;
             break;
-        }
         len -= r;
         if (truncated != NULL)
             *truncated += r;
