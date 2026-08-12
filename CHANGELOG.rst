@@ -7,6 +7,27 @@
 Changelog
 #########
 
+2.4.0
+=====
+
+Fixed
+-----
+
+* A few minor code defects have been fixed to contribute to defense in depth.
+
+Added
+-----
+
+* New configuration option ``connection-limit`` to prevent DoS attacks by
+  malicious clients repeatedly connecting to PostSRSd.
+* New configuration option ``milter-recipient-limit`` to keep the number
+  of recipients per SMTP session sane.
+
+Changed
+-------
+
+* The milter protocol implementation is no longer considered experimental.
+
 2.3.0
 =====
 
