@@ -131,9 +131,11 @@ class PostSRSd:
                     f'unix:{self._tmpdir_path / "postsrsd.sock"}'
                 )
             elif socket_family == SocketFamily.IP:
+                # We pick a PID based port number so multiple tests can run in parallel
+                port = 16384 + (os.getpid() % 32768)
                 self._family = socket.AF_INET
-                self._addr = ("127.0.0.1", 12345)
-                socketmap_endpoint[socket_type] = "inet:127.0.0.1:12345"
+                self._addr = ("127.0.0.1", port)
+                socketmap_endpoint[socket_type] = f"inet:127.0.0.1:{port}"
             if database == Database.SQLITE:
                 database_uri = f'sqlite:{self._tmpdir_path / "postsrsd.db"}'
             elif database == Database.REDIS:
