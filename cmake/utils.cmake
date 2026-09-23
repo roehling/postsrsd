@@ -87,6 +87,8 @@ function(find_systemd_unit_destination var)
         find_package(PkgConfig QUIET)
         if(PkgConfig_FOUND)
             pkg_get_variable(unitdir systemd systemdsystemunitdir)
+        endif()
+        if(unitdir)
             set(${var}
                 "${unitdir}"
                 PARENT_SCOPE
@@ -115,6 +117,8 @@ function(find_systemd_sysusers_destination var)
         find_package(PkgConfig QUIET)
         if(PkgConfig_FOUND)
             pkg_get_variable(sysusersdir systemd sysusersdir)
+        endif()
+        if(sysusersdir)
             set(${var}
                 "${sysusersdir}"
                 PARENT_SCOPE
