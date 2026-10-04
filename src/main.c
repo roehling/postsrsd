@@ -590,7 +590,7 @@ void handle_milter_client(postsrsd_t* state, int conn)
                     goto done;
                 goto cleanup;
             case MILTER_CMD_ABORT:
-                log_info("%s: MTA aborted transaction", queue_id);
+                log_debug("%s: MTA aborted transaction", queue_id);
 cleanup:
                 list_clear(sender, free);
                 list_clear(recipients, free);
