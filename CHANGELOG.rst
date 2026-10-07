@@ -7,6 +7,19 @@
 Changelog
 #########
 
+2.4.1
+=====
+
+Fixed
+-----
+
+* Make systemd unit configuration more robust
+
+Changed
+-------
+
+* Downgrade log message to debug for MTA milter abort
+
 2.4.0
 =====
 
